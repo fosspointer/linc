@@ -63,10 +63,11 @@ public:
         
         if(auto* scopestmt = dynamic_cast<const linc::BoundScopeStatement*>(statement))
         {
+            linc::TypedValue value = false;
             for(const auto& stmt: scopestmt->getStatements())
-                evaluateStatement(stmt);
+                value = evaluateStatement(stmt);
             
-            return true; 
+            return value; 
         }
         else if(auto* vardeclstmt = dynamic_cast<const linc::BoundVariableDeclarationStatement*>(statement))
         {
@@ -170,42 +171,52 @@ int main(int argc, char** argv)
         {
             linc::Logger::print("linc > ");
 
-            std::string buffer;
+            std::string buffer, buffer_tolower;
             std::getline(std::cin, buffer);
 
             for(char& c: buffer)
-                c = tolower(c);
+                buffer_tolower.push_back(tolower(c));
 
-            if(buffer == "/clear")
+            if(buffer_tolower.starts_with("/clear"))
             {
                 system("clear");
                 continue;
             }
-            else if(buffer == "/tree")
+            else if(buffer_tolower.starts_with("/tree"))
             {
                 show_tree = !show_tree;
                 linc::Logger::println("$ node tree display!", show_tree? "Enabled" : "Disabled");
                 continue;
             }
-            else if(buffer == "/lexer")
+            else if(buffer_tolower.starts_with("/lexer"))
             {
                 show_lexer = !show_lexer;
                 linc::Logger::println("$ lexer token display!", show_tree? "Enabled" : "Disabled");
                 continue;
             }
-            else if(buffer == "/reset")
+            else if(buffer_tolower.starts_with("/reset"))
             {
                 binder = linc::Binder();
                 evaluator = Evaluator();
                 system("clear");
                 continue;
             }
-            else if(buffer == "/?" || buffer == "/help" || buffer == "help" || buffer == "?")
+            else if(buffer_tolower.starts_with("/file"))
+            {
+                std::string filename;
+
+                linc::Logger::print("Enter the file to evaluate: ");
+                std::getline(std::cin, filename);
+
+                buffer = linc::Files::read(filename);
+            }
+            else if(buffer_tolower == "/?" || buffer_tolower == "/help" || buffer_tolower == "?")
             {
                 linc::Logger::println("/clear: runs the GNU command of the same name.");
                 linc::Logger::println("/tree: toggles the visual representation of the AST.");
                 linc::Logger::println("/reset: gets rid of any declared variables.");
                 linc::Logger::println("/lexer: toggles the lexer token display.");
+                linc::Logger::println("/file: evaluate program from file.");
                 linc::Logger::println("/help: displays this menu.");
                 linc::Logger::println("/q: quits the application.");
                 continue;

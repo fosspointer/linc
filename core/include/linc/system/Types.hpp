@@ -46,6 +46,7 @@ namespace linc
         static Type fromUserString(const std::string& value);
         static Type fromUserStringSuffix(const std::string& value);
         static Types::_bool parseBoolean(const std::string& str);
+        static Types::_char parseCharacter(const std::string& str);
         static bool isNumeric(Type type);
         static bool isIntegral(Type type);
         static bool isSigned(Type type);

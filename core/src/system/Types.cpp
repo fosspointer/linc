@@ -105,9 +105,9 @@ namespace linc
 
     Types::Type Types::fromUserStringSuffix(const std::string& value)
     {
-        auto f = s_typeMap.find(value);
+        auto f = s_suffixMap.find(value);
         
-        if(f != s_typeMap.end())
+        if(f != s_suffixMap.end())
             return f->second;
         else return Type::Invalid;
     }
@@ -128,6 +128,21 @@ namespace linc
             
             return integral != 0;
         }
+    }
+
+    Types::_char Types::parseCharacter(const std::string& str)
+    {
+        char* p;
+        char character = static_cast<char>(strtol(str.c_str(), &p, 10));
+            
+        if(*p)
+        {
+            if(str.length() == 1)
+                return str[0];
+            else
+                throw LINC_EXCEPTION_INVALID_INPUT("Invalid character expression");
+        }
+        return character;
     }
 
     bool Types::isNumeric(Type type)

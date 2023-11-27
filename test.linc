@@ -1,7 +1,6 @@
 # Example program in linc!
 
-fn main(): u8
 {
-    println("Hello, World!");
-    return 0;
+    f32 degrees_fahrenheit = 98.6f32
+    f32 degrees_celsius = (degrees_fahrenheit - 32f32) * 5f32 / 9f32
 }

@@ -172,6 +172,8 @@ namespace linc
                 return new BoundLiteralExpression((Types::f32)std::stof(expression->getValue()));
             case Token::Type::F64Literal:
                 return new BoundLiteralExpression((Types::f64)std::stod(expression->getValue()));
+            case Token::Type::CharacterLiteral:
+                return new BoundLiteralExpression(Types::parseCharacter(expression->getValue()));
             case Token::Type::KeywordTrue:
             case Token::Type::KeywordFalse:
                 return new BoundLiteralExpression(Types::parseBoolean(expression->getValue()));
