@@ -1,0 +1,295 @@
+#include <iostream>
+#include <linc/system/Logger.hpp>
+#include <linc/system/Files.hpp>
+#include <linc/system/Reporting.hpp> 
+#include <linc/lexer/Lexer.hpp>
+#include <linc/parser/Parser.hpp>
+#include <linc/tree/Expression.hpp>
+#include <linc/tree/LiteralExpression.hpp>
+#include <linc/tree/BinaryExpression.hpp>
+#include <linc/tree/UnaryExpression.hpp>
+#include <linc/tree/ParenthesisExpression.hpp>
+#include <linc/tree/IdentifierExpression.hpp>
+#include <linc/tree/Statement.hpp>
+#include <linc/tree/VariableDeclarationStatement.hpp>
+#include <linc/tree/ExpressionStatement.hpp>
+#include <linc/tree/ScopeStatement.hpp>
+#include <linc/bound_tree/BoundUnaryExpression.hpp>
+#include <linc/bound_tree/BoundBinaryExpression.hpp>
+#include <linc/bound_tree/BoundLiteralExpression.hpp>
+#include <linc/bound_tree/BoundIdentifierExpression.hpp>
+#include <linc/bound_tree/Binder.hpp>
+#include <cstring>
+
+#define LINC_EXIT_SUCCESS 0
+#define LINC_EXIT_FAILURE_LINC_EXCEPTION 1
+#define LINC_EXIT_FAILURE_STANDARD_EXCEPTION 2
+#define LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION 3
+
+void printUsage(const std::string& program_name)
+{
+    linc::Logger::log(linc::Logger::Type::Info, "Usage: $ <code to compile>", program_name);
+}
+
+std::string nodeTypeToString(const linc::Node& node)
+{
+    if(dynamic_cast<const linc::LiteralExpression*>(&node))
+        return "LiteralExpression";
+    else if(dynamic_cast<const linc::BinaryExpression*>(&node))
+        return "BinaryExpression";
+    else if(dynamic_cast<const linc::ParenthesisExpression*>(&node))
+        return "ParenthesisExpression";
+    else if(dynamic_cast<const linc::UnaryExpression*>(&node))
+        return "UnaryExpression";
+    else if(dynamic_cast<const linc::IdentifierExpression*>(&node))
+        return "IdentifierExpression";
+    else if(dynamic_cast<const linc::ExpressionStatement*>(&node))
+        return "ExpressionStatement";
+    else if(dynamic_cast<const linc::ScopeStatement*>(&node))
+        return "ScopeStatement";
+    else if(dynamic_cast<const linc::VariableDeclarationStatement*>(&node))
+        return "VariableDeclarationStatement";
+    else
+        return "<unknown-expression>";
+}
+
+void prettyPrint(const linc::Node* node, std::string indent = "", bool last = true)
+{
+    auto marker = last? "└──" : "├──";
+
+    linc::Logger::print("$:$:$", indent, marker, nodeTypeToString(*node));
+
+    if(auto* intlitexp = dynamic_cast<const linc::LiteralExpression*>(node))
+        linc::Logger::print(" '$'", intlitexp->getValue());
+
+    else if (auto* identexp = dynamic_cast<const linc::IdentifierExpression*>(node))
+        linc::Logger::print(" '$'", identexp->getIdentifierToken().value.value());
+    
+    else if (auto* binexp = dynamic_cast<const linc::BinaryExpression*>(node))
+        linc::Logger::print(" '$'", linc::Token::typeToString(binexp->getOperatorToken().type));
+    
+    else if (auto* unexp = dynamic_cast<const linc::UnaryExpression*>(node))
+        linc::Logger::print(" '$'", linc::Token::typeToString(unexp->getOperatorToken().type));
+
+    else if (auto* vardeclstmt = dynamic_cast<const linc::VariableDeclarationStatement*>(node))
+        linc::Logger::print(": $", vardeclstmt->getTypeNameIdentifierToken().value.value());
+
+    linc::Logger::println();
+
+    indent += last? "   ": "│  ";
+
+    const linc::Node* last_child = node->getChildren().size() > 0? node->getChildren()[node->getChildren().size() - 1]: nullptr;
+
+    for(auto child: node->getChildren())
+    {
+        prettyPrint(child, indent, child == last_child);
+    }
+}
+
+class Evaluator
+{
+public:
+    struct Variable
+    {   
+        std::string name;
+        linc::TypedValue value{false};
+    };
+
+    linc::TypedValue evaluateStatement(const linc::BoundStatement* statement)
+    {
+        if(auto* expstmt = dynamic_cast<const linc::BoundExpressionStatement*>(statement))
+            return evaluateExpression(expstmt->getExpression());
+        
+        if(auto* scopestmt = dynamic_cast<const linc::BoundScopeStatement*>(statement))
+        {
+            for(const auto& stmt: scopestmt->getStatements())
+                evaluateStatement(stmt);
+            
+            return true; 
+        }
+        else if(auto* vardeclstmt = dynamic_cast<const linc::BoundVariableDeclarationStatement*>(statement))
+        {
+            auto variable = m_variables[vardeclstmt->getName()] = Variable{
+                .name = vardeclstmt->getName(),
+                .value = evaluateExpression(vardeclstmt->getValueExpression()).convert(vardeclstmt->getType())
+            };
+
+            return variable.value;
+        }
+        else
+        {
+            throw LINC_EXCEPTION("Encountered unrecognized statement type while evaluating program"); 
+            return 0;
+        }
+    }
+
+    linc::TypedValue evaluateExpression(const linc::BoundExpression* expression)
+    {
+        if(auto* litexp = dynamic_cast<const linc::BoundLiteralExpression*>(expression))
+        {
+            return litexp->getValue();
+        }
+        else if(auto* binexp = dynamic_cast<const linc::BoundBinaryExpression*>(expression))
+        {
+            auto left = evaluateExpression(binexp->getLeft());
+            auto right = evaluateExpression(binexp->getRight());
+
+            switch(binexp->getOperator()->getKind())
+            {
+            case linc::BoundBinaryOperator::Kind::Addition:
+                return left + right;
+            case linc::BoundBinaryOperator::Kind::Subtraction:
+                return left - right;
+            case linc::BoundBinaryOperator::Kind::Multiplication:
+                return left * right;
+            case linc::BoundBinaryOperator::Kind::Division:
+                return left / right;
+            case linc::BoundBinaryOperator::Kind::LogicalAnd:
+                return left.getBool() && right.getBool();
+            case linc::BoundBinaryOperator::Kind::LogicalOr:
+                return left.getBool() || right.getBool();
+            case linc::BoundBinaryOperator::Kind::Equals:
+                return bool(left == right);
+            case linc::BoundBinaryOperator::Kind::NotEquals:
+                return bool(left != right);
+            default: return 0;
+            }
+        }
+        else if(auto* unaryexp = dynamic_cast<const linc::BoundUnaryExpression*>(expression))
+        {
+            auto operand = evaluateExpression(unaryexp->getOperand());
+
+            switch(unaryexp->getOperator()->getKind())
+            {
+            case linc::BoundUnaryOperator::Kind::UnaryPlus:
+                return operand.getI32();
+            case linc::BoundUnaryOperator::Kind::UnaryMinus:
+                return -operand.getI32();
+            case linc::BoundUnaryOperator::Kind::LogicalNot:
+                return !operand.getBool();
+            default: return 0;
+            }
+        }
+        else if(auto* identexp = dynamic_cast<const linc::BoundIdentifierExpression*>(expression))
+        {
+            auto find = m_variables.find(identexp->getValue());
+            
+            if(find == m_variables.end())
+            {
+                linc::Reporting::push(linc::Reporting::Report{
+                    .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Generator,
+                    .message = linc::Logger::format("Variable '$' does not exist!", identexp->getValue())
+                });
+
+                return false;
+            }
+
+            return find->second.value;
+        }
+        else
+        {
+            throw LINC_EXCEPTION("Encountered unrecognized expression type while evaluating program"); 
+            return -1;
+        }
+    }
+private:
+    std::unordered_map<std::string, Variable> m_variables;
+};
+
+int main(int argc, char** argv)
+{
+    try
+    {
+        bool show_tree{true}, show_lexer{false};
+
+        linc::Binder binder;
+        Evaluator evaluator;
+
+        while(true)
+        {
+            linc::Logger::print("linc > ");
+
+            std::string buffer;
+            std::getline(std::cin, buffer);
+
+            for(char& c: buffer)
+                c = tolower(c);
+
+            if(buffer == "/clear")
+            {
+                system("clear");
+                continue;
+            }
+            else if(buffer == "/tree")
+            {
+                show_tree = !show_tree;
+                linc::Logger::println("$ node tree display!", show_tree? "Enabled" : "Disabled");
+                continue;
+            }
+            else if(buffer == "/lexer")
+            {
+                show_lexer = !show_lexer;
+                linc::Logger::println("$ lexer token display!", show_tree? "Enabled" : "Disabled");
+                continue;
+            }
+            else if(buffer == "/reset")
+            {
+                binder = linc::Binder();
+                evaluator = Evaluator();
+                system("clear");
+                continue;
+            }
+            else if(buffer == "/?" || buffer == "/help" || buffer == "help" || buffer == "?")
+            {
+                linc::Logger::println("/clear: runs the GNU command of the same name.");
+                linc::Logger::println("/tree: toggles the visual representation of the AST.");
+                linc::Logger::println("/reset: gets rid of any declared variables.");
+                linc::Logger::println("/lexer: toggles the lexer token display.");
+                linc::Logger::println("/help: displays this menu.");
+                linc::Logger::println("/q: quits the application.");
+                continue;
+            }
+            else if(buffer == "q" || buffer == "/q")
+                return LINC_EXIT_SUCCESS;
+            
+            linc::Lexer lexer(buffer);
+            auto tokens = lexer();
+
+            if(show_lexer)
+                for(auto& token: tokens)
+                {
+                    linc::Logger::println("Token {type: '$', value: '$'}", linc::Token::typeToString(token.type), token.value.value_or(""));
+                }
+
+            linc::Parser parser(tokens);
+            auto tree = parser();
+
+            if(show_tree)
+                prettyPrint(tree, "");
+
+            auto program = binder.bindStatement(tree);
+
+            if(linc::Reporting::getReports().size() == 0)
+                linc::Logger::println("-> $", evaluator.evaluateStatement(program));
+
+            linc::Reporting::clearReports();
+        }
+
+        return LINC_EXIT_SUCCESS;
+    }
+    catch(const linc::Exception& e)
+    {
+        linc::Logger::log(linc::Logger::Type::Error, "[LINC EXCEPTION] $", e.info());
+        return LINC_EXIT_FAILURE_LINC_EXCEPTION;
+    }
+    catch(const std::exception& e)
+    {
+        linc::Logger::log(linc::Logger::Type::Error, "[STANDARD EXCEPTION] $", e.what());
+        return LINC_EXIT_FAILURE_STANDARD_EXCEPTION;
+    }
+    catch(...)
+    {
+        linc::Logger::log(linc::Logger::Type::Error, "[UNKNOWN EXCPETION]");
+        return LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION;
+    }
+}

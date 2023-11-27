@@ -1,0 +1,7 @@
+# Example program in linc!
+
+fn main(): u8
+{
+    println("Hello, World!");
+    return 0;
+}

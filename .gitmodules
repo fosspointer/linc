@@ -1,0 +1,3 @@
+[submodule "code_standard"]
+	path = code_standard
+	url = https://github.com/fosspointer/code_standard
