@@ -1,23 +1,6 @@
-#include <iostream>
-#include <linc/system/Logger.hpp>
 #include <linc/system/Files.hpp>
-#include <linc/system/Reporting.hpp> 
 #include <linc/lexer/Lexer.hpp>
 #include <linc/parser/Parser.hpp>
-#include <linc/tree/Expression.hpp>
-#include <linc/tree/LiteralExpression.hpp>
-#include <linc/tree/BinaryExpression.hpp>
-#include <linc/tree/UnaryExpression.hpp>
-#include <linc/tree/ParenthesisExpression.hpp>
-#include <linc/tree/IdentifierExpression.hpp>
-#include <linc/tree/Statement.hpp>
-#include <linc/tree/VariableDeclarationStatement.hpp>
-#include <linc/tree/ExpressionStatement.hpp>
-#include <linc/tree/ScopeStatement.hpp>
-#include <linc/bound_tree/BoundUnaryExpression.hpp>
-#include <linc/bound_tree/BoundBinaryExpression.hpp>
-#include <linc/bound_tree/BoundLiteralExpression.hpp>
-#include <linc/bound_tree/BoundIdentifierExpression.hpp>
 #include <linc/bound_tree/Binder.hpp>
 #include <cstring>
 
@@ -26,55 +9,33 @@
 #define LINC_EXIT_FAILURE_STANDARD_EXCEPTION 2
 #define LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION 3
 
-void printUsage(const std::string& program_name)
-{
-    linc::Logger::log(linc::Logger::Type::Info, "Usage: $ <code to compile>", program_name);
-}
-
 std::string nodeTypeToString(const linc::Node& node)
 {
-    if(dynamic_cast<const linc::LiteralExpression*>(&node))
-        return "LiteralExpression";
-    else if(dynamic_cast<const linc::BinaryExpression*>(&node))
-        return "BinaryExpression";
-    else if(dynamic_cast<const linc::ParenthesisExpression*>(&node))
+    if(auto* lit_exp = dynamic_cast<const linc::LiteralExpression*>(&node))
+        return linc::Logger::format("LiteralExpression '$'", lit_exp->getValue());
+    else if(auto* ident_exp = dynamic_cast<const linc::IdentifierExpression*>(&node))
+        return linc::Logger::format("IdentifierExpression '$'", ident_exp->getIdentifierToken().value.value());
+    else if(auto* un_exp = dynamic_cast<const linc::UnaryExpression*>(&node))
+        return linc::Logger::format("UnaryExpression '$'", linc::Token::typeToString(un_exp->getOperatorToken().type));
+    else if(auto* bin_exp = dynamic_cast<const linc::BinaryExpression*>(&node))
+        return linc::Logger::format("BinaryExpression '$'", linc::Token::typeToString(bin_exp->getOperatorToken().type));
+    else if(auto* var_decl_stmt = dynamic_cast<const linc::VariableDeclarationStatement*>(&node))
+        return linc::Logger::format("VariableDeclarationStatement: $", var_decl_stmt->getTypeNameIdentifierToken().value.value());
+    else if(auto* paren_exp =  dynamic_cast<const linc::ParenthesisExpression*>(&node))
         return "ParenthesisExpression";
-    else if(dynamic_cast<const linc::UnaryExpression*>(&node))
-        return "UnaryExpression";
-    else if(dynamic_cast<const linc::IdentifierExpression*>(&node))
-        return "IdentifierExpression";
-    else if(dynamic_cast<const linc::ExpressionStatement*>(&node))
+    else if(auto* exp_stmt = dynamic_cast<const linc::ExpressionStatement*>(&node))
         return "ExpressionStatement";
-    else if(dynamic_cast<const linc::ScopeStatement*>(&node))
+    else if(auto* scope_stmt =  dynamic_cast<const linc::ScopeStatement*>(&node))
         return "ScopeStatement";
-    else if(dynamic_cast<const linc::VariableDeclarationStatement*>(&node))
-        return "VariableDeclarationStatement";
     else
-        return "<unknown-expression>";
+        return "<unknown-node>";
 }
 
-void prettyPrint(const linc::Node* node, std::string indent = "", bool last = true)
+void printNodeTree(const linc::Node* node, std::string indent = "", bool last = true)
 {
     auto marker = last? "└──" : "├──";
 
-    linc::Logger::print("$:$:$", indent, marker, nodeTypeToString(*node));
-
-    if(auto* intlitexp = dynamic_cast<const linc::LiteralExpression*>(node))
-        linc::Logger::print(" '$'", intlitexp->getValue());
-
-    else if (auto* identexp = dynamic_cast<const linc::IdentifierExpression*>(node))
-        linc::Logger::print(" '$'", identexp->getIdentifierToken().value.value());
-    
-    else if (auto* binexp = dynamic_cast<const linc::BinaryExpression*>(node))
-        linc::Logger::print(" '$'", linc::Token::typeToString(binexp->getOperatorToken().type));
-    
-    else if (auto* unexp = dynamic_cast<const linc::UnaryExpression*>(node))
-        linc::Logger::print(" '$'", linc::Token::typeToString(unexp->getOperatorToken().type));
-
-    else if (auto* vardeclstmt = dynamic_cast<const linc::VariableDeclarationStatement*>(node))
-        linc::Logger::print(": $", vardeclstmt->getTypeNameIdentifierToken().value.value());
-
-    linc::Logger::println();
+    linc::Logger::println("$:$:$", indent, marker, nodeTypeToString(*node));
 
     indent += last? "   ": "│  ";
 
@@ -82,7 +43,7 @@ void prettyPrint(const linc::Node* node, std::string indent = "", bool last = tr
 
     for(auto child: node->getChildren())
     {
-        prettyPrint(child, indent, child == last_child);
+        printNodeTree(child, indent, child == last_child);
     }
 }
 
@@ -162,9 +123,9 @@ public:
             switch(unaryexp->getOperator()->getKind())
             {
             case linc::BoundUnaryOperator::Kind::UnaryPlus:
-                return operand.getI32();
+                return operand;
             case linc::BoundUnaryOperator::Kind::UnaryMinus:
-                return -operand.getI32();
+                return -operand;
             case linc::BoundUnaryOperator::Kind::LogicalNot:
                 return !operand.getBool();
             default: return 0;
@@ -265,7 +226,7 @@ int main(int argc, char** argv)
             auto tree = parser();
 
             if(show_tree)
-                prettyPrint(tree, "");
+                printNodeTree(tree, "");
 
             auto program = binder.bindStatement(tree);
 

@@ -131,6 +131,20 @@ namespace linc
             }
         }
 
+        TypedValue operator-() const
+        {
+            switch(m_type)
+            {
+            case Types::Type::i8: return -this->m_value_i8;
+            case Types::Type::i16: return -this->m_value_i16;
+            case Types::Type::i32: return -this->m_value_i32;
+            case Types::Type::i64: return -this->m_value_i64;
+            case Types::Type::f32: return -this->m_value_f32;
+            case Types::Type::f64: return -this->m_value_f64;
+            default: throw LINC_EXCEPTION_INVALID_INPUT("Invalid operand for unary negation");
+            }
+        }
+
         TypedValue operator*(const TypedValue& other) const
         {
             auto self = convert(other.m_type);

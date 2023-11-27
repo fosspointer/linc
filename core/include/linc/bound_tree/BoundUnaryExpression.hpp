@@ -46,7 +46,7 @@ namespace linc
                 else if(operand_type == Types::Type::_char)
                     return Types::Type::i32;
             case Kind::UnaryMinus:
-                if(Types::isNumeric(operand_type))
+                if(Types::isSigned(operand_type) || Types::isFloating(operand_type))
                     return operand_type;
                 else return Types::Type::Invalid;
             case Kind::LogicalNot:
