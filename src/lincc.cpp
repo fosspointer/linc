@@ -162,7 +162,7 @@ int main(int argc, char** argv)
 {
     try
     {
-        bool show_tree{true}, show_lexer{false};
+        bool show_tree{false}, show_lexer{false};
 
         linc::Binder binder;
         Evaluator evaluator;
