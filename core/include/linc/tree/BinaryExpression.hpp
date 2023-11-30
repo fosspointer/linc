@@ -6,15 +6,15 @@ namespace linc
     class BinaryExpression final : public Expression
     {
     public:
-        BinaryExpression(const Token& operator_token, Expression* left, Expression* right)
+        BinaryExpression(const Token& operator_token, std::unique_ptr<const Expression> left, std::unique_ptr<const Expression> right)
             :Expression({.isValid = left->isValid() && right->isValid(), .lineNumber = operator_token.lineNumber}),
-            m_left(left), m_right(right), m_operator(operator_token)
+            m_left(std::move(left)), m_right(std::move(right)), m_operatorToken(operator_token)
         {
-            addTokens(left->getTokens());
-            addToken(operator_token);
-            addTokens(right->getTokens());
+            addTokens(m_left->getTokens());
+            addToken(m_operatorToken);
+            addTokens(m_right->getTokens());
 
-            if(!m_operator.isBinaryOperator())
+            if(!m_operatorToken.isBinaryOperator())
             {
                 setValid(false);
                 Reporting::push(Reporting::Report{
@@ -25,16 +25,21 @@ namespace linc
 
         virtual std::vector<const Node*> getChildren() const final override 
         {
-            return {m_left, m_right};
+            return {m_left.get(), m_right.get()};
         }
 
-        inline const Expression* getLeft() const { return m_left; }
-        inline const Expression* getRight() const { return m_right; }
+        virtual std::unique_ptr<const Expression> clone_const() const final override
+        {
+            return std::make_unique<const BinaryExpression>(m_operatorToken, std::move(m_left->clone_const()), std::move(m_right->clone_const()));
+        }
 
-        inline const Token& getOperatorToken() const { return m_operator; }
-        inline Token& getOperatorToken() { return m_operator; }
+        inline const Expression* getLeft() const { return m_left.get(); }
+        inline const Expression* getRight() const { return m_right.get(); }
+
+        inline const Token& getOperatorToken() const { return m_operatorToken; }
+        inline Token& getOperatorToken() { return m_operatorToken; }
     private:
-        const Expression* m_left, *m_right;
-        Token m_operator;
+        std::unique_ptr<const Expression> m_left, m_right;
+        Token m_operatorToken;
     };
 }

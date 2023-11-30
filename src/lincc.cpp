@@ -1,7 +1,8 @@
-#include <linc/system/Files.hpp>
-#include <linc/lexer/Lexer.hpp>
-#include <linc/parser/Parser.hpp>
-#include <linc/bound_tree/Binder.hpp>
+#include <linc/System.hpp>
+#include <linc/Lexer.hpp>
+#include <linc/Parser.hpp>
+#include <linc/Tree.hpp>
+#include <linc/Binder.hpp>
 #include <cstring>
 
 #define LINC_EXIT_SUCCESS 0
@@ -65,7 +66,7 @@ public:
         {
             linc::TypedValue value = false;
             for(const auto& stmt: scopestmt->getStatements())
-                value = evaluateStatement(stmt);
+                value = evaluateStatement(stmt.get());
             
             return value; 
         }
@@ -237,12 +238,12 @@ int main(int argc, char** argv)
             auto tree = parser();
 
             if(show_tree)
-                printNodeTree(tree, "");
+                printNodeTree(tree.get(), "");
 
-            auto program = binder.bindStatement(tree);
+            auto program = binder.bindStatement(tree.get());
 
             if(linc::Reporting::getReports().size() == 0)
-                linc::Logger::println("-> $", evaluator.evaluateStatement(program));
+                linc::Logger::println("-> $", evaluator.evaluateStatement(program.get()));
 
             linc::Reporting::clearReports();
         }

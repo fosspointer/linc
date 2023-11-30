@@ -6,18 +6,21 @@
 
 namespace linc
 {
+    /// @brief Aggregate structure used by the lexer to abstract from raw code, such that the parser does not have to deal code on an individual
+    /// character basis.
     struct Token final
     {
     public:
+        /// @brief The type of a Token
         enum class Type
         {
-            // For error handling (the tokenization won't stop on invalid syntax for syntax-highlighting purposes and more...)
+            // Invalid token
             InvalidToken,
 
-            // For convenience
+            // End of File token
             EndOfFile,
             
-            // Generic keywords
+            // Keywords
             KeywordReturn, KeywordFunction, KeywordIf, KeywordElseIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse,
             
             // Symbols
@@ -27,7 +30,7 @@ namespace linc
             OperatorPlus, OperatorMinus, OperatorAsterisk, OperatorSlash, OperatorPercent,
             OperatorIncrement, OperatorDecrement,
             
-            // Assignment 
+            // Assignment operator
             OperatorAssignment, 
 
             // Arithmetic Asignment operators
@@ -43,10 +46,13 @@ namespace linc
             // Bitwise operators
             OperatorBitwiseAnd, OperatorBitwiseOr, OperatorBitwiseXor, OperatorBitwiseNot, OperatorBitwiseShiftLeft, OperatorBitwiseShiftRight,
             
-            // Integer literal
-            I8Literal, I16Literal, I32Literal, I64Literal, U8Literal, U16Literal, U32Literal, U64Literal,
+            // Signed integer literals
+            I8Literal, I16Literal, I32Literal, I64Literal,
             
-            // Floating-point literal
+            // Unsigned integer literals
+            U8Literal, U16Literal, U32Literal, U64Literal,
+            
+            // Floating-point literals
             F32Literal, F64Literal,
             
             // String literal
@@ -59,276 +65,92 @@ namespace linc
             Identifier, 
         };
 
-        static std::string typeToString(Type type)
-        {
-            switch(type)
-            {
-            case Type::InvalidToken: return "Invalid Token";
-            case Type::EndOfFile: return "End of File";
-            case Type::KeywordReturn: return "Return Keyword";
-            case Type::KeywordFunction: return "Function Keyword";
-            case Type::KeywordIf: return "If Keyword";
-            case Type::KeywordElseIf: return "Else If Keyword";
-            case Type::KeywordElse: return "Else Keyword";
-            case Type::KeywordWhile: return "While Keyword";
-            case Type::KeywordTrue: return "True Keyword Literal";
-            case Type::KeywordFalse: return "False Keyword Literal";
-            case Type::ParenthesisLeft: return "Opening Parenthesis";
-            case Type::ParenthesisRight: return "Closing Parenthesis";
-            case Type::SquareLeft: return "Opening Square Bracket";
-            case Type::SquareRight: return "Closing Square Bracket";
-            case Type::BraceLeft: return "Opening Curly Brace";
-            case Type::BraceRight: return "Closing Curly Brace";
-            case Type::ReturnType: return "Return Type";
-            case Type::Comma: return "Comma";
-            case Type::OperatorPlus: return "Plus Operator";
-            case Type::OperatorMinus: return "Minus Operator";
-            case Type::OperatorAsterisk: return "Asterisk Operator";
-            case Type::OperatorSlash: return "Slash Operator";
-            case Type::OperatorPercent: return "Percent Operator";
-            case Type::OperatorIncrement: return "Increment Operator";
-            case Type::OperatorDecrement: return "Decrement Operator";
-            case Type::OperatorAssignment: return "Assignment Operator";
-            case Type::OperatorAsignmentAddition: return "Addition Asignment Operator";
-            case Type::OperatorAsignmentSubstraction: return "Substraction Asignment Operator";
-            case Type::OperatorAssignmentMultiplication: return "Multiplication Assignment Operator";
-            case Type::OperatorAssignmentDivision: return "Division Assignment Operator";
-            case Type::OperatorAssignmentModulo: return "Modulo Assignment Operator";
-            case Type::OperatorEquals: return "Equals Operator";
-            case Type::OperatorNotEquals: return "Not Equals Operator";
-            case Type::OperatorGreater: return "Greater than Operator";
-            case Type::OperatorLess: return "Less than Operator";
-            case Type::OperatorGreaterEqual: return "Greater or Equal Operator";
-            case Type::OperatorLessEqual: return "Less or Equal Operator";
-            case Type::OperatorLogicalAnd: return "Logical And Operator";
-            case Type::OperatorLogicalOr: return "Logical Or Operator";
-            case Type::OperatorLogicalNot: return "Logical Not Operator";
-            case Type::OperatorBitwiseAnd: return "Bitwise And Operator";
-            case Type::OperatorBitwiseOr: return "Bitwise Or Operator";
-            case Type::OperatorBitwiseXor: return "Bitwise Xor Operator";
-            case Type::OperatorBitwiseNot: return "Bitwise Not Operator";
-            case Type::OperatorBitwiseShiftLeft: return "Bitwise Shift Left Operator";
-            case Type::OperatorBitwiseShiftRight: return "Bitwise Shift Right Operator";
-            case Type::I8Literal: return "I8 Literal";
-            case Type::I16Literal: return "I16 Literal";
-            case Type::I32Literal: return "I32 Literal";
-            case Type::I64Literal: return "I64 Literal";
-            case Type::U8Literal: return "U8 Literal";
-            case Type::U16Literal: return "U16 Literal";
-            case Type::U32Literal: return "U32 Literal";
-            case Type::U64Literal: return "U64 Literal";
-            case Type::F32Literal: return "F32 Literal";
-            case Type::F64Literal: return "F64 Literal";
-            case Type::CharacterLiteral: return "Character Literal";
-            case Type::StringLiteral: return "String Literal";
-            case Type::Identifier: return "Identifier";
-            default: 
-                return Logger::format("????: $", (int)type);
-                throw LINC_EXCEPTION_OUT_OF_BOUNDS(Token::Type);
-            }
-        }
+        /// @brief Convert a given token type to a string, essential for error handling/debugging/IO.
+        /// @param type The type of the token, to be converted to string.
+        /// @return String corresponding to the given token type.
+        static std::string typeToString(Type type);
+        
+        /// @brief Check whether this token is valid- not of the 'InvalidToken' type.
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isValid() const;
 
-        [[nodiscard]] bool isValid() const
-        {
-            return type != Type::InvalidToken;
-        }
+        /// @brief Check whether this token is a literal. Literals include character literals (e.g. 'c', 60c),
+        /// string literals (e.g. "hello world"), integer literals (e.g. 10u8, 10i16), boolean literals(true, false, 1b).
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isLiteral() const;
 
-        [[nodiscard]] bool isLiteral() const
-        {
-            switch(type)
-            {
-            case Type::I8Literal:
-            case Type::I16Literal:
-            case Type::I32Literal:
-            case Type::I64Literal:
-            case Type::U8Literal:
-            case Type::U16Literal:
-            case Type::U32Literal:
-            case Type::U64Literal:
-            case Type::F32Literal:
-            case Type::F64Literal:
-            case Type::CharacterLiteral:
-            case Type::StringLiteral:
-            case Type::KeywordTrue:
-            case Type::KeywordFalse:
-                return true;
-            default: return false;
-            }
-        }
+        /// @brief Check whether this token is a keyword. Keywords are reserved character sequences that follow the same rules as identifiers,
+        /// but serve a unique purpose in the language (e.g. if, true, return, while).
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isKeyword() const;
 
-        [[nodiscard]] bool isKeyword() const
-        {
-            switch(type)
-            {
-            case Type::KeywordReturn:
-            case Type::KeywordFunction:
-            case Type::KeywordIf:
-            case Type::KeywordElseIf:
-            case Type::KeywordElse:
-            case Type::KeywordWhile:
-            case Type::KeywordTrue:
-            case Type::KeywordFalse:
-                return true;
-            default: return false;
-            }
-        }
+        /// @brief Check whether this token is a symbol. Symbols are, like operators, character sequences which serve a specific
+        /// purpose in the language. Unlike operators, Symbols don't necessarily 'act' on a given operand, but are used purely for syntactical 
+        /// purposes (e.g. to specify a function's return type, to group statements into a scope).
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isSymbol() const;
 
-        [[nodiscard]] bool isSymbol() const
-        {
-            switch(type)
-            {
-            case Type::ParenthesisLeft:
-            case Type::ParenthesisRight:
-            case Type::SquareLeft:
-            case Type::SquareRight:
-            case Type::BraceLeft:
-            case Type::BraceRight:
-            case Type::ReturnType:
-            case Type::Comma:
-                return true;
-            default: return false;
-            }
-        }
+        /// @brief Check whether this token is an identifier. Identifiers are non-reserved sequences of alphanumeric(plus '_') characters
+        /// used to 'identify', as the name suggests, structures like functions and variables. An identifier cannot, however, have a digit as its
+        /// first character.
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isIdentifier() const;
 
-        [[nodiscard]] bool isIdentifier() const
-        {
-            return type == Type::Identifier;
-        }
+        /// @brief Check whether this token is the end of a file. This token has been conventionally used to ease the parsing process, and is thus,
+        /// also used int his project. EOF tokens are only produced at the end of files by the lexer. This means that no sequence of characters can
+        /// 'emit' and end of File token as its output.
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isEndOfFile() const;
 
-        [[nodiscard]] bool isEndOfFile() const
-        {
-            return type == Type::EndOfFile;
-        }
+        /// @brief Check whether this token is an operator. Operators are special characters that return the result of an operation that has been
+        /// 'acted' upon a value. Operators are split into two primary categories: unary operators (those who modify a singular value, e.g. the unary
+        /// negation operator), and binary operators (those who modify two values, e.g. the basic arithmetic operators of addition, subtraction, 
+        /// multiplication and division).
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isOperator() const;
 
-        [[nodiscard]] bool isAssignmentOperator() const
-        {
-            return type == Type::OperatorAssignment;
-        }
+        /// @brief Check whether this token is an assignment operator. Assignment operators include the 'main assignment operator' —typically used
+        /// to assign a value to a given variable—, as well as all arithmetic assignment operators, which are equivelant to assignments of arithmetic
+        /// binary operations to a variable, where the first operand is the same as the variable.
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isAssignmentOperator() const;
+        
+        /// @brief Check whether this token is an arithmetic operator. Arithmetic operators are those where all operands are numbers, and where the
+        /// return value of the operation is also a number (e.g. addition, multiplication, negation, increment). Note: the arithmetic assignment
+        /// operators are NOT arithmetic operators, since the assignment ones mutate a variable, and thus, cannot be applied to all number values
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isArithmeticOperator() const;
 
-        [[nodiscard]] bool isArithmeticOperator() const
-        {
-            switch(type)
-            {
-                case Type::OperatorPlus:
-                case Type::OperatorMinus:
-                case Type::OperatorAsterisk:
-                case Type::OperatorSlash:
-                case Type::OperatorPercent:
-                case Type::OperatorIncrement:
-                case Type::OperatorDecrement:
-                    return true;
-                default: return false;
-            }
-        }
+        /// @brief Check whether this token is an arithmetic assignment operator. Arithmetic assignment operators are equivelant to their
+        /// corresponding binary arithmetic operators, with the first operand being a variable, which the result of the operation is also
+        /// assigned to.
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isArithmeticAssignmentOperator() const;
 
-        [[nodiscard]] bool isArithmeticAssignmentOperator() const
-        {
-            switch(type)
-            {
-            case Type::OperatorAsignmentAddition:
-            case Type::OperatorAsignmentSubstraction:
-            case Type::OperatorAssignmentMultiplication: 
-            case Type::OperatorAssignmentDivision:
-            case Type::OperatorAssignmentModulo:
-                return true;
-            default: return false;
-            }
-        }
+        /// @brief Check whether this token is a comparison operator. Comparison operators are binary operators where the output is a boolean
+        /// (e.g. the greater-than operator, the equality operator). Note: these operators operate solely on numbers, with the exception of
+        /// the equality and inequality operators, which operate on any given type.
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isComparisonOperator() const;
 
-        [[nodiscard]] bool isComparisonOperator() const
-        {
-            switch(type)
-            {
-            case Type::OperatorEquals:
-            case Type::OperatorNotEquals:
-            case Type::OperatorGreater:
-            case Type::OperatorLess:
-            case Type::OperatorGreaterEqual:
-            case Type::OperatorLessEqual:
-                return true;
-            default: return false;
-            }
-        }
+        /// @brief Check whether this token is a logical operator. Logical operators are operators where both the operands and the return value are
+        /// of boolean type, corresponding to basic statement logical operators in math (and, or, not).
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isLogicalOperator() const;
 
-        [[nodiscard]] bool isLogicalOperator() const
-        {
-            switch(type)
-            {
-            case Type::OperatorLogicalAnd: 
-            case Type::OperatorLogicalOr: 
-            case Type::OperatorLogicalNot: 
-                return true;
-            default: return false;
-            }
-        }
+        /// @brief Check whether this token is a bitwise operator. Bitwise operators are those where both the operands are integrals, and where
+        /// an operation is applied to each of their individual bits. The most common bitwise operators correspond to the logical ones, but on a
+        /// bit-wise level (bitwise and, bitwise or, bitwise not). Additional ones include bitwise xor, bitshift-left, bitshift-right, etc...
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isBitwiseOperator() const;
 
-        [[nodiscard]] bool isBitwiseOperator() const
-        {
-            switch(type)
-            {
-            case Type::OperatorBitwiseAnd:
-            case Type::OperatorBitwiseOr:
-            case Type::OperatorBitwiseXor:
-            case Type::OperatorBitwiseNot:
-            case Type::OperatorBitwiseShiftLeft:
-            case Type::OperatorBitwiseShiftRight:
-                return true;
-            default: return false;
-            }
-        }
+        /// @brief Check whether this token is a binary operator. Binary operators are those that are applied to exactly two operands.
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isBinaryOperator() const;
 
-        [[nodiscard]] bool isOperator() const
-        {
-            return isBinaryOperator() || isUnaryOperator();
-        }
-
-        [[nodiscard]] bool isBinaryOperator() const
-        {
-            switch(type)
-            {
-            case Type::OperatorPlus:
-            case Type::OperatorMinus:
-            case Type::OperatorAsterisk:
-            case Type::OperatorSlash:
-            case Type::OperatorPercent:
-            case Type::OperatorAssignment:
-            case Type::OperatorAsignmentAddition:
-            case Type::OperatorAsignmentSubstraction:
-            case Type::OperatorAssignmentMultiplication:
-            case Type::OperatorAssignmentDivision:
-            case Type::OperatorAssignmentModulo:
-            case Type::OperatorEquals:
-            case Type::OperatorNotEquals:
-            case Type::OperatorGreater:
-            case Type::OperatorLess:
-            case Type::OperatorGreaterEqual:
-            case Type::OperatorLessEqual:
-            case Type::OperatorLogicalAnd:
-            case Type::OperatorLogicalOr:
-            case Type::OperatorBitwiseAnd:
-            case Type::OperatorBitwiseOr:
-            case Type::OperatorBitwiseXor:
-            case Type::OperatorBitwiseShiftLeft:
-            case Type::OperatorBitwiseShiftRight:
-                return true;
-            default: return false;
-            }
-        }
-
-        [[nodiscard]] bool isUnaryOperator() const
-        {
-            switch(type)
-            {
-            case Type::OperatorPlus:
-            case Type::OperatorMinus:
-            case Type::OperatorIncrement:
-            case Type::OperatorDecrement:
-            case Type::OperatorLogicalNot:
-            case Type::OperatorBitwiseNot:
-                return true;
-            default: return false;
-            }
-        }
+        /// @brief Check whether this token is a unary operator. Unary operators are those that are applied to only a singular operand.
+        /// @return Boolean corresponding to the result of the test.
+        [[nodiscard]] bool isUnaryOperator() const;
 
         Type type;
         std::optional<std::string> value;

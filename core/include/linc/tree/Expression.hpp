@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <linc/tree/Node.hpp>
 
 namespace linc
@@ -11,5 +12,6 @@ namespace linc
         {}
 
         virtual ~Expression() = default;
+        virtual std::unique_ptr<const Expression> clone_const() const = 0;
     };
 }

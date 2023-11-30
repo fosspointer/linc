@@ -9,37 +9,38 @@ namespace linc
     {
     public:
         LiteralExpression(const Token& token)
-            :Expression({.tokenList = {token}, .isValid = false, .lineNumber = token.lineNumber}), m_type(token.type) 
+            :Expression({.tokenList = {token}, .isValid = false, .lineNumber = token.lineNumber}), m_token(token)
         {
-            if(!token.isLiteral())
+            if(!m_token.isLiteral())
             {
                 Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
                         .message = linc::Logger::format("Literal Expression expected literal token. Got '$' instead.",
-                            Token::typeToString(token.type))});
+                            Token::typeToString(m_token.type))});
             }
-            else if(!token.value.has_value())
+            else if(!m_token.value.has_value())
             {
                 Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
                         .message = "Literal token has no value."});
             }
             else
-            {
-                m_value = token.value.value();
                 setValid(true);
-            }
         }
 
-        inline const std::string& getValue() const { return m_value; }
-        inline Token::Type getType() const { return m_type; }
+        inline std::string getValue() const { return m_token.value.value_or(""); }
+        inline Token::Type getType() const { return m_token.type; }
 
         virtual std::vector<const Node*> getChildren() const final override 
         {
             return {};
         }
+
+        virtual std::unique_ptr<const Expression> clone_const() const final override
+        {
+            return std::make_unique<const LiteralExpression>(m_token); 
+        }
     private:
-        Token::Type m_type;
-        std::string m_value;
+        Token m_token;
     };
 }

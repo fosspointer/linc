@@ -1,8 +1,7 @@
+#pragma once
 #include <string>
 #include <unordered_map>
 #include <linc/lexer/Token.hpp>
-
-#define LINC_KEYWORD_MAP_PAIR(first, second) std::pair<std::string, linc::Token::Type>(first, second)
 
 namespace linc
 {

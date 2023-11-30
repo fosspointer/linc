@@ -11,15 +11,15 @@ namespace linc
             :Expression(NodeInfo{.tokenList = {token}, .isValid = token.isValid(), .lineNumber = token.lineNumber}),
             m_identifierToken(token)
         {
-            if(token.type != Token::Type::Identifier)
+            if(m_identifierToken.type != Token::Type::Identifier)
             {
                 Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
                         .message = linc::Logger::format("Identifier Expression expected identifier token. Got '$' instead.",
-                            Token::typeToString(token.type))});
+                            Token::typeToString(m_identifierToken.type))});
                 setValid(false);
             }
-            else if(!token.value.has_value())
+            else if(!m_identifierToken.value.has_value())
             {
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
@@ -31,6 +31,11 @@ namespace linc
         virtual std::vector<const Node*> getChildren() const final override
         {
             return {};
+        }
+
+        virtual std::unique_ptr<const Expression> clone_const() const final override
+        {
+            return std::make_unique<const IdentifierExpression>(m_identifierToken); 
         }
 
         const Token& getIdentifierToken() const { return m_identifierToken; }

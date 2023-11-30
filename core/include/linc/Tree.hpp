@@ -1,0 +1,13 @@
+#pragma once
+#include <linc/tree/NodeInfo.hpp>
+#include <linc/tree/Node.hpp>
+#include <linc/tree/Expression.hpp>
+#include <linc/tree/LiteralExpression.hpp>
+#include <linc/tree/IdentifierExpression.hpp>
+#include <linc/tree/ParenthesisExpression.hpp>
+#include <linc/tree/UnaryExpression.hpp>
+#include <linc/tree/BinaryExpression.hpp>
+#include <linc/tree/Statement.hpp>
+#include <linc/tree/ExpressionStatement.hpp>
+#include <linc/tree/ScopeStatement.hpp>
+#include <linc/tree/VariableDeclarationStatement.hpp>

@@ -11,7 +11,6 @@ namespace linc
     {
     public:
         using BracketMap = std::unordered_map<char, Token::Type>; 
-
         static Token::Type getBracket(char character);
     private:
         static const BracketMap s_BracketMap;

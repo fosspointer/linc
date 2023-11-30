@@ -87,15 +87,16 @@ namespace linc
     class BoundBinaryExpression final : public BoundExpression
     {
     public:
-        BoundBinaryExpression(BoundBinaryOperator* _operator, BoundExpression* left, BoundExpression* right)
-            :BoundExpression(_operator->getReturnType()), m_operator(_operator), m_left(left), m_right(right)
+        BoundBinaryExpression(std::unique_ptr<const BoundBinaryOperator> _operator, std::unique_ptr<const BoundExpression> left,
+            std::unique_ptr<const BoundExpression> right)
+            :BoundExpression(_operator->getReturnType()), m_operator(std::move(_operator)), m_left(std::move(left)), m_right(std::move(right))
         {}
 
-        const BoundBinaryOperator* getOperator() const { return m_operator; }
-        const BoundExpression* getLeft() const { return m_left; }
-        const BoundExpression* getRight() const { return m_right; }
+        const BoundBinaryOperator* getOperator() const { return m_operator.get(); }
+        const BoundExpression* getLeft() const { return m_left.get(); }
+        const BoundExpression* getRight() const { return m_right.get(); }
     private:
-        BoundBinaryOperator* m_operator;
-        BoundExpression* m_left, *m_right;
+        std::unique_ptr<const BoundBinaryOperator> m_operator;
+        std::unique_ptr<const BoundExpression> m_left, m_right;
     };
 }

@@ -1,15 +1,6 @@
 #pragma once
-#include <linc/lexer/Token.hpp>
-#include <linc/tree/Expression.hpp>
-#include <linc/tree/LiteralExpression.hpp>
-#include <linc/tree/UnaryExpression.hpp>
-#include <linc/tree/BinaryExpression.hpp>
-#include <linc/tree/IdentifierExpression.hpp>
-#include <linc/tree/ParenthesisExpression.hpp>
-#include <linc/tree/ExpressionStatement.hpp>
-#include <linc/tree/Statement.hpp>
-#include <linc/tree/ScopeStatement.hpp>
-#include <linc/tree/VariableDeclarationStatement.hpp>
+#include <memory>
+#include <linc/Tree.hpp>
 
 namespace linc
 {
@@ -32,20 +23,20 @@ namespace linc
             return statement;
         }
 
-        inline const Statement* parseStatement() const 
+        inline std::unique_ptr<const Statement> parseStatement() const 
         {
             if(peek()->type == Token::Type::BraceLeft)
             {
                 auto left_brace_token = consume();
-                std::vector<const Statement*> statements;
+                std::vector<std::unique_ptr<const Statement>> statements;
                 
                 do
                 {
-                    statements.push_back(parseStatement());
+                    statements.push_back(std::move(parseStatement()));
                 } while(!peek()->isEndOfFile() && peek()->type != Token::Type::BraceRight);
                 
                 auto right_brace_token = match(Token::Type::BraceRight);
-                return new ScopeStatement(left_brace_token, right_brace_token, statements);
+                return std::make_unique<ScopeStatement>(left_brace_token, right_brace_token, std::move(statements));
             }
             else if(peek()->isIdentifier() && peek(1).has_value() && peek(1)->isIdentifier())
             {
@@ -55,22 +46,23 @@ namespace linc
                 auto assignment_operator_token = match(Token::Type::OperatorAssignment);
                 auto value = parseExpression();
                     
-                auto varname_identifier_expression = new IdentifierExpression(varname_identifier_token);
+                auto varname_identifier_expression = std::make_unique<const IdentifierExpression>(varname_identifier_token);
 
-                return new VariableDeclarationStatement(typename_identifier_token, assignment_operator_token, value, varname_identifier_expression);
+                return std::make_unique<const VariableDeclarationStatement>
+                    (typename_identifier_token, assignment_operator_token, std::move(value), std::move(varname_identifier_expression));
             }
-            else return new ExpressionStatement(parseExpression());
+            else return std::make_unique<const ExpressionStatement>(std::move(parseExpression()));
         }
 
-        inline Expression* parseExpression(uint16_t parent_precedence = 0) const
+        inline std::unique_ptr<const Expression> parseExpression(uint16_t parent_precedence = 0) const
         {
-            Expression* left;
+            std::unique_ptr<const Expression> left;
 
             if (peek()->isUnaryOperator() && Operators::getUnaryPrecedence(peek()->type) > parent_precedence)
             {
                 auto operator_token = consume();
                 auto operand = parsePrimaryExpression();
-                left = new UnaryExpression(operator_token, operand);
+                left = std::make_unique<const UnaryExpression>(operator_token, std::move(operand->clone_const()));
             }
             else left = parsePrimaryExpression();
 
@@ -83,7 +75,7 @@ namespace linc
 
                 auto operator_token = consume();
                 auto right = parseExpression(precedence);
-                left = new BinaryExpression(operator_token, left, right);
+                left = std::make_unique<const BinaryExpression>(operator_token, std::move(left->clone_const()), std::move(right));
                 
                 if(peek()->type == Token::Type::EndOfFile)
                     break;               
@@ -92,34 +84,23 @@ namespace linc
             return left;
         }
 
-        Expression* parsePrimaryExpression() const
+        std::unique_ptr<const Expression> parsePrimaryExpression() const
         {
             if(peek()->type == Token::Type::ParenthesisLeft)
             {   
                 auto left_parenthesis = consume();
                 auto expression = parseExpression();
                 auto right_parenthesis = match(Token::Type::ParenthesisRight);
-                return new ParenthesisExpression(left_parenthesis, right_parenthesis, expression);
+                return std::make_unique<ParenthesisExpression>(left_parenthesis, right_parenthesis, std::move(expression));
             }
             if(peek()->isLiteral())
             {
                 auto literal_token = consume();
-                return new LiteralExpression(literal_token);
+                return std::make_unique<LiteralExpression>(literal_token);
             }
-            if(peek()->isIdentifier())
-            {
-                auto identifier_token = consume();
-                return new IdentifierExpression(identifier_token);
-            }
-            else
-            {
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                    .message = linc::Logger::format("Expected primary expression, got '$'.", Token::typeToString(peek()->type))
-                });
-                consume();
-                return new LiteralExpression(Token{.type = Token::Type::InvalidToken, .value = "0"});
-            }
+
+            auto identifier_token = match(Token::Type::Identifier);
+            return std::make_unique<IdentifierExpression>(identifier_token);
         }
 
     private:

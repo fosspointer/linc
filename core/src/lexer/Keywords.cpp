@@ -1,4 +1,5 @@
 #include <linc/lexer/Keywords.hpp>
+#define LINC_KEYWORD_MAP_PAIR(first, second) std::pair<std::string, linc::Token::Type>(first, second)
 
 namespace linc
 {

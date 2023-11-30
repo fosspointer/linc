@@ -1,5 +1,6 @@
 #pragma once
 #include <variant>
+#include <optional>
 #include <linc/system/Types.hpp>
 
 #define LINC_TYPED_VALUE_CONSTRUCTOR(type) \

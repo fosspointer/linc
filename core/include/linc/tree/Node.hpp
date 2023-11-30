@@ -1,4 +1,5 @@
 #pragma once
+#include <linc/lexer/Token.hpp>
 #include <linc/tree/NodeInfo.hpp>
 
 namespace linc

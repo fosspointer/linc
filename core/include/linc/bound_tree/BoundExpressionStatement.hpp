@@ -7,12 +7,12 @@ namespace linc
     class BoundExpressionStatement final : public BoundStatement
     {
     public:
-        BoundExpressionStatement(const BoundExpression* expression)
-            :m_expression(expression)
+        BoundExpressionStatement(std::unique_ptr<const BoundExpression> expression)
+            :m_expression(std::move(expression))
         {}
 
-        inline const BoundExpression* getExpression() const { return m_expression; } 
+        inline const BoundExpression* getExpression() const { return m_expression.get(); } 
     private:
-        const BoundExpression* m_expression;
+        std::unique_ptr<const BoundExpression> m_expression;
     };
 }

@@ -64,14 +64,14 @@ namespace linc
     class BoundUnaryExpression final : public BoundExpression
     {
     public:
-        BoundUnaryExpression(BoundUnaryOperator* _operator, BoundExpression* operand)
-            :BoundExpression(_operator->getReturnType()), m_operator(_operator), m_operand(operand)
+        BoundUnaryExpression(std::unique_ptr<const BoundUnaryOperator> _operator, std::unique_ptr<const BoundExpression> operand)
+            :BoundExpression(_operator->getReturnType()), m_operator(std::move(_operator)), m_operand(std::move(operand))
         {}  
 
-        inline const BoundUnaryOperator* getOperator() const { return m_operator; }
-        inline const BoundExpression* getOperand() const { return m_operand; }
+        inline const BoundUnaryOperator* getOperator() const { return m_operator.get(); }
+        inline const BoundExpression* getOperand() const { return m_operand.get(); }
     private:
-        BoundUnaryOperator* m_operator;
-        BoundExpression* m_operand;
+        std::unique_ptr<const BoundUnaryOperator> m_operator;
+        std::unique_ptr<const BoundExpression> m_operand;
     };
 }
