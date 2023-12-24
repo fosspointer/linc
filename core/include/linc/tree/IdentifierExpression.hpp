@@ -8,7 +8,7 @@ namespace linc
     {
     public:
         IdentifierExpression(const Token& token)
-            :Expression(NodeInfo{.tokenList = {token}, .isValid = token.isValid(), .lineNumber = token.lineNumber}),
+            :Expression(NodeInfo{.tokenList = {token}, .lineNumber = token.lineNumber}),
             m_identifierToken(token)
         {
             if(m_identifierToken.type != Token::Type::Identifier)
@@ -17,7 +17,6 @@ namespace linc
                         .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
                         .message = linc::Logger::format("Identifier Expression expected identifier token. Got '$' instead.",
                             Token::typeToString(m_identifierToken.type))});
-                setValid(false);
             }
             else if(!m_identifierToken.value.has_value())
             {
@@ -41,6 +40,6 @@ namespace linc
         const Token& getIdentifierToken() const { return m_identifierToken; }
         std::string getValue() const { return m_identifierToken.value.value_or(""); }
     private:
-        Token m_identifierToken;
+        const Token m_identifierToken;
     };
 }

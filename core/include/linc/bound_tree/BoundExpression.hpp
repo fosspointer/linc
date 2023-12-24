@@ -14,6 +14,6 @@ namespace linc
 
         Types::Type getType() const { return m_type; }
     private:
-        Types::Type m_type;
+        const Types::Type m_type;
     };
 }

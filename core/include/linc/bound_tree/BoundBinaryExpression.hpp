@@ -52,36 +52,41 @@ namespace linc
             switch(kind)
             {
             case Kind::Addition:
+                if(left_type == Types::Type::string || right_type == Types::Type::string)
+                    return Types::Type::string;
+                else if(left_type == right_type)
+                    return right_type;
+                else return Types::Type::invalid;
             case Kind::Subtraction:
             case Kind::Multiplication:
             case Kind::Division:
                 if(left_type == right_type)
                     return right_type;
-                else return Types::Type::Invalid;
+                else return Types::Type::invalid;
                 break;
             case Kind::LogicalAnd:
             case Kind::LogicalOr:
                 if(left_type == Types::Type::_bool && right_type == Types::Type::_bool)
                     return Types::Type::_bool;
-                else return Types::Type::Invalid;
+                else return Types::Type::invalid;
             case Kind::Equals:
             case Kind::NotEquals:
                 if(left_type == right_type)
                     return Types::Type::_bool;
-                else return Types::Type::Invalid;
+                else return Types::Type::invalid;
             case Kind::Greater:
             case Kind::GreaterEqual:
             case Kind::Less:
             case Kind::LessEqual:
                 if(Types::isNumeric(left_type) && left_type == right_type)
                     return Types::Type::_bool;
-                else return Types::Type::Invalid;
+                else return Types::Type::invalid;
                 break;
-            default: return Types::Type::Invalid;
+            default: return Types::Type::invalid;
             }
         }
-        Kind m_kind;
-        Types::Type m_leftType, m_rightType, m_returnType;
+        const Kind m_kind;
+        const Types::Type m_leftType, m_rightType, m_returnType;
     };
 
     class BoundBinaryExpression final : public BoundExpression
@@ -92,11 +97,11 @@ namespace linc
             :BoundExpression(_operator->getReturnType()), m_operator(std::move(_operator)), m_left(std::move(left)), m_right(std::move(right))
         {}
 
-        const BoundBinaryOperator* getOperator() const { return m_operator.get(); }
-        const BoundExpression* getLeft() const { return m_left.get(); }
-        const BoundExpression* getRight() const { return m_right.get(); }
+        const BoundBinaryOperator* const getOperator() const { return m_operator.get(); }
+        const BoundExpression* const getLeft() const { return m_left.get(); }
+        const BoundExpression* const getRight() const { return m_right.get(); }
     private:
-        std::unique_ptr<const BoundBinaryOperator> m_operator;
-        std::unique_ptr<const BoundExpression> m_left, m_right;
+        const std::unique_ptr<const BoundBinaryOperator> m_operator;
+        const std::unique_ptr<const BoundExpression> m_left, m_right;
     };
 }

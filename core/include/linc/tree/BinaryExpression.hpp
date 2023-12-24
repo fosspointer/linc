@@ -7,7 +7,7 @@ namespace linc
     {
     public:
         BinaryExpression(const Token& operator_token, std::unique_ptr<const Expression> left, std::unique_ptr<const Expression> right)
-            :Expression({.isValid = left->isValid() && right->isValid(), .lineNumber = operator_token.lineNumber}),
+            :Expression({.lineNumber = operator_token.lineNumber}),
             m_left(std::move(left)), m_right(std::move(right)), m_operatorToken(operator_token)
         {
             addTokens(m_left->getTokens());
@@ -16,7 +16,6 @@ namespace linc
 
             if(!m_operatorToken.isBinaryOperator())
             {
-                setValid(false);
                 Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::AST,
                         .message = "Binary expression expected a binary operator"});
@@ -33,13 +32,12 @@ namespace linc
             return std::make_unique<const BinaryExpression>(m_operatorToken, std::move(m_left->clone_const()), std::move(m_right->clone_const()));
         }
 
-        inline const Expression* getLeft() const { return m_left.get(); }
-        inline const Expression* getRight() const { return m_right.get(); }
+        inline const Expression* const getLeft() const { return m_left.get(); }
+        inline const Expression* const getRight() const { return m_right.get(); }
 
         inline const Token& getOperatorToken() const { return m_operatorToken; }
-        inline Token& getOperatorToken() { return m_operatorToken; }
     private:
-        std::unique_ptr<const Expression> m_left, m_right;
-        Token m_operatorToken;
+        const std::unique_ptr<const Expression> m_left, m_right;
+        const Token m_operatorToken;
     };
 }

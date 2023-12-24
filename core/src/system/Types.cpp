@@ -20,7 +20,9 @@ namespace linc
         LINC_TYPE_MAP_PAIR("f64", f64),
 
         LINC_TYPE_MAP_PAIR("char", _char),
-        LINC_TYPE_MAP_PAIR("bool", _bool)
+        LINC_TYPE_MAP_PAIR("void", _void),
+        LINC_TYPE_MAP_PAIR("bool", _bool),
+        LINC_TYPE_MAP_PAIR("string", string)
     };
 
     const Types::TypeMap Types::s_suffixMap = {
@@ -60,6 +62,7 @@ namespace linc
         case Type::f64: return static_cast<f64>(std::stod(value));
         case Type::_char: return static_cast<_char>(value.at(0));
         case Type::_bool: return parseBoolean(value);
+        case Type::string: return value.c_str();
         default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Type);
         }
     }
@@ -68,7 +71,7 @@ namespace linc
     {
         switch(type)
         {
-        case Type::Invalid: return "<invalid_type>";
+        case Type::invalid: return "<invalid_type>";
         case Type::u8: return "u8";
         case Type::u16: return "u16";
         case Type::u32: return "u32";
@@ -81,6 +84,8 @@ namespace linc
         case Type::f64: return "f64";
         case Type::_char: return "char";
         case Type::_bool: return "bool";
+        case Type::string: return "string";
+        case Type::_void: return "void";
         default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Type);
         }
     }
@@ -100,7 +105,7 @@ namespace linc
         
         if(f != s_typeMap.end())
             return f->second;
-        else return Type::Invalid;
+        else return Type::invalid;
     }
 
     Types::Type Types::fromUserStringSuffix(const std::string& value)
@@ -109,7 +114,7 @@ namespace linc
         
         if(f != s_suffixMap.end())
             return f->second;
-        else return Type::Invalid;
+        else return Type::invalid;
     }
 
     Types::_bool Types::parseBoolean(const std::string& str)

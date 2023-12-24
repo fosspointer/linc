@@ -26,7 +26,17 @@ namespace linc
             if(find != m_typeMap.end())
                 return find->second;
             
-            else return Types::Type::Invalid;
+            else return Types::Type::invalid;
+        }
+
+        std::vector<std::pair<std::string, Types::Type>> getVariableList()
+        {
+            std::vector<std::pair<std::string, Types::Type>> ret;
+
+            for(const auto& var: m_typeMap)
+                ret.push_back(var);
+            
+            return std::move(ret);
         }
     private:
         std::unordered_map<std::string, Types::Type> m_typeMap;
@@ -35,6 +45,11 @@ namespace linc
     class Binder final
     {
     public:
+        std::vector<std::pair<std::string, Types::Type>> getVariableList()
+        {
+            return std::move(m_boundVariableDeclarations.getVariableList());
+        }
+
         std::unique_ptr<const BoundStatement> bindStatement(const Statement* statement)
         {
             if(auto* expression_statement = dynamic_cast<const ExpressionStatement*>(statement))
@@ -46,6 +61,12 @@ namespace linc
             else if(auto* variable_declaration_statement = dynamic_cast<const VariableDeclarationStatement*>(statement))
                 return bindVariableDeclarationStatement(variable_declaration_statement);
             
+            else if(auto* put_character_statement = dynamic_cast<const PutCharacterStatement*>(statement))
+                return bindPutCharacterStatement(put_character_statement);
+
+            else if(auto* put_string_statement = dynamic_cast<const PutStringStatement*>(statement))
+                return bindPutStringStatement(put_string_statement);
+
             throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized statement");
         }
 
@@ -66,10 +87,16 @@ namespace linc
             else if(auto parenthesis_expression = dynamic_cast<const ParenthesisExpression*>(expression))
                 return bindExpression(parenthesis_expression->getExpression());
 
+            else if(auto if_else_expression = dynamic_cast<const IfElseExpression*>(expression))
+                return bindIfElseExpression(if_else_expression);
+
+            else if(auto while_expression = dynamic_cast<const WhileExpression*>(expression))
+                return bindWhileExpression(while_expression);
+
             throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized expression");
         }
     private:
-        void reportInvalidBinaryOperator(BoundBinaryOperator::Kind operator_kind, Types::Type left_type, Types::Type right_type)
+        void reportinvalidBinaryOperator(BoundBinaryOperator::Kind operator_kind, Types::Type left_type, Types::Type right_type)
         {
             Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -78,7 +105,7 @@ namespace linc
             });
         }
 
-        void reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::Type operand_type)
+        void reportinvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::Type operand_type)
         {
             Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -108,15 +135,37 @@ namespace linc
             Types::Type type = Types::fromUserString(statement->getTypeNameIdentifierToken().value.value());
             auto name = statement->getIdentifierExpression()->getValue();
             auto value_expression = bindExpression(statement->getExpression());
+            auto variable = statement->getVariableKeywordToken();
 
-            if(!m_boundVariableDeclarations.insert(name, type))
+            if(value_expression->getType() != type)
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .message = linc::Logger::format("Cannot assign expression of type '$' to variable of type '$'", 
+                        Types::toString(value_expression->getType()), Types::toString(type))
+                });
+            }
+
+            else if(!m_boundVariableDeclarations.insert(name, type))
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = linc::Logger::format("Cannot redeclare variable '$' with type '$'.", 
                         name, Types::toString(value_expression->getType()))
                 });
 
-            return std::make_unique<const BoundVariableDeclarationStatement>(type, name, std::move(value_expression));
+            return std::make_unique<const BoundVariableDeclarationStatement>(type, name, variable.has_value(), std::move(value_expression));
+        }
+
+        std::unique_ptr<const BoundStatement> bindPutCharacterStatement(const PutCharacterStatement* statement)
+        {
+            auto expression = bindExpression(statement->getExpression());
+            return std::make_unique<const BoundPutCharacterStatement>(std::move(expression));
+        }
+
+        std::unique_ptr<const BoundStatement> bindPutStringStatement(const PutStringStatement* statement)
+        {
+            auto expression = bindExpression(statement->getExpression());
+            return std::make_unique<const BoundPutStringStatement>(std::move(expression));
         }
 
         std::unique_ptr<const BoundExpression> bindIdentifierExpression(const IdentifierExpression* expression)
@@ -124,13 +173,37 @@ namespace linc
             auto value = expression->getValue();
             Types::Type type = m_boundVariableDeclarations.get(value);
             
-            if(type == Types::Type::Invalid)
+            if(type == Types::Type::invalid)
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = linc::Logger::format("Undeclared identifier '$'.", value)
                 });
             
             return std::make_unique<const BoundIdentifierExpression>(value, type);
+        }
+
+        const std::unique_ptr<const BoundExpression> bindIfElseExpression(const IfElseExpression* expression)
+        {
+            auto test_expression = bindExpression(expression->getTestExpression());
+            auto body_if_statement = bindStatement(expression->getBodyIfStatement());
+            auto _body_else_statement = expression->getBodyElseStatement();
+
+            if(_body_else_statement)
+            {
+                auto body_else_statement = bindStatement(_body_else_statement.value());
+                auto type = body_if_statement->getType() == body_else_statement->getType()? body_if_statement->getType(): Types::Type::_void;
+                return std::make_unique<const BoundIfElseExpression>(std::move(test_expression), std::move(body_if_statement), std::move(body_else_statement), type);
+            }
+            else return std::make_unique<const BoundIfElseExpression>(std::move(test_expression), std::move(body_if_statement), Types::Type::_void);
+        }
+
+        const std::unique_ptr<const BoundExpression> bindWhileExpression(const WhileExpression* expression)
+        {
+            auto test_expression = bindExpression(expression->getTestExpression());
+            auto body_statement = bindStatement(expression->getBodyStatement());
+            auto type = body_statement->getType();
+
+            return std::make_unique<const BoundWhileExpression>(std::move(test_expression), std::move(body_statement), type);
         }
 
         const std::unique_ptr<const BoundExpression> bindLiteralExpression(const LiteralExpression* expression)
@@ -159,6 +232,8 @@ namespace linc
                 return std::make_unique<const BoundLiteralExpression>((Types::f64)std::stod(expression->getValue()));
             case Token::Type::CharacterLiteral:
                 return std::make_unique<const BoundLiteralExpression>(Types::parseCharacter(expression->getValue()));
+            case Token::Type::StringLiteral:
+                return std::make_unique<const BoundLiteralExpression>(expression->getValue().c_str());
             case Token::Type::KeywordTrue:
             case Token::Type::KeywordFalse:
                 return std::make_unique<const BoundLiteralExpression>(Types::parseBoolean(expression->getValue()));
@@ -188,8 +263,8 @@ namespace linc
             auto kind = bindUnaryOperatorKind(expression->getOperatorToken().type);
             auto _operator = std::make_unique<BoundUnaryOperator>(kind, operand->getType());
 
-            if(_operator->getReturnType() == Types::Type::Invalid)
-                reportInvalidUnaryOperator(kind, operand->getType());
+            if(_operator->getReturnType() == Types::Type::invalid)
+                reportinvalidUnaryOperator(kind, operand->getType());
 
             return std::make_unique<const BoundUnaryExpression>(std::move(_operator), std::move(operand));
         }
@@ -221,8 +296,8 @@ namespace linc
             auto kind = bindBinaryOperatorKind(expression->getOperatorToken().type);
             auto _operator = std::make_unique<const BoundBinaryOperator>(kind, left->getType(), right->getType());
 
-            if(_operator->getReturnType() == Types::Type::Invalid)
-                reportInvalidBinaryOperator(kind, left->getType(), right->getType());
+            if(_operator->getReturnType() == Types::Type::invalid)
+                reportinvalidBinaryOperator(kind, left->getType(), right->getType());
 
             return std::make_unique<const BoundBinaryExpression>(std::move(_operator), std::move(left), std::move(right));
         }

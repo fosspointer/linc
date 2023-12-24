@@ -48,17 +48,17 @@ namespace linc
             case Kind::UnaryMinus:
                 if(Types::isSigned(operand_type) || Types::isFloating(operand_type))
                     return operand_type;
-                else return Types::Type::Invalid;
+                else return Types::Type::invalid;
             case Kind::LogicalNot:
                 if(Types::isNumeric(operand_type) || operand_type == Types::Type::_bool)
                     return Types::Type::_bool;
-                else return Types::Type::Invalid;
-            default: return Types::Type::Invalid;
+                else return Types::Type::invalid;
+            default: return Types::Type::invalid;
             }
         }
 
-        Kind m_kind;
-        Types::Type m_operandType, m_returnType;
+        const Kind m_kind;
+        const Types::Type m_operandType, m_returnType;
     };
 
     class BoundUnaryExpression final : public BoundExpression
@@ -68,10 +68,10 @@ namespace linc
             :BoundExpression(_operator->getReturnType()), m_operator(std::move(_operator)), m_operand(std::move(operand))
         {}  
 
-        inline const BoundUnaryOperator* getOperator() const { return m_operator.get(); }
-        inline const BoundExpression* getOperand() const { return m_operand.get(); }
+        inline const BoundUnaryOperator* const getOperator() const { return m_operator.get(); }
+        inline const BoundExpression* const getOperand() const { return m_operand.get(); }
     private:
-        std::unique_ptr<const BoundUnaryOperator> m_operator;
-        std::unique_ptr<const BoundExpression> m_operand;
+        const std::unique_ptr<const BoundUnaryOperator> m_operator;
+        const std::unique_ptr<const BoundExpression> m_operand;
     };
 }

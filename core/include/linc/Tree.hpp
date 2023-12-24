@@ -5,9 +5,13 @@
 #include <linc/tree/LiteralExpression.hpp>
 #include <linc/tree/IdentifierExpression.hpp>
 #include <linc/tree/ParenthesisExpression.hpp>
+#include <linc/tree/IfElseExpression.hpp>
+#include <linc/tree/WhileExpression.hpp>
 #include <linc/tree/UnaryExpression.hpp>
 #include <linc/tree/BinaryExpression.hpp>
 #include <linc/tree/Statement.hpp>
 #include <linc/tree/ExpressionStatement.hpp>
 #include <linc/tree/ScopeStatement.hpp>
 #include <linc/tree/VariableDeclarationStatement.hpp>
+#include <linc/tree/PutCharacterStatement.hpp>
+#include <linc/tree/PutStringStatement.hpp>

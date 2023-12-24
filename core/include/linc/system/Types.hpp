@@ -12,14 +12,14 @@ namespace linc
     public:
         enum class Type: char
         {
-            Invalid,
+            invalid,
             u8, u16, u32, u64,
             i8, i16, i32, i64,
             f32, f64,
-            _char,
-            _bool,
+            string,
+            _char, _bool, _void
         };
-
+        
         using u8 = std::uint8_t;
         using u16 = std::uint16_t;
         using u32 = std::uint32_t;
@@ -36,7 +36,11 @@ namespace linc
         using _char = char;
         using _bool = bool;
 
-        using Variant = std::variant<u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, _char, _bool>;
+        using string = const _char*;
+        struct _void_type {};
+        struct invalid_type {};
+
+        using Variant = std::variant<u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, _char, _bool, _void_type, string>;
 
         using TypeMap = std::unordered_map<std::string, Type>;
         

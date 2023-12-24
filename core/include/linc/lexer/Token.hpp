@@ -21,7 +21,7 @@ namespace linc
             EndOfFile,
             
             // Keywords
-            KeywordReturn, KeywordFunction, KeywordIf, KeywordElseIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse,
+            KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse, KeywordVar,
             
             // Symbols
             ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, ReturnType, Comma,

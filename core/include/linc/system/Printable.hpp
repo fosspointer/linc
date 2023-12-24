@@ -127,6 +127,8 @@ namespace linc
             case Types::Type::_bool: return Printable(m_typedValue.getBool()).booleanToString(lexical_bool);
             case Types::Type::f32: return Printable(m_typedValue.getF32()).floatingToString(precision);
             case Types::Type::f64: return Printable(m_typedValue.getF64()).floatingToString(precision);
+            case Types::Type::string: return m_typedValue.getString();
+            case Types::Type::_void: return "{}";
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Type);
             }
         }

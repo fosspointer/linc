@@ -9,23 +9,17 @@ namespace linc
     {
     public:
         LiteralExpression(const Token& token)
-            :Expression({.tokenList = {token}, .isValid = false, .lineNumber = token.lineNumber}), m_token(token)
+            :Expression({.tokenList = {token}, .lineNumber = token.lineNumber}), m_token(token)
         {
             if(!m_token.isLiteral())
-            {
                 Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
                         .message = linc::Logger::format("Literal Expression expected literal token. Got '$' instead.",
                             Token::typeToString(m_token.type))});
-            }
             else if(!m_token.value.has_value())
-            {
                 Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
                         .message = "Literal token has no value."});
-            }
-            else
-                setValid(true);
         }
 
         inline std::string getValue() const { return m_token.value.value_or(""); }
@@ -41,6 +35,6 @@ namespace linc
             return std::make_unique<const LiteralExpression>(m_token); 
         }
     private:
-        Token m_token;
+        const Token m_token;
     };
 }

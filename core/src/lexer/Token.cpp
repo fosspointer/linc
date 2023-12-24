@@ -11,7 +11,6 @@ namespace linc
         case Type::KeywordReturn: return "Return Keyword";
         case Type::KeywordFunction: return "Function Keyword";
         case Type::KeywordIf: return "If Keyword";
-        case Type::KeywordElseIf: return "Else If Keyword";
         case Type::KeywordElse: return "Else Keyword";
         case Type::KeywordWhile: return "While Keyword";
         case Type::KeywordTrue: return "True Keyword Literal";
@@ -106,11 +105,11 @@ namespace linc
         case Type::KeywordReturn:
         case Type::KeywordFunction:
         case Type::KeywordIf:
-        case Type::KeywordElseIf:
         case Type::KeywordElse:
         case Type::KeywordWhile:
         case Type::KeywordTrue:
         case Type::KeywordFalse:
+        case Type::KeywordVar:
             return true;
         default: return false;
         }

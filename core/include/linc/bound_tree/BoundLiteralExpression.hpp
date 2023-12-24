@@ -13,6 +13,6 @@ namespace linc
             :BoundExpression(value.getType()), m_value(value)
         {}
     private:
-        TypedValue m_value;
+        const TypedValue m_value;
     };
 }

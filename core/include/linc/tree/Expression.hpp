@@ -1,5 +1,4 @@
 #pragma once
-#include <memory>
 #include <linc/tree/Node.hpp>
 
 namespace linc

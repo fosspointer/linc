@@ -30,18 +30,20 @@ namespace linc
                 auto left_brace_token = consume();
                 std::vector<std::unique_ptr<const Statement>> statements;
                 
-                do
-                {
+                while(!peek()->isEndOfFile() && peek()->type != Token::Type::BraceRight)
                     statements.push_back(std::move(parseStatement()));
-                } while(!peek()->isEndOfFile() && peek()->type != Token::Type::BraceRight);
                 
                 auto right_brace_token = match(Token::Type::BraceRight);
-                return std::make_unique<ScopeStatement>(left_brace_token, right_brace_token, std::move(statements));
+                return std::make_unique<const ScopeStatement>(left_brace_token, right_brace_token, std::move(statements));
             }
             else if(peek()->isIdentifier() && peek(1).has_value() && peek(1)->isIdentifier())
             {
                 auto typename_identifier_token = consume();
                 auto varname_identifier_token = consume();
+                
+                std::optional<Token> var_keyword_token;
+                if(peek().has_value() && peek()->type == Token::Type::KeywordVar)
+                    var_keyword_token = consume();
                 
                 auto assignment_operator_token = match(Token::Type::OperatorAssignment);
                 auto value = parseExpression();
@@ -49,7 +51,25 @@ namespace linc
                 auto varname_identifier_expression = std::make_unique<const IdentifierExpression>(varname_identifier_token);
 
                 return std::make_unique<const VariableDeclarationStatement>
-                    (typename_identifier_token, assignment_operator_token, std::move(value), std::move(varname_identifier_expression));
+                    (typename_identifier_token, assignment_operator_token, var_keyword_token, std::move(value), std::move(varname_identifier_expression));
+            }
+            else if(peek()->type == Token::Type::Identifier && peek()->value.has_value() && peek()->value == "putc")
+            {
+                auto identifier_token = consume();
+                auto left_parenthesis = match(Token::Type::ParenthesisLeft);
+                auto expression = parseExpression();
+                auto right_parenthesis = match(Token::Type::ParenthesisRight);
+
+                return std::make_unique<const PutCharacterStatement>(identifier_token, left_parenthesis, right_parenthesis, std::move(expression));
+            }
+            else if(peek()->type == Token::Type::Identifier && peek()->value.has_value() && peek()->value == "puts")
+            {
+                auto identifier_token = consume();
+                auto left_parenthesis = match(Token::Type::ParenthesisLeft);
+                auto expression = parseExpression();
+                auto right_parenthesis = match(Token::Type::ParenthesisRight);
+
+                return std::make_unique<const PutStringStatement>(identifier_token, left_parenthesis, right_parenthesis, std::move(expression));
             }
             else return std::make_unique<const ExpressionStatement>(std::move(parseExpression()));
         }
@@ -91,16 +111,39 @@ namespace linc
                 auto left_parenthesis = consume();
                 auto expression = parseExpression();
                 auto right_parenthesis = match(Token::Type::ParenthesisRight);
-                return std::make_unique<ParenthesisExpression>(left_parenthesis, right_parenthesis, std::move(expression));
+                return std::make_unique<const ParenthesisExpression>(left_parenthesis, right_parenthesis, std::move(expression));
             }
-            if(peek()->isLiteral())
+            else if(peek()->type == Token::Type::KeywordIf)
+            {
+                auto if_keyword = consume();
+                auto check_expression = parseExpression();
+                auto if_body_statement = parseStatement();
+
+                if(peek().has_value() && peek()->type == Token::Type::KeywordElse)
+                {
+                    auto else_keyword = consume();
+                    auto else_body_statement = parseStatement();
+                    return std::make_unique<const IfElseExpression>(if_keyword, std::move(check_expression), std::move(if_body_statement), else_keyword,
+                        std::move(else_body_statement));
+                }
+                else return std::make_unique<const IfElseExpression>(if_keyword, std::move(check_expression), std::move(if_body_statement));
+            }
+            else if(peek()->type == Token::Type::KeywordWhile)
+            {
+                auto while_keyword = consume();
+                auto check_expression = parseExpression();
+                auto body_statement = parseStatement();
+
+                return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(body_statement));
+            }
+            else if(peek()->isLiteral())
             {
                 auto literal_token = consume();
-                return std::make_unique<LiteralExpression>(literal_token);
+                return std::make_unique<const LiteralExpression>(literal_token);
             }
 
             auto identifier_token = match(Token::Type::Identifier);
-            return std::make_unique<IdentifierExpression>(identifier_token);
+            return std::make_unique<const IdentifierExpression>(identifier_token);
         }
 
     private:

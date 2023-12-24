@@ -8,11 +8,11 @@ namespace linc
     {
     public:
         BoundExpressionStatement(std::unique_ptr<const BoundExpression> expression)
-            :m_expression(std::move(expression))
+            :BoundStatement(expression->getType()), m_expression(std::move(expression))
         {}
 
-        inline const BoundExpression* getExpression() const { return m_expression.get(); } 
+        inline const BoundExpression* const getExpression() const { return m_expression.get(); } 
     private:
-        std::unique_ptr<const BoundExpression> m_expression;
+        const std::unique_ptr<const BoundExpression> m_expression;
     };
 }

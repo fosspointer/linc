@@ -17,7 +17,11 @@ namespace linc
         }
 
         inline const Expression* getExpression() const { return m_expression.get(); }
+        virtual std::unique_ptr<const Statement> clone_const() const final override
+        {
+            return std::make_unique<const ExpressionStatement>(std::move(m_expression->clone_const()));
+        }
     private:
-        std::unique_ptr<const Expression> m_expression;
+        const std::unique_ptr<const Expression> m_expression;
     };
 }
