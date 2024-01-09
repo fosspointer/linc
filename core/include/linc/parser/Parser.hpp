@@ -42,7 +42,7 @@ namespace linc
                 auto varname_identifier_token = consume();
                 
                 std::optional<Token> var_keyword_token;
-                if(peek().has_value() && peek()->type == Token::Type::KeywordVar)
+                if(peek().has_value() && peek()->type == Token::Type::KeywordMutability)
                     var_keyword_token = consume();
                 
                 auto assignment_operator_token = match(Token::Type::OperatorAssignment);
@@ -132,9 +132,34 @@ namespace linc
             {
                 auto while_keyword = consume();
                 auto check_expression = parseExpression();
-                auto body_statement = parseStatement();
+                auto body_while_statement = parseStatement();
 
-                return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(body_statement));
+                if(peek().has_value() && peek()->type == Token::Type::KeywordFinally)
+                {
+                    auto finally_keyword = consume();
+                    auto body_finally_statement = parseStatement();
+                    
+                    if(peek().has_value() && peek()->type == Token::Type::KeywordElse)
+                    {
+                        auto else_keyword = consume();
+                        auto body_else_statement = parseStatement();
+
+                        return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(body_while_statement), 
+                            finally_keyword, std::move(body_finally_statement), else_keyword, std::move(body_else_statement));
+                    }
+                    else return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(body_while_statement), 
+                        finally_keyword, std::move(body_finally_statement));
+                }
+                else if(peek().has_value() && peek()->type == Token::Type::KeywordElse)
+                {
+                    auto else_keyword = consume();
+                    auto body_else_statement = parseStatement();
+
+                    return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(body_while_statement), 
+                        std::nullopt, std::nullopt, else_keyword, std::move(body_else_statement));
+                }
+
+                else return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(body_while_statement));
             }
             else if(peek()->isLiteral())
             {
@@ -143,7 +168,15 @@ namespace linc
             }
 
             auto identifier_token = match(Token::Type::Identifier);
-            return std::make_unique<const IdentifierExpression>(identifier_token);
+
+            if(peek().has_value() && peek()->type == Token::Type::OperatorAssignment)
+            {
+                auto equals_token = consume();
+                auto expression = parseExpression();
+
+                return std::make_unique<const VariableAssignmentExpression>(equals_token, identifier_token, std::move(expression));
+            }
+            else return std::make_unique<const IdentifierExpression>(identifier_token);
         }
 
     private:

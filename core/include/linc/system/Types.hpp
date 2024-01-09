@@ -36,11 +36,11 @@ namespace linc
         using _char = char;
         using _bool = bool;
 
-        using string = const _char*;
+        using string = std::string;
         struct _void_type {};
         struct invalid_type {};
 
-        using Variant = std::variant<u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, _char, _bool, _void_type, string>;
+        using Variant = std::variant<u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, _char, _bool, _void_type, invalid_type, string>;
 
         using TypeMap = std::unordered_map<std::string, Type>;
         

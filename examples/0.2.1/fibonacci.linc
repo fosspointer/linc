@@ -1,0 +1,19 @@
+# The fibonacci number sequence
+
+{
+    u8 index mut = 0u8
+    u32 first mut = 0u32
+    u32 second mut = 1u32
+
+    u8 number_of_fibonacci = while (index < 20u8) 
+    {
+        first = first + second
+        second = first - second
+        
+        puts("#" + @(index + 1u8) + ": " + @first + 10c)
+
+        ++index
+    }
+
+    puts("The fibonacci number count displayed was " + @number_of_fibonacci + '.' + 10c)
+}

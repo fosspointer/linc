@@ -37,6 +37,7 @@ namespace linc
     };
 
     const Operators::UnaryPrecedenceMap Operators::s_UnaryOperatorPrecedenceMap = {
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorStringify, 6),
         LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorIncrement, 6),
         LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorDecrement, 6),
         LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorMinus, 7),
@@ -58,6 +59,7 @@ namespace linc
         LINC_OPERATOR_MAP_PAIR("*=", Token::Type::OperatorAssignmentMultiplication),
         LINC_OPERATOR_MAP_PAIR("/=", Token::Type::OperatorAssignmentDivision),
         LINC_OPERATOR_MAP_PAIR("%=", Token::Type::OperatorAssignmentModulo),
+        LINC_OPERATOR_MAP_PAIR("@", Token::Type::OperatorStringify),
         LINC_OPERATOR_MAP_PAIR("=", Token::Type::OperatorAssignment),
         LINC_OPERATOR_MAP_PAIR("==", Token::Type::OperatorEquals),
         LINC_OPERATOR_MAP_PAIR("!=", Token::Type::OperatorNotEquals),

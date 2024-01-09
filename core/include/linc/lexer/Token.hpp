@@ -21,7 +21,7 @@ namespace linc
             EndOfFile,
             
             // Keywords
-            KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse, KeywordVar,
+            KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse, KeywordMutability, KeywordFinally,
             
             // Symbols
             ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, ReturnType, Comma,
@@ -30,6 +30,9 @@ namespace linc
             OperatorPlus, OperatorMinus, OperatorAsterisk, OperatorSlash, OperatorPercent,
             OperatorIncrement, OperatorDecrement,
             
+            // Stringify operator
+            OperatorStringify,
+
             // Assignment operator
             OperatorAssignment, 
 

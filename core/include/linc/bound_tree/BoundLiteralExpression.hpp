@@ -6,13 +6,17 @@ namespace linc
     class BoundLiteralExpression final : public BoundExpression
     {
     public:
-        using Type = Types::Type;
         inline TypedValue getValue() const { return m_value; }
         
         BoundLiteralExpression(const TypedValue& value)
             :BoundExpression(value.getType()), m_value(value)
         {}
+
     private:
+        virtual std::string toStringInner() const final override
+        {
+            return "Bound Literal Expression";
+        }
         const TypedValue m_value;
     };
 }

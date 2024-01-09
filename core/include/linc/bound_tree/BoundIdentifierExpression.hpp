@@ -12,6 +12,10 @@ namespace linc
 
         const std::string& getValue() const { return m_value; }
     private:
+        virtual std::string toStringInner() const final override
+        {
+            return "Bound Identifier Expression";
+        }
         const std::string m_value;
     };
 }

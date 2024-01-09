@@ -7,13 +7,9 @@ namespace linc
     {
     public:
         BoundStatement(Types::Type type)
-            :m_type(type)
+            :BoundNode(type)
         {}
 
         virtual ~BoundStatement() = default;
-
-        Types::Type getType() const { return m_type; }
-    private:
-        const Types::Type m_type;
     };
 }

@@ -24,7 +24,7 @@ namespace linc
                         Token::typeToString(m_typeNameIdentifierToken.type))
                 });
 
-            if(m_varKeywordToken.has_value() && m_varKeywordToken->type != Token::Type::KeywordVar)
+            if(m_varKeywordToken.has_value() && m_varKeywordToken->type != Token::Type::KeywordMutability)
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::AST,
                     .message = linc::Logger::format("Expected variability specifier keyword. Got '$' instead.",
@@ -46,7 +46,8 @@ namespace linc
 
         virtual std::unique_ptr<const Statement> clone_const() const final override
         {
-            std::unique_ptr<const IdentifierExpression> identifier_expression_clone = std::make_unique<const IdentifierExpression>(m_identifierExpression->getIdentifierToken());
+            std::unique_ptr<const IdentifierExpression> identifier_expression_clone = std::make_unique<const IdentifierExpression>(
+                m_identifierExpression->getIdentifierToken());
 
             return std::make_unique<const VariableDeclarationStatement>(m_typeNameIdentifierToken, m_assignmentOperatorToken, m_varKeywordToken,
                 std::move(m_expression->clone_const()), std::move(identifier_expression_clone));

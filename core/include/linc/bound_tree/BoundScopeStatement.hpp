@@ -13,6 +13,11 @@ namespace linc
 
         const std::vector<std::unique_ptr<const BoundStatement>>& getStatements() const { return m_statements; }
     private:
+        virtual std::string toStringInner() const final override
+        {
+            return "Bound Scope Statement";
+        }
+        
         const std::vector<std::unique_ptr<const BoundStatement>> m_statements;
     };
 }

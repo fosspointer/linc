@@ -60,7 +60,7 @@ namespace linc
             case Printable::Type::Nullptr: output += printable.nullptrToString(); break;
             case Printable::Type::Boolean: output += printable.booleanToString(lexical_bool); break;
             case Printable::Type::Character: output += printable.characterToString(); break;
-            case Printable::Type::TypedValue: output += printable.typedValueToString(lexical_bool, precision); break;
+            case Printable::Type::TypedValue: output += printable.typedValueToString(); break;
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Printable::Type);
             }
         }

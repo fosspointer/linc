@@ -52,7 +52,9 @@ namespace linc
             switch(kind)
             {
             case Kind::Addition:
-                if(left_type == Types::Type::string || right_type == Types::Type::string)
+                if((left_type == Types::Type::string && right_type == Types::Type::_char)
+                || (left_type == Types::Type::_char && right_type == Types::Type::string)
+                || (left_type == right_type && right_type == Types::Type::_char))
                     return Types::Type::string;
                 else if(left_type == right_type)
                     return right_type;
@@ -101,6 +103,11 @@ namespace linc
         const BoundExpression* const getLeft() const { return m_left.get(); }
         const BoundExpression* const getRight() const { return m_right.get(); }
     private:
+        virtual std::string toStringInner() const final override
+        {
+            return linc::Logger::format("Bound Binary Expression (@'$')", BoundBinaryOperator::kindToString(m_operator->getKind()));
+        }
+        
         const std::unique_ptr<const BoundBinaryOperator> m_operator;
         const std::unique_ptr<const BoundExpression> m_left, m_right;
     };

@@ -58,9 +58,9 @@ void printNodeTree(const linc::Node* node, std::string indent = "", bool last = 
 class Evaluator
 {
 public:
-    struct Variable
+    struct VariableValue
     {   
-        std::string name;
+        linc::BoundVariableDeclarations::Variable variable;
         linc::TypedValue value{false};
     };
 
@@ -81,8 +81,12 @@ public:
         {
             auto value = evaluateExpression(vardeclstmt->getValueExpression());
             
-            auto variable = m_variables[vardeclstmt->getName()] = Variable{
-                .name = vardeclstmt->getName(),
+            auto variable = m_variables[vardeclstmt->getName()] = VariableValue{
+                .variable = linc::BoundVariableDeclarations::Variable{
+                    .type = vardeclstmt->getType(),
+                    .name = vardeclstmt->getName(),
+                    .isMutable = vardeclstmt->getVariable()
+                },
                 .value = value
             };
 
@@ -90,12 +94,12 @@ public:
         }
         else if(auto* putcstmt = dynamic_cast<const linc::BoundPutCharacterStatement*>(statement))
         {
-            linc::Logger::print("$", evaluateExpression(putcstmt->getExpression()));
+            fputc(evaluateExpression(putcstmt->getExpression()).getChar(), stdout);
             return linc::TypedValue::voidValue;
         }
         else if(auto* putsstmt = dynamic_cast<const linc::BoundPutStringStatement*>(statement))
         {
-            linc::Logger::print("$", evaluateExpression(putsstmt->getExpression()));
+            fputs(evaluateExpression(putsstmt->getExpression()).getString().c_str(), stdout);
             return linc::TypedValue::voidValue;
         }
         else
@@ -116,23 +120,46 @@ public:
             auto test = evaluateExpression(ifexp->getTestExpression()).getBool();
 
             if(test)
-                return evaluateStatement(ifexp->getBodyIfStatement());
+                return evaluateStatement(ifexp->getIfBodyStatement());
             else if(ifexp->hasElse())
-                return evaluateStatement(ifexp->getBodyElseStatement().value());
+                return evaluateStatement(ifexp->getElseBodyStatement().value());
             else return linc::TypedValue::voidValue;
         }
         else if(auto* whilexp = dynamic_cast<const linc::BoundWhileExpression*>(expression))
         {
-            auto test = evaluateExpression(whilexp->getTestExpression()).getBool();
+            linc::Logger::println("$\n", expression->toString());
             linc::TypedValue return_value = linc::TypedValue::voidValue;
 
-            while(test)
-                return_value = evaluateStatement(whilexp->getBodyStatement());
+            bool evaluated{false};
+
+            if(evaluateExpression(whilexp->getTestExpression()).getBool())
+            {
+                evaluated = true;
+                return_value = evaluateStatement(whilexp->getWhileBodyStatement());
+            }
+
+            while(evaluateExpression(whilexp->getTestExpression()).getBool())
+                return_value = evaluateStatement(whilexp->getWhileBodyStatement());
             
+            auto finally = whilexp->getFinallyBodyStatement();
+            auto _else = whilexp->getElseBodyStatement();
+
+            if(evaluated && finally.has_value())
+                return_value = evaluateStatement(finally.value());
+            else if(!evaluated && _else.has_value())
+                return_value = evaluateStatement(_else.value());
+
             return return_value;
         }
         else if(auto* binexp = dynamic_cast<const linc::BoundBinaryExpression*>(expression))
         {
+            if(binexp->getOperator()->getKind() == linc::BoundBinaryOperator::Kind::LogicalAnd)
+            {
+                if(evaluateExpression(binexp->getLeft()).getBool())
+                    return linc::TypedValue(evaluateExpression(binexp->getRight()).getBool());
+                else return linc::TypedValue(false);
+            }
+
             auto left = evaluateExpression(binexp->getLeft());
             auto right = evaluateExpression(binexp->getRight());
 
@@ -145,24 +172,31 @@ public:
             case linc::BoundBinaryOperator::Kind::Multiplication:
                 return left * right;
             case linc::BoundBinaryOperator::Kind::Division:
+                if(right.isZero())
+                {
+                    linc::Reporting::push({linc::Reporting::Report{
+                        .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Generator,
+                        .message = linc::Logger::format("Attempted division by zero. Operands are '$' ('$') and '$' ('$').",
+                            left, linc::Types::toString(left.getType()), right, linc::Types::toString(right.getType()))
+                    }});
+                    return linc::TypedValue::invalidValue;
+                }
                 return left / right;
-            case linc::BoundBinaryOperator::Kind::LogicalAnd:
-                return left.getBool() && right.getBool();
             case linc::BoundBinaryOperator::Kind::LogicalOr:
-                return left.getBool() || right.getBool();
+                return linc::TypedValue(left.getBool() || right.getBool());
             case linc::BoundBinaryOperator::Kind::Equals:
-                return left == right;
+                return linc::TypedValue(left == right);
             case linc::BoundBinaryOperator::Kind::NotEquals:
-                return left != right;
+                return linc::TypedValue(left != right);
             case linc::BoundBinaryOperator::Kind::Greater:
-                return left > right;
+                return linc::TypedValue(left > right);
             case linc::BoundBinaryOperator::Kind::Less:
-                return left < right;
+                return linc::TypedValue(left < right);
             case linc::BoundBinaryOperator::Kind::GreaterEqual:
-                return left >= right;
+                return linc::TypedValue(left >= right);
             case linc::BoundBinaryOperator::Kind::LessEqual:
-                return left <= right;
-            default: return 0;
+                return linc::TypedValue(left <= right);
+            default: return linc::TypedValue::invalidValue;
             }
         }
         else if(auto* unaryexp = dynamic_cast<const linc::BoundUnaryExpression*>(expression))
@@ -171,13 +205,51 @@ public:
 
             switch(unaryexp->getOperator()->getKind())
             {
+            case linc::BoundUnaryOperator::Kind::Increment:
+            case linc::BoundUnaryOperator::Kind::Decrement:
+            {
+                if(auto identifier = dynamic_cast<const linc::BoundIdentifierExpression*>(unaryexp->getOperand()))
+                {
+                    auto var = m_variables.find(identifier->getValue());
+
+                    if(var == m_variables.end())
+                        return linc::TypedValue::invalidValue;
+                    else if(!var->second.variable.isMutable)
+                    {
+                        linc::Reporting::push(linc::Reporting::Report{
+                            .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Generator,
+                            .message = linc::Logger::format("Cannot increment/decrement immutable variable '$'.",
+                                var->second.variable.name)
+                        });
+
+                        return linc::TypedValue::invalidValue;
+                    }
+                    else 
+                    {
+                        if(unaryexp->getOperator()->getKind() == linc::BoundUnaryOperator::Kind::Increment)
+                            return ++var->second.value;
+                        else return --var->second.value;
+                    }
+                }
+                else
+                {
+                    linc::Reporting::push(linc::Reporting::Report{
+                        .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Generator,
+                        .message = "Cannot increment non-identifier expression"
+                    });
+
+                    return linc::TypedValue::invalidValue;
+                }
+            }
+            case linc::BoundUnaryOperator::Kind::Stringify:
+                return linc::TypedValue(operand.toString());
             case linc::BoundUnaryOperator::Kind::UnaryPlus:
                 return operand;
             case linc::BoundUnaryOperator::Kind::UnaryMinus:
                 return -operand;
             case linc::BoundUnaryOperator::Kind::LogicalNot:
-                return !operand.getBool();
-            default: return 0;
+                return linc::TypedValue(!operand.getBool());
+            default: return linc::TypedValue::invalidValue;
             }
         }
         else if(auto* identexp = dynamic_cast<const linc::BoundIdentifierExpression*>(expression))
@@ -191,9 +263,15 @@ public:
                     .message = linc::Logger::format("Variable '$' does not exist!", identexp->getValue())
                 });
 
-                return false;
+                return linc::TypedValue::invalidValue;
             }
 
+            return find->second.value;
+        }
+        else if(auto* varassigexp = dynamic_cast<const linc::BoundVariableAssignmentExpression*>(expression))
+        {
+            auto find = m_variables.find(varassigexp->getIdentifier());
+            find->second.value = evaluateExpression(varassigexp->getValue());
             return find->second.value;
         }
         else
@@ -203,145 +281,144 @@ public:
         }
     }
 private:
-    std::unordered_map<std::string, Variable> m_variables;
+    std::unordered_map<std::string, VariableValue> m_variables;
 };
 
 int main(int argc, char** argv)
+try
 {
-    try
+    if(argc >= 2)
     {
-        if(argc >= 2)
-        {
-            std::string filename = argv[1];
-            std::string file = linc::Files::read(filename);
-            linc::Lexer lexer(file);
-            linc::Parser parser(lexer());
-            linc::Binder binder;
-            auto tree = parser();
-            auto program = binder.bindStatement(tree.get());
-            Evaluator evaluator;
-            evaluator.evaluateStatement(program.get());
-            return LINC_EXIT_SUCCESS;
-        }
-
-        bool show_tree{false}, show_lexer{false};
-
+        std::string filename = argv[1];
+        std::string file = linc::Files::read(filename);
+        linc::Lexer lexer(file);
+        linc::Parser parser(lexer());
         linc::Binder binder;
+        auto tree = parser();
+        auto program = binder.bindStatement(tree.get());
         Evaluator evaluator;
-
-        while(true)
-        {
-            linc::Logger::print("linc > ");
-
-            std::string buffer, buffer_tolower;
-            std::getline(std::cin, buffer);
-
-            for(char& c: buffer)
-                buffer_tolower.push_back(tolower(c));
-
-            if(buffer_tolower.starts_with("/clear"))
-            {
-                system("clear");
-                continue;
-            }
-            else if(buffer_tolower.starts_with("/tree"))
-            {
-                show_tree = !show_tree;
-                linc::Logger::println("$ node tree display!", show_tree? "Enabled" : "Disabled");
-                continue;
-            }
-            else if(buffer_tolower.starts_with("/lexer"))
-            {
-                show_lexer = !show_lexer;
-                linc::Logger::println("$ lexer token display!", show_tree? "Enabled" : "Disabled");
-                continue;
-            }
-            else if(buffer_tolower.starts_with("/reset"))
-            {
-                binder = linc::Binder();
-                evaluator = Evaluator();
-                system("clear");
-                continue;
-            }
-            else if(buffer_tolower.starts_with("/vars"))
-            {
-                auto list = binder.getVariableList();
-                
-                for(size_t i = 0; i < list.size(); i++)
-                {
-                    const auto& var = list[i];
-                    linc::Logger::println("#$:: var '$' of type '$'", i, var.first, linc::Types::toString(var.second));
-                }
-                
-                if(list.empty())
-                    linc::Logger::println("Variable index is empty");
-
-                continue;
-            }
-            else if(buffer_tolower.starts_with("/file"))
-            {
-                std::string filename;
-
-                linc::Logger::print("Enter the file to evaluate: ");
-                std::getline(std::cin, filename);
-
-                buffer = linc::Files::read(filename);
-            }
-            else if(buffer_tolower == "/?" || buffer_tolower == "/help" || buffer_tolower == "?")
-            {
-                linc::Logger::println("/clear: runs the GNU command of the same name.");
-                linc::Logger::println("/tree: toggles the visual representation of the AST.");
-                linc::Logger::println("/vars: displays the list of all declared variables.");
-                linc::Logger::println("/reset: gets rid of any declared variables.");
-                linc::Logger::println("/lexer: toggles the lexer token display.");
-                linc::Logger::println("/file: evaluate program from file.");
-                linc::Logger::println("/help: displays this menu.");
-                linc::Logger::println("/q: quits the application.");
-                continue;
-            }
-            else if(buffer == "q" || buffer == "/q")
-                return LINC_EXIT_SUCCESS;
-            
-            linc::Lexer lexer(buffer);
-            auto tokens = lexer();
-
-            if(show_lexer)
-                for(auto& token: tokens)
-                    linc::Logger::println("Token {type: '$', value: '$'}", linc::Token::typeToString(token.type), token.value.value_or(""));
-
-            linc::Parser parser(tokens);
-            auto tree = parser();
-
-            if(show_tree)
-                printNodeTree(tree.get(), "");
-
-            auto program = binder.bindStatement(tree.get());
-
-            if(linc::Reporting::getReports().size() == 0)
-            {
-                auto res = evaluator.evaluateStatement(program.get());
-                if(res.getType() != linc::Types::Type::invalid)
-                    linc::Logger::println("-> $", res);
-            }
-
-            linc::Reporting::clearReports();
-        }
-
+        evaluator.evaluateStatement(program.get());
         return LINC_EXIT_SUCCESS;
     }
-    catch(const linc::Exception& e)
+
+    bool show_tree{false}, show_lexer{false};
+
+    linc::Binder binder;
+    Evaluator evaluator;
+
+    while(true)
     {
-        linc::Logger::log(linc::Logger::Type::Error, "[LINC EXCEPTION] $", e.info());
-        return LINC_EXIT_FAILURE_LINC_EXCEPTION;
+        linc::Logger::print("linc > ");
+
+        std::string buffer, buffer_tolower;
+        std::getline(std::cin, buffer);
+
+        for(char& c: buffer)
+            buffer_tolower.push_back(tolower(c));
+
+        if(buffer_tolower.starts_with("/clear"))
+        {
+            system("clear");
+            continue;
+        }
+        else if(buffer_tolower.starts_with("/tree"))
+        {
+            show_tree = !show_tree;
+            linc::Logger::println("$ node tree display!", show_tree? "Enabled" : "Disabled");
+            continue;
+        }
+        else if(buffer_tolower.starts_with("/lexer"))
+        {
+            show_lexer = !show_lexer;
+            linc::Logger::println("$ lexer token display!", show_tree? "Enabled" : "Disabled");
+            continue;
+        }
+        else if(buffer_tolower.starts_with("/reset"))
+        {
+            binder = linc::Binder();
+            evaluator = Evaluator();
+            system("clear");
+            continue;
+        }
+        else if(buffer_tolower.starts_with("/vars"))
+        {
+            auto list = binder.getVariableList();
+            
+            for(size_t i = 0; i < list.size(); i++)
+            {
+                const auto& var = list[i];
+                linc::Logger::println("#$:: var '$' of type '$' ($)", i, var.name, linc::Types::toString(var.type), var.isMutable? "mutable": "immutable");
+            }
+            
+            if(list.empty())
+                linc::Logger::println("Variable index is empty");
+
+            continue;
+        }
+        else if(buffer_tolower.starts_with("/file"))
+        {
+            std::string filename;
+
+            linc::Logger::print("Enter the file to evaluate: ");
+            std::getline(std::cin, filename);
+
+            buffer = linc::Files::read(filename);
+        }
+        else if(buffer_tolower == "/?" || buffer_tolower == "/help" || buffer_tolower == "?")
+        {
+            linc::Logger::println("/clear: runs the GNU command of the same name.");
+            linc::Logger::println("/tree: toggles the visual representation of the AST.");
+            linc::Logger::println("/vars: displays the list of all declared variables.");
+            linc::Logger::println("/reset: gets rid of any declared variables.");
+            linc::Logger::println("/lexer: toggles the lexer token display.");
+            linc::Logger::println("/file: evaluate program from file.");
+            linc::Logger::println("/help: displays this menu.");
+            linc::Logger::println("/q: quits the application.");
+            continue;
+        }
+        else if(buffer == "q" || buffer == "/q")
+            return LINC_EXIT_SUCCESS;
+        
+        linc::Lexer lexer(buffer);
+        auto tokens = lexer();
+
+        if(show_lexer)
+            for(auto& token: tokens)
+                linc::Logger::println("Token {type: '$', value: '$'}", linc::Token::typeToString(token.type), token.value.value_or(""));
+
+        linc::Parser parser(tokens);
+        auto tree = parser();
+
+        if(show_tree)
+            printNodeTree(tree.get(), "");
+
+        auto program = binder.bindStatement(tree.get());
+
+        if(linc::Reporting::getReports().size() == 0)
+        {
+            auto res = evaluator.evaluateStatement(program.get());
+            if(res.getType() != linc::Types::Type::invalid)
+                linc::Logger::println("-> $", res);
+        }
+
+        linc::Reporting::clearReports();
     }
-    catch(const std::exception& e)
-    {
-        linc::Logger::log(linc::Logger::Type::Error, "[STANDARD EXCEPTION] $", e.what());
-        return LINC_EXIT_FAILURE_STANDARD_EXCEPTION;
-    }
-    catch(...)
-    {
-        linc::Logger::log(linc::Logger::Type::Error, "[UNKNOWN EXCPETION]");
-        return LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION;
-    }
+
+    return LINC_EXIT_SUCCESS;
+}
+catch(const linc::Exception& e)
+{
+    linc::Logger::log(linc::Logger::Type::Error, "[LINC EXCEPTION] $", e.info());
+
+    return LINC_EXIT_FAILURE_LINC_EXCEPTION;
+}
+catch(const std::exception& e)
+{
+    linc::Logger::log(linc::Logger::Type::Error, "[STANDARD EXCEPTION] $", e.what());
+    return LINC_EXIT_FAILURE_STANDARD_EXCEPTION;
+}
+catch(...)
+{
+    linc::Logger::log(linc::Logger::Type::Error, "[UNKNOWN EXCPETION]");
+    return LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION;
 }

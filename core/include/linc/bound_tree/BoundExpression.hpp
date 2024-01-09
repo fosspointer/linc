@@ -7,13 +7,9 @@ namespace linc
     {
     public:
         BoundExpression(Types::Type type)
-            :m_type(type)
+            :BoundNode(type)
         {}
         
         virtual ~BoundExpression() = default;
-
-        Types::Type getType() const { return m_type; }
-    private:
-        const Types::Type m_type;
     };
 }

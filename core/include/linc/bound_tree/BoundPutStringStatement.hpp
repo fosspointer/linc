@@ -19,9 +19,14 @@ namespace linc
                 });
             }
         }
-
+        
         const BoundExpression* const getExpression() const { return m_expression.get(); }
     private:
+        virtual std::string toStringInner() const final override
+        {
+            return "Bound Put-string Statement";
+        }
+
         const std::unique_ptr<const BoundExpression> m_expression;
     };
 }

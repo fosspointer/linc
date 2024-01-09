@@ -7,6 +7,7 @@
 #include <linc/bound_tree/BoundWhileExpression.hpp>
 #include <linc/bound_tree/BoundUnaryExpression.hpp>
 #include <linc/bound_tree/BoundBinaryExpression.hpp>
+#include <linc/bound_tree/BoundVariableAssignmentExpression.hpp>
 #include <linc/bound_tree/BoundStatement.hpp>
 #include <linc/bound_tree/BoundExpressionStatement.hpp>
 #include <linc/bound_tree/BoundScopeStatement.hpp>

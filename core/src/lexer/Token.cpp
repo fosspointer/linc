@@ -30,6 +30,7 @@ namespace linc
         case Type::OperatorPercent: return "Percent Operator";
         case Type::OperatorIncrement: return "Increment Operator";
         case Type::OperatorDecrement: return "Decrement Operator";
+        case Type::OperatorStringify: return "Stringify Operator";
         case Type::OperatorAssignment: return "Assignment Operator";
         case Type::OperatorAsignmentAddition: return "Addition Asignment Operator";
         case Type::OperatorAsignmentSubstraction: return "Substraction Asignment Operator";
@@ -109,7 +110,7 @@ namespace linc
         case Type::KeywordWhile:
         case Type::KeywordTrue:
         case Type::KeywordFalse:
-        case Type::KeywordVar:
+        case Type::KeywordMutability:
             return true;
         default: return false;
         }
@@ -261,6 +262,7 @@ namespace linc
     {
         switch(type)
         {
+        case Type::OperatorStringify:
         case Type::OperatorPlus:
         case Type::OperatorMinus:
         case Type::OperatorIncrement:

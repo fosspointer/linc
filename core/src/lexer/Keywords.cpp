@@ -11,7 +11,8 @@ namespace linc
         LINC_KEYWORD_MAP_PAIR("while", Token::Type::KeywordWhile),
         LINC_KEYWORD_MAP_PAIR("true", Token::Type::KeywordTrue),
         LINC_KEYWORD_MAP_PAIR("false", Token::Type::KeywordFalse),
-        LINC_KEYWORD_MAP_PAIR("var", Token::Type::KeywordVar),
+        LINC_KEYWORD_MAP_PAIR("mut", Token::Type::KeywordMutability),
+        LINC_KEYWORD_MAP_PAIR("finally", Token::Type::KeywordFinally),
     };
 
     Token::Type Keywords::get(const std::string& keyword_string)

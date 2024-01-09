@@ -17,6 +17,11 @@ namespace linc
         inline const BoundExpression* const getValueExpression() const { return m_valueExpression.get(); }
         inline bool getVariable() const { return m_variable; }
     private:
+        virtual std::string toStringInner() const final override
+        {
+            return "Bound Variable Declaration Statement";
+        }
+        
         const Types::Type m_type;
         const std::string m_name;
         const bool m_variable;

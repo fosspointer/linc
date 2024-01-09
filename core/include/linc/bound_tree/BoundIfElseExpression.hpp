@@ -31,8 +31,8 @@ namespace linc
         }
 
         const BoundExpression* const getTestExpression() const { return m_testExpression.get(); }
-        const BoundStatement* const getBodyIfStatement() const { return m_bodyIfStatement.get(); }
-        const std::optional<const BoundStatement* const> getBodyElseStatement() const
+        const BoundStatement* const getIfBodyStatement() const { return m_bodyIfStatement.get(); }
+        const std::optional<const BoundStatement* const> getElseBodyStatement() const
         { 
             if(m_bodyElseStatement.has_value())
                 return m_bodyElseStatement.value().get();
@@ -40,6 +40,11 @@ namespace linc
         }
         const bool hasElse() const { return m_bodyElseStatement.has_value(); }
     private:
+        virtual std::string toStringInner() const final override
+        {
+            return Logger::format("Bound If$ Expression", m_bodyElseStatement.has_value()? "/Else": "");
+        }
+        
         const std::unique_ptr<const BoundExpression> m_testExpression;
         const std::unique_ptr<const BoundStatement> m_bodyIfStatement;
         const std::optional<const std::unique_ptr<const BoundStatement>> m_bodyElseStatement;

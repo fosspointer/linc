@@ -8,7 +8,7 @@ namespace linc
     public:
         enum class Kind: char
         {
-            Invalid, UnaryPlus, UnaryMinus, LogicalNot
+            Invalid, UnaryPlus, UnaryMinus, LogicalNot, Stringify, Increment, Decrement
         };
 
         BoundUnaryOperator(Kind kind, Types::Type operand_type)
@@ -32,6 +32,9 @@ namespace linc
             case Kind::UnaryPlus: return "Unary Plus Operator";
             case Kind::UnaryMinus: return "Unary Negation Operator";
             case Kind::LogicalNot: return "Logical NOT Operator";
+            case Kind::Stringify: return "Stringify Operator";
+            case Kind::Increment: return "Increment Operator";
+            case Kind::Decrement: return "Decrement Operator";
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(BoundUnaryOperator::Kind);
             }
         }
@@ -40,6 +43,13 @@ namespace linc
         {
             switch(operator_kind)
             {
+            case Kind::Stringify:
+                return Types::Type::string;
+            case Kind::Increment:
+            case Kind::Decrement:
+                if(Types::isNumeric(operand_type))
+                    return operand_type;
+                else return Types::Type::invalid;
             case Kind::UnaryPlus:
                 if(Types::isNumeric(operand_type))
                     return operand_type;
@@ -66,11 +76,16 @@ namespace linc
     public:
         BoundUnaryExpression(std::unique_ptr<const BoundUnaryOperator> _operator, std::unique_ptr<const BoundExpression> operand)
             :BoundExpression(_operator->getReturnType()), m_operator(std::move(_operator)), m_operand(std::move(operand))
-        {}  
+        {}
 
         inline const BoundUnaryOperator* const getOperator() const { return m_operator.get(); }
         inline const BoundExpression* const getOperand() const { return m_operand.get(); }
     private:
+        virtual std::string toStringInner() const final override
+        {
+            return linc::Logger::format("Bound Unary Expression (@'$')", BoundUnaryOperator::kindToString(m_operator->getKind()));
+        }
+        
         const std::unique_ptr<const BoundUnaryOperator> m_operator;
         const std::unique_ptr<const BoundExpression> m_operand;
     };

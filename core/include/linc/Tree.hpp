@@ -9,6 +9,7 @@
 #include <linc/tree/WhileExpression.hpp>
 #include <linc/tree/UnaryExpression.hpp>
 #include <linc/tree/BinaryExpression.hpp>
+#include <linc/tree/VariableAssignmentExpression.hpp>
 #include <linc/tree/Statement.hpp>
 #include <linc/tree/ExpressionStatement.hpp>
 #include <linc/tree/ScopeStatement.hpp>

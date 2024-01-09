@@ -13,6 +13,11 @@ namespace linc
 
         inline const BoundExpression* const getExpression() const { return m_expression.get(); } 
     private:
+        virtual std::string toStringInner() const final override
+        {
+            return "Bound Expression Statement";
+        }
+        
         const std::unique_ptr<const BoundExpression> m_expression;
     };
 }
