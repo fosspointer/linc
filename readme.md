@@ -33,7 +33,7 @@ The tools mentioned must be available in the $PATH environment variable, in orde
 To start compiling this project, you must first clone the GitHub repository recursively.
 
 ```sh
-git clone --recursive https://github.com/fosspointer/
+git clone --recursive https://github.com/fosspointer/linc
 ```
 
 ### Linux and Unix-based systems
