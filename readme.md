@@ -62,6 +62,7 @@ For Windows users, The use of WSL (Windows Subsystem for Linux) is highly recomm
 
 ### Next additions
 
+- Implement doxygen support. 
 - Add right-associative binary operators (along with the pre-existing left-associative ones). 
 - Improve testing, as it is currently only manual. 
 - Implement static arrays.
