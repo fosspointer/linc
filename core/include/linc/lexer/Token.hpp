@@ -1,8 +1,7 @@
 #pragma once
-#include <optional>
-#include <string>
 #include <linc/system/Exception.hpp>
 #include <linc/system/Logger.hpp>
+#include <linc/Include.hpp>
 
 namespace linc
 {
@@ -24,7 +23,7 @@ namespace linc
             KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse, KeywordMutability, KeywordFinally,
             
             // Symbols
-            ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, ReturnType, Comma,
+            ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, OperatorType, Comma,
             
             // Arithmetic operators
             OperatorPlus, OperatorMinus, OperatorAsterisk, OperatorSlash, OperatorPercent,

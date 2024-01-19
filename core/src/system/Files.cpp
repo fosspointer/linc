@@ -10,7 +10,11 @@ namespace linc
         auto find = s_fileMap.find(filepath);
 
         if(find != s_fileMap.end())
+        {
+            if(!find->second->is_open())
+                find->second->open(find->first);
             return find->second;
+        }
         else
         {
             auto* file = new std::fstream(filepath);
@@ -21,10 +25,11 @@ namespace linc
     
     std::string Files::read(const std::string& filepath_string)
     {
-        const auto* file = load(filepath_string);
+        auto* file = load(filepath_string);
         std::ostringstream stream;
         stream << file->rdbuf();
-        return stream.str();
+        file->close();
+        return std::move(stream.str());
     }
     
     void Files::write(const std::string& filepath_string, const std::string& contents)

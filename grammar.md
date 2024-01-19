@@ -1,17 +1,22 @@
 # LINC: Grammar
 
-- **Program →** Statement
-- **Statement →** ExpressionStatement | VariableDeclarationStatement | ScopeStatement | PutCharacterStatement | PutStringStatement
+- **Program →** Declaration*
+- **Statement →** ExpressionStatement | DeclarationStatement | ScopeStatement | PutCharacterStatement | PutStringStatement
+- **Declaration →** VariableDeclaration | FunctionDeclaration | ArgumentDeclaration
+- **Expression →** PrimaryExpression | UnaryExpression | BinaryExpression | '(' Expression ')'
 - **ExpressionStatement →** Expression
-- **VariableDeclarationStatement →** Identifier Identifier ('var') '=' Expression
+- **DeclarationStatement →** Declaration
+- **VariableDeclaration →** ('mut') Identifier Identifier '=' Expression
+- **ArgumentDeclaration →** ('mut') Identifier Identifier ('=' Expression)
+- **FunctionDeclaration →** 'fn' Identifier '(' ArgumentDeclaration* ')' ':' Identifier Statement 
 - **ScopeStatement →** '{' Statement* '}'
 - **PutCharacterStatement →** 'putc' '(' Expression ')'
 - **PutStringStatement →** 'puts' '(' Expression ')'
-- **Expression →** PrimaryExpression | UnaryExpression | BinaryExpression | '(' Expression ')'
-- **PrimaryExpression →** Identifier | Value | IfElseExpression | WhileExpression | AssignmentExpression
+- **PrimaryExpression →** Identifier | Value | IfElseExpression | WhileExpression | AssignmentExpression | FunctionCallExpression 
 - **IfElseExpression →** 'if' Expression Statement ('else' Statement)
-- **WhileExpression →** 'while' Expression Statement
+- **WhileExpression →** 'while' Expression Statement ('finally' Statement) ('else Statement)
 - **AssignmentExpression →** Identifier '=' Expression
+- **FunctionCallExpression →** Identifier '(' Expression* ')'
 - **UnaryExpression →** UnaryOperator Expression
 - **BinaryExpression →** Expression BinaryOperator Expression
 - **UnaryOperator →** '+' | '-' | '!' | '@'

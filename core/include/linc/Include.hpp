@@ -1,0 +1,17 @@
+#pragma once
+#include <cstdio>
+#include <cstdint>
+#include <stdfloat>
+#include <string>
+#include <string_view>
+#include <optional>
+#include <variant>
+#include <vector>
+#include <stack>
+#include <unordered_map>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <filesystem>
+#include <utility>
+#include <memory>

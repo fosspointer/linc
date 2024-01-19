@@ -1,9 +1,6 @@
 #pragma once
-#include <optional>
-#include <unordered_map>
-#include <string>
-#include <cstdint>
 #include <linc/lexer/Token.hpp>
+#include <linc/Include.hpp>
 
 namespace linc
 {

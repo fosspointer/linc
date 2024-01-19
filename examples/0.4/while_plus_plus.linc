@@ -1,0 +1,18 @@
+# Showcase of while/finally/else loop
+
+;include "utility.linc"
+
+fn main(): void {
+    mut u8 i = 0u8
+
+    while i <= 10u8 {
+        println("Square #" + @i + ": " + @(i * i))
+        ++i
+    }
+    finally {
+        println("The loop came to an end before index " + @i)
+    }
+    else {
+        println("The loop never even ran")
+    }
+}

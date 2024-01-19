@@ -7,26 +7,12 @@ namespace linc
     class BoundPutStringStatement final : public BoundStatement
     {
     public:
-        BoundPutStringStatement(std::unique_ptr<const BoundExpression> expression)
-            :BoundStatement(Types::Type::_void), m_expression(std::move(expression))
-        {
-            if(m_expression->getType() != Types::Type::string)
-            {
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                    .message = linc::Logger::format("Invalid type for put string statement. Expected 'string', got '$'.",
-                        Types::toString(m_expression->getType()))
-                });
-            }
-        }
-        
-        const BoundExpression* const getExpression() const { return m_expression.get(); }
-    private:
-        virtual std::string toStringInner() const final override
-        {
-            return "Bound Put-string Statement";
-        }
+        BoundPutStringStatement(std::unique_ptr<const BoundExpression> expression);
+        [[nodiscard]] inline const BoundExpression* const getExpression() const { return m_expression.get(); }
 
+        virtual std::unique_ptr<const BoundStatement> clone_const() const final override;
+    private:
+        virtual std::string toStringInner() const final override;
         const std::unique_ptr<const BoundExpression> m_expression;
     };
 }

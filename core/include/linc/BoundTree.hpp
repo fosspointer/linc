@@ -7,10 +7,15 @@
 #include <linc/bound_tree/BoundWhileExpression.hpp>
 #include <linc/bound_tree/BoundUnaryExpression.hpp>
 #include <linc/bound_tree/BoundBinaryExpression.hpp>
+#include <linc/bound_tree/BoundFunctionCallExpression.hpp>
 #include <linc/bound_tree/BoundVariableAssignmentExpression.hpp>
+#include <linc/bound_tree/BoundDeclaration.hpp>
+#include <linc/bound_tree/BoundVariableDeclaration.hpp>
+#include <linc/bound_tree/BoundFunctionDeclaration.hpp>
 #include <linc/bound_tree/BoundStatement.hpp>
+#include <linc/bound_tree/BoundDeclarationStatement.hpp>
 #include <linc/bound_tree/BoundExpressionStatement.hpp>
 #include <linc/bound_tree/BoundScopeStatement.hpp>
-#include <linc/bound_tree/BoundVariableDeclarationStatement.hpp>
 #include <linc/bound_tree/BoundPutCharacterStatement.hpp>
 #include <linc/bound_tree/BoundPutStringStatement.hpp>
+#include <linc/bound_tree/BoundProgram.hpp>

@@ -1,7 +1,6 @@
 #pragma once
 #include <linc/tree/Statement.hpp>
 #include <linc/tree/Expression.hpp>
-#include <memory>
 
 namespace linc
 {

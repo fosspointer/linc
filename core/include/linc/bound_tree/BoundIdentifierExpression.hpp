@@ -6,16 +6,12 @@ namespace linc
     class BoundIdentifierExpression final : public BoundExpression
     {
     public:
-        BoundIdentifierExpression(const std::string& value, const Types::Type type)
-            :BoundExpression(type), m_value(value)
-        {}
+        BoundIdentifierExpression(const std::string& value, const Types::Type type);
+        [[nodiscard]] const std::string& getValue() const;
 
-        const std::string& getValue() const { return m_value; }
+        virtual std::unique_ptr<const BoundExpression> clone_const() const final override;
     private:
-        virtual std::string toStringInner() const final override
-        {
-            return "Bound Identifier Expression";
-        }
+        virtual std::string toStringInner() const final override;
         const std::string m_value;
     };
 }

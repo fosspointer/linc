@@ -135,17 +135,16 @@ namespace linc
         }
     }
 
-    Types::_char Types::parseCharacter(const std::string& str)
+    Types::_char Types::parseUserCharacter(const std::string& str)
     {
         char* p;
-        char character = static_cast<char>(strtol(str.c_str(), &p, 10));
+        char character = static_cast<char>(strtoll(str.c_str(), &p, 10));
             
         if(*p)
         {
-            if(str.length() == 1)
-                return str[0];
-            else
-                throw LINC_EXCEPTION_INVALID_INPUT("Invalid character expression");
+            if(str.empty() || str.size() > 1ull)
+                return '\0';
+            else return str[0];
         }
         return character;
     }

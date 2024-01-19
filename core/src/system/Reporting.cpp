@@ -7,11 +7,12 @@ namespace linc
     std::string Reporting::stageToString(Stage stage){
         switch(stage)
         {
-        case Stage::Lexer:     return "\e[4;30mLEXER\e[0m"; 
-        case Stage::AST:       return "\e[4;30mAST\e[0m"; 
-        case Stage::ABT:       return "\e[4;30mABT\e[0m"; 
-        case Stage::Parser:    return "\e[4;30mPARSER\e[0m";
-        case Stage::Generator: return "\e[4;30mGENERATOR\e[0m"; 
+        case Stage::Lexer:        return "\e[4;30mLEXER\e[0m"; 
+        case Stage::AST:          return "\e[4;30mAST\e[0m"; 
+        case Stage::ABT:          return "\e[4;30mABT\e[0m"; 
+        case Stage::Parser:       return "\e[4;30mPARSER\e[0m";
+        case Stage::Generator:    return "\e[4;30mGENERATOR\e[0m"; 
+        case Stage::Preprocessor: return "\e[4;30mPREPROCESSOR\e[0m"; 
         default:
             throw LINC_EXCEPTION_OUT_OF_BOUNDS(Reporting::Stage);
         }

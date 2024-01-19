@@ -11,61 +11,17 @@ namespace linc
             Invalid, UnaryPlus, UnaryMinus, LogicalNot, Stringify, Increment, Decrement
         };
 
-        BoundUnaryOperator(Kind kind, Types::Type operand_type)
-            :m_kind(kind), m_operandType(operand_type), 
-            m_returnType(getReturnType(kind, operand_type))
-        {}
+        BoundUnaryOperator(Kind kind, Types::Type operand_type);
+        BoundUnaryOperator(Kind kind, Types::Type operand_type, Types::Type return_type);
 
-        BoundUnaryOperator(Kind kind, Types::Type operand_type, Types::Type return_type)
-            :m_kind(kind), m_operandType(operand_type), m_returnType(return_type)
-        {}
+        [[nodiscard]] inline Kind getKind() const { return m_kind; }
+        [[nodiscard]] inline Types::Type getOperandType() const { return m_operandType; }
+        [[nodiscard]] inline Types::Type getReturnType() const { return m_returnType; }
 
-        inline Kind getKind() const { return m_kind; }
-        inline Types::Type getOperandType() const { return m_operandType; }
-        inline Types::Type getReturnType() const { return m_returnType; }
-
-        static std::string kindToString(Kind kind) 
-        {
-            switch(kind)
-            {
-            case Kind::Invalid: return "Invalid Unary Operator";
-            case Kind::UnaryPlus: return "Unary Plus Operator";
-            case Kind::UnaryMinus: return "Unary Negation Operator";
-            case Kind::LogicalNot: return "Logical NOT Operator";
-            case Kind::Stringify: return "Stringify Operator";
-            case Kind::Increment: return "Increment Operator";
-            case Kind::Decrement: return "Decrement Operator";
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(BoundUnaryOperator::Kind);
-            }
-        }
+        std::unique_ptr<const BoundUnaryOperator> clone_const() const;
+        static std::string kindToString(Kind kind);
     private:
-        static Types::Type getReturnType(Kind operator_kind, Types::Type operand_type)
-        {
-            switch(operator_kind)
-            {
-            case Kind::Stringify:
-                return Types::Type::string;
-            case Kind::Increment:
-            case Kind::Decrement:
-                if(Types::isNumeric(operand_type))
-                    return operand_type;
-                else return Types::Type::invalid;
-            case Kind::UnaryPlus:
-                if(Types::isNumeric(operand_type))
-                    return operand_type;
-                else if(operand_type == Types::Type::_char)
-                    return Types::Type::i32;
-            case Kind::UnaryMinus:
-                if(Types::isSigned(operand_type) || Types::isFloating(operand_type))
-                    return operand_type;
-                else return Types::Type::invalid;
-            case Kind::LogicalNot:
-                if(Types::isNumeric(operand_type) || operand_type == Types::Type::_bool)
-                    return Types::Type::_bool;
-                else return Types::Type::invalid;
-            default: return Types::Type::invalid;
-            }
-        }
+        static Types::Type getReturnType(Kind operator_kind, Types::Type operand_type);
 
         const Kind m_kind;
         const Types::Type m_operandType, m_returnType;
@@ -74,17 +30,14 @@ namespace linc
     class BoundUnaryExpression final : public BoundExpression
     {
     public:
-        BoundUnaryExpression(std::unique_ptr<const BoundUnaryOperator> _operator, std::unique_ptr<const BoundExpression> operand)
-            :BoundExpression(_operator->getReturnType()), m_operator(std::move(_operator)), m_operand(std::move(operand))
-        {}
+        BoundUnaryExpression(std::unique_ptr<const BoundUnaryOperator> _operator, std::unique_ptr<const BoundExpression> operand);
 
-        inline const BoundUnaryOperator* const getOperator() const { return m_operator.get(); }
-        inline const BoundExpression* const getOperand() const { return m_operand.get(); }
+        [[nodiscard]] inline const BoundUnaryOperator* const getOperator() const { return m_operator.get(); }
+        [[nodiscard]] inline const BoundExpression* const getOperand() const { return m_operand.get(); }
+
+        virtual std::unique_ptr<const BoundExpression> clone_const() const final override;
     private:
-        virtual std::string toStringInner() const final override
-        {
-            return linc::Logger::format("Bound Unary Expression (@'$')", BoundUnaryOperator::kindToString(m_operator->getKind()));
-        }
+        virtual std::string toStringInner() const final override;
         
         const std::unique_ptr<const BoundUnaryOperator> m_operator;
         const std::unique_ptr<const BoundExpression> m_operand;

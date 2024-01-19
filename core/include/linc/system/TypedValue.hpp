@@ -1,9 +1,6 @@
 #pragma once
-#include <cstring>
-#include <string>
-#include <variant>
-#include <optional>
 #include <linc/system/Types.hpp>
+#include <linc/Include.hpp>
 
 #define LINC_TYPED_VALUE_LITERAL_TRUE "true"
 #define LINC_TYPED_VALUE_LITERAL_FALSE "false"

@@ -13,7 +13,7 @@ Here are some of its key characteristics:
 ## Features
 
 - **Immutability by default:** In the majority of modern programming languages, a variable is declared mutable unless stated otherwise (most commonly achieved using the 'const' keyword). In linc, as well as a few other functional-inspired programming languages (such as Rust), the opposite is true. This serves the purpose of easing-up const-correctness (it's much more difficult to specify const, when most of the time it makes sense as the default, rather 'opting-in' for mutability on a case-by-case basis).
-- **Evaluator/Interpreter:** Although the language is far from 'done' (which it most probably won't ever be, but will be kept in maintainance), one can already experiment with language features and the language in general, even before the assembly generator is implemented.
+- **Evaluator/Interpreter:** Although the language is far from 'complete' (which it most probably won't ever be, but will be kept in maintainance), one can already experiment with language features and the language in general, even before the assembly generator is implemented.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ This project uses some well established tools to function. Those include:
 - A CMake generator (such as GNU Make or Ninja).
 - Git (necessary so as to clone the repository, archive .zip downloads are highly discouraged).
 - A terminal emulator that supports ANSI escape sequences.
-- A c++ compiler with standard c++23 support, which is currently relatively limited. For example, as of writing this, the header <stdfloat> is provided solely on GCC.
+- A c++ compiler with standard c++23 support, which is currently relatively limited.
 
 The tools mentioned must be available in the $PATH environment variable, in order to be usable inside of the shell properly.
 
@@ -47,32 +47,7 @@ In order to ease the compilation process, the shell scripts *environment.sh* and
 
 For Windows users, The use of WSL (Windows Subsystem for Linux) is highly recommended. Windows is tested to a lesser extent, which is due to the project being developed in a Linux development environment. For this reason, some builds using MSVC may not compile properly. Using a port of the GCC compiler such as MinGW may result in better luck in this regard.
 
-### Changelog for version 0.3
+## Miscellaneous
 
-- Improved string handling capabilities (including string-character and character-character concatenation).
-- Added 'to string' operator (`@`) for all primitives (including `string`).
-- Added unary increment and decrement operators for numeric values. 
-- Implemented scoping (partial implementation, the evaluator doesn't destroy variables upon end of lifetime, although they can be 'redeclared').
-- Fixed bug where while loop checks where evaluated only once (doesn't affect already existing code, as mutability hadn't yet been added in version 0.2)
-- Refactored `TypedValue` to improve handling of strings (didn't use std::variant as previously planned).
-- Improved while loops to have 2 additional optional parts: `finally`, `else` (in the order provided, as makes sense logically).
-- Changed the mutability keyword from `var` to `mut`
-- Add variable assignment expressions for mutable variables (those declared using the `mut` keyword).
-- Added examples to demonstrate the language's capabilities (more soon, version specific as ).
-
-### Next additions
-
-- Implement doxygen support. 
-- Add right-associative binary operators (along with the pre-existing left-associative ones). 
-- Improve testing, as it is currently only manual. 
-- Implement static arrays.
-
-### Plans for the future
-
-- String indexing and iterating. 
-- An implementation of optional types (details not yet decided).
-- References (non-nullable pointers to types, syntax still to be decided).
-- Functions (planned syntax: `fn <function_name> (<type_name> <var_name>, ...): <type_name> <statement>`).
-- Declarations as a new kind of Node in the AST (e.g. function declarations, variable declarations).
-- Program to declaration list equivalency, instead of program to statement list (which is currently the case).
-- Switch execution flow to start at the reserved (and required) main function as the entry point (optional string-array argument) (after implementation of functions).
+- See the [changelog](./changelog.md) for newest additions and next updates.
+- For the curious reader, here's the [formal grammar](./grammar.md) of linc. 

@@ -1,0 +1,8 @@
+# Showcase of the preprocessor
+
+;include "utility.linc"
+;define say_hello; println("hello world!"); 
+
+fn main(): void {
+    say_hello
+}

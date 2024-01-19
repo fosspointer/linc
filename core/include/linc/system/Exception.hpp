@@ -1,6 +1,5 @@
 #pragma once
-#include <string_view>
-#include <iostream>
+#include <linc/Include.hpp>
 
 #define LINC_EXCEPTION(message) linc::Exception(__FILE__, __LINE__, __FUNCTION__, message)
 #define LINC_EXCEPTION_INVALID_INPUT(message) linc::Exception(__FILE__, __LINE__, __FUNCTION__, "Invalid input: " message)

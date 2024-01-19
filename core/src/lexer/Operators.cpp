@@ -46,7 +46,7 @@ namespace linc
     };
 
     const Operators::OperatorMap Operators::s_OperatorMap = {
-        LINC_OPERATOR_MAP_PAIR(":", Token::Type::ReturnType),
+        LINC_OPERATOR_MAP_PAIR(":", Token::Type::OperatorType),
         LINC_OPERATOR_MAP_PAIR("+", Token::Type::OperatorPlus),
         LINC_OPERATOR_MAP_PAIR("++", Token::Type::OperatorIncrement),
         LINC_OPERATOR_MAP_PAIR("--", Token::Type::OperatorDecrement),

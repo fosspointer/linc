@@ -1,0 +1,34 @@
+# Exponentiation in linc
+
+;include "utility.linc"
+
+fn pow(f64 base f64 exponent): f64 {
+    mut f64 exponent_abs = abs_f64(exponent)
+    mut f64 result = 1f64
+    mut f64 count = 0f64
+
+    while (count < exponent_abs) {
+        result = result * base
+        ++count
+    }
+    
+    if(exponent > 0f64)
+        result
+    else
+        1f64 / result
+}
+
+fn display_pow(f64 base f64 exponent): void {
+    println(@base + " to the power of " + @exponent + " equals " + @pow(base exponent))
+}
+
+fn main(): void {
+    display_pow(2f64 5f64)
+    display_pow(2f64 10f64)
+    display_pow(2f64 -5f64)
+    display_pow(2f64 0f64)
+    display_pow(3f64 5f64)
+    display_pow(3f64 10f64)
+    display_pow(3f64 -5f64)
+    display_pow(3f64 0f64)
+}

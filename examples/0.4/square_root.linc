@@ -1,0 +1,28 @@
+# Square root of any given integer (rounded down)
+
+;include "utility.linc"
+
+fn square_root(i32 input): i32 {
+    mut i32 high = input
+    mut i32 low = 0
+
+    while high > low {
+        i32 mid = low + (high - low + 1) / 2
+        if(mid * mid <= input)
+            low = mid
+        else 
+            high = mid - 1
+        low
+    }
+}
+
+fn display_square_root(i32 input): void {
+    println("The square root of " + @input + " is " + @square_root(input))
+}
+
+fn main(): void {
+    display_square_root(1024) # Must be 32
+    display_square_root(144) # Must be 12
+    display_square_root(64) # Must be 8
+    display_square_root(49) # Must be 7
+}

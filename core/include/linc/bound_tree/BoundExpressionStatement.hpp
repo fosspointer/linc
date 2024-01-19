@@ -7,17 +7,12 @@ namespace linc
     class BoundExpressionStatement final : public BoundStatement
     {
     public:
-        BoundExpressionStatement(std::unique_ptr<const BoundExpression> expression)
-            :BoundStatement(expression->getType()), m_expression(std::move(expression))
-        {}
+        BoundExpressionStatement(std::unique_ptr<const BoundExpression> expression);
+        [[nodiscard]] inline const BoundExpression* const getExpression() const { return m_expression.get(); } 
 
-        inline const BoundExpression* const getExpression() const { return m_expression.get(); } 
+        virtual std::unique_ptr<const BoundStatement> clone_const() const final override;
     private:
-        virtual std::string toStringInner() const final override
-        {
-            return "Bound Expression Statement";
-        }
-        
+        virtual std::string toStringInner() const final override;
         const std::unique_ptr<const BoundExpression> m_expression;
     };
 }

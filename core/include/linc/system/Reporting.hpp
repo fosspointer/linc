@@ -1,5 +1,6 @@
 #pragma once
 #include <linc/system/TextSpan.hpp>
+#include <linc/Include.hpp>
 
 namespace linc
 {
@@ -9,7 +10,7 @@ namespace linc
         using Type = Logger::Type;
         enum class Stage
         {
-            Lexer, AST, ABT, Parser, Generator
+            Lexer, AST, ABT, Parser, Generator, Preprocessor
         };
 
         struct Report

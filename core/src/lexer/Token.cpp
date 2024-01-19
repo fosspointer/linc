@@ -15,13 +15,14 @@ namespace linc
         case Type::KeywordWhile: return "While Keyword";
         case Type::KeywordTrue: return "True Keyword Literal";
         case Type::KeywordFalse: return "False Keyword Literal";
+        case Type::KeywordMutability: return "Mutability Keyword";
         case Type::ParenthesisLeft: return "Opening Parenthesis";
         case Type::ParenthesisRight: return "Closing Parenthesis";
         case Type::SquareLeft: return "Opening Square Bracket";
         case Type::SquareRight: return "Closing Square Bracket";
         case Type::BraceLeft: return "Opening Curly Brace";
         case Type::BraceRight: return "Closing Curly Brace";
-        case Type::ReturnType: return "Return Type";
+        case Type::OperatorType: return "Type Operator";
         case Type::Comma: return "Comma";
         case Type::OperatorPlus: return "Plus Operator";
         case Type::OperatorMinus: return "Minus Operator";
@@ -66,7 +67,7 @@ namespace linc
         case Type::StringLiteral: return "String Literal";
         case Type::Identifier: return "Identifier";
         default: 
-            return Logger::format("????: $", (int)type);
+            return Logger::format("<Unknown Token Type>: $", (int)type);
             throw LINC_EXCEPTION_OUT_OF_BOUNDS(Token::Type);
         }
     }
@@ -126,7 +127,7 @@ namespace linc
         case Type::SquareRight:
         case Type::BraceLeft:
         case Type::BraceRight:
-        case Type::ReturnType:
+        case Type::OperatorType:
         case Type::Comma:
             return true;
         default: return false;

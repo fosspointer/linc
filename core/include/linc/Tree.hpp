@@ -7,12 +7,16 @@
 #include <linc/tree/ParenthesisExpression.hpp>
 #include <linc/tree/IfElseExpression.hpp>
 #include <linc/tree/WhileExpression.hpp>
+#include <linc/tree/FunctionCallExpression.hpp>
 #include <linc/tree/UnaryExpression.hpp>
 #include <linc/tree/BinaryExpression.hpp>
 #include <linc/tree/VariableAssignmentExpression.hpp>
+#include <linc/tree/Declaration.hpp>
+#include <linc/tree/VariableDeclaration.hpp>
+#include <linc/tree/FunctionDeclaration.hpp>
 #include <linc/tree/Statement.hpp>
 #include <linc/tree/ExpressionStatement.hpp>
+#include <linc/tree/DeclarationStatement.hpp>
 #include <linc/tree/ScopeStatement.hpp>
-#include <linc/tree/VariableDeclarationStatement.hpp>
 #include <linc/tree/PutCharacterStatement.hpp>
 #include <linc/tree/PutStringStatement.hpp>

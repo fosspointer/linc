@@ -1,7 +1,5 @@
 #pragma once
-#include <unordered_map>
-#include <filesystem>
-#include <fstream>
+#include <linc/Include.hpp>
 
 namespace linc
 {

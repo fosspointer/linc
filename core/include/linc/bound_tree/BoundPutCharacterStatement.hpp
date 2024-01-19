@@ -7,26 +7,12 @@ namespace linc
     class BoundPutCharacterStatement final : public BoundStatement
     {
     public:
-        BoundPutCharacterStatement(std::unique_ptr<const BoundExpression> expression)
-            :BoundStatement(Types::Type::_void), m_expression(std::move(expression))
-        {
-            if(m_expression->getType() != Types::Type::_char)
-            {
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                    .message = linc::Logger::format("Invalid type for put character statement. Expected 'char', got '$'.",
-                        Types::toString(m_expression->getType()))
-                });
-            }
-        }
+        BoundPutCharacterStatement(std::unique_ptr<const BoundExpression> expression);
+        [[nodiscard]] const BoundExpression* const getExpression() const { return m_expression.get(); }
 
-        const BoundExpression* const getExpression() const { return m_expression.get(); }
+        virtual std::unique_ptr<const BoundStatement> clone_const() const final override;
     private:
-        virtual std::string toStringInner() const final override
-        {
-            return "Bound Put-character Statement";
-        }
-
+        virtual std::string toStringInner() const final override;
         const std::unique_ptr<const BoundExpression> m_expression;
     };
 }

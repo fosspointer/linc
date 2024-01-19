@@ -1,9 +1,6 @@
 #pragma once
-#include <vector>
-#include <string>
-#include <optional>
-#include <utility>
 #include <linc/lexer/Token.hpp>
+#include <linc/Include.hpp>
 
 namespace linc
 {

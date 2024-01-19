@@ -1,5 +1,8 @@
 #pragma once
+#include <linc/system/Logger.hpp>
 #include <linc/system/TypedValue.hpp>
+#include <linc/system/Reporting.hpp>
+#include <linc/Include.hpp>
 
 namespace linc
 {
@@ -9,11 +12,10 @@ namespace linc
         BoundNode(Types::Type type)
             :m_type(type)
         {}
-
         virtual ~BoundNode() = default;
 
-        inline std::string toString() const { return Logger::format("$ (:$)", toStringInner(), Types::toString(m_type)); }
-        Types::Type getType() const { return m_type; }
+        [[nodiscard]] inline std::string toString() const { return Logger::format("$ (:$)", toStringInner(), Types::toString(m_type)); }
+        [[nodiscard]] inline Types::Type getType() const { return m_type; }
     protected:
         virtual std::string toStringInner() const = 0;
     private:

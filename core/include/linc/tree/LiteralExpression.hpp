@@ -1,5 +1,4 @@
 #pragma once
-#include <linc/system/Types.hpp>
 #include <linc/system/Reporting.hpp>
 #include <linc/tree/Expression.hpp>
 

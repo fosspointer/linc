@@ -1,6 +1,6 @@
 #pragma once
-#include <string>
 #include <linc/system/Logger.hpp>
+#include <linc/Include.hpp>
 
 namespace linc
 {

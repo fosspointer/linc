@@ -1,9 +1,7 @@
 #pragma once
-#include <string>
-#include <stdfloat>
-#include <cstdint>
-#include <sstream>
 #include <linc/system/TypedValue.hpp>
+#include <linc/Include.hpp>
+
 
 namespace linc
 {
