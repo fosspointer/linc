@@ -17,8 +17,10 @@
 - All programs are now equivalent to lists of declarations, and not single statements.
 - Added entry point function main(), which is required for a program to be evaluated (is currently argumentless, returns void/i8-i32/u8).
 - When the entry-point function returns, the return value is now used as the process's exit code.
+- Added new example programs and 'adapted' old ones to 0.4.
+- Updated the grammar and readme files.
 
-## Ideas for version 0.5
+## Ideas for version 0.5 (or later versions)
 
 - Improve testing, as it is currently only manual. 
 - Type casting (convertions between types).
