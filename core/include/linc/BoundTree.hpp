@@ -3,12 +3,16 @@
 #include <linc/bound_tree/BoundExpression.hpp>
 #include <linc/bound_tree/BoundLiteralExpression.hpp>
 #include <linc/bound_tree/BoundIdentifierExpression.hpp>
+#include <linc/bound_tree/BoundTypeExpression.hpp>
 #include <linc/bound_tree/BoundIfElseExpression.hpp>
 #include <linc/bound_tree/BoundWhileExpression.hpp>
+#include <linc/bound_tree/BoundForExpression.hpp>
 #include <linc/bound_tree/BoundUnaryExpression.hpp>
 #include <linc/bound_tree/BoundBinaryExpression.hpp>
 #include <linc/bound_tree/BoundFunctionCallExpression.hpp>
-#include <linc/bound_tree/BoundVariableAssignmentExpression.hpp>
+#include <linc/bound_tree/BoundConversionExpression.hpp>
+#include <linc/bound_tree/BoundArrayInitializerExpression.hpp>
+#include <linc/bound_tree/BoundArrayIndexExpression.hpp>
 #include <linc/bound_tree/BoundDeclaration.hpp>
 #include <linc/bound_tree/BoundVariableDeclaration.hpp>
 #include <linc/bound_tree/BoundFunctionDeclaration.hpp>

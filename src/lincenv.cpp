@@ -13,27 +13,23 @@
 #define LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION 3
 #define LINC_EXIT_COMPILATION_FAILURE 4
 
-static std::string filename_to_directory(const std::string& str)
+static int evaluate_file(std::string filepath)
 {
-    return str.substr(0ul, str.find_last_of('/'));
-}
+    filepath = linc::Files::toAbsolute(filepath);
+    auto raw_code = linc::Files::read(filepath);
 
-static int evaluate_file(const std::string& filename)
-{
-    auto raw_code = linc::Files::read(filename);
-
-    linc::Preprocessor preprocessor(raw_code, filename_to_directory(filename));
-        
+    linc::Preprocessor preprocessor(raw_code, filepath);
     auto code = preprocessor();
     
     linc::Lexer lexer(code);
+    auto tokens = lexer();
+
     linc::Parser parser(lexer());
     linc::Binder binder;
     
     auto program = parser();
     auto bound_program = binder.bind(&program);
-    
-    bool errors = {false};
+    bool errors{false};
     
     for(const auto& report: linc::Reporting::getReports())
         if(report.type == linc::Reporting::Type::Error)
@@ -62,7 +58,7 @@ try
     {
         linc::Logger::print("linc > ");
 
-        std::string buffer, buffer_tolower, working_directory;
+        std::string buffer, buffer_tolower;
         std::getline(std::cin, buffer);
 
         for(char& c: buffer)
@@ -101,16 +97,11 @@ try
                 const auto& symbol = list[i];
                 
                 if(auto variable = dynamic_cast<const linc::BoundVariableDeclaration*>(symbol.get()))
-                    linc::Logger::println("#$:: var '$' of type '$' ($)", i, variable->getName(), linc::Types::toString(variable->getType()),
-                        variable->getMutable()? "mutable": "immutable");
-                
-                else if(auto argument = dynamic_cast<const linc::BoundArgumentDeclaration*>(symbol.get()))
-                    linc::Logger::println("#$:: var '$' of type '$' ($)", i, argument->getName(), linc::Types::toString(argument->getType()),
-                        argument->getMutable()? "mutable": "immutable");
+                    linc::Logger::println("#$:: var '$' of type '$'", i, variable->getName(), linc::Types::toString(variable->getActualType()));
                 
                 else if(auto function = dynamic_cast<const linc::BoundFunctionDeclaration*>(symbol.get()))
                     linc::Logger::println("#$:: function '$' with return type '$' (# of args: $)", i,
-                        function->getName(), linc::Types::toString(function->getType()), function->getArguments().size());
+                        function->getName(), linc::Types::toString(function->getReturnType()), function->getArguments().size());
             }
             
             if(list.empty())
@@ -142,8 +133,36 @@ try
         }
         else if(buffer == "q" || buffer == "/q")
             return LINC_EXIT_SUCCESS;
-        
-        linc::Preprocessor preprocessor(buffer, working_directory);
+
+        else if(bool curly = buffer.ends_with('{'))
+        {
+            std::size_t depth{1ull};
+            std::string sub_buffer{};
+            buffer.push_back('\n');
+
+            for(;;)
+            {
+                std::string depth_string{};
+                
+                if(depth == 0ull)
+                    break;
+
+                linc::Logger::print("---- > ");
+                std::getline(std::cin, sub_buffer);
+
+                auto has_left = sub_buffer.contains('{');
+                auto has_right = sub_buffer.contains('}');
+
+                for(std::size_t i = 0ull; i < depth - has_right? 1ull: 0ull; ++i)
+                    depth_string += ' ';
+
+                depth += has_left - has_right;
+
+                buffer.append(depth_string + sub_buffer + '\n');
+            }
+        }
+
+        linc::Preprocessor preprocessor(buffer, "shell-input");
         auto code = preprocessor();
 
         linc::Lexer lexer(code);
@@ -152,9 +171,10 @@ try
         if(show_lexer)
             for(auto& token: tokens)
                 linc::Logger::println("Token {type: '$', value: '$'}", linc::Token::typeToString(token.type), token.value.value_or(""));
-
+                
         linc::Parser parser(tokens);
         auto tree = parser.parseStatement();
+        parser.parseEndOfFile();
 
         if(show_tree)
             interpreter.printNodeTree(binder, tree.get(), "");
@@ -163,9 +183,10 @@ try
 
         if(linc::Reporting::getReports().size() == 0)
         {
-            auto res = interpreter.evaluateStatement(program.get());
-            if(res.getType() != linc::Types::Type::invalid)
-                linc::Logger::println("-> $", res);
+            auto result = interpreter.evaluateStatement(program.get());
+            if((result.getIfPrimitive() && result.getPrimitive().getKind() != linc::PrimitiveValue::Kind::Invalid)
+            || (result.getIfArray() && result.getArray().getKind() != linc::Types::Kind::invalid))
+                linc::Logger::println("-> $", result);
         }
 
         linc::Reporting::clearReports();

@@ -1,4 +1,5 @@
 #pragma once
+#include <linc/system/Code.hpp>
 #include <linc/lexer/Token.hpp>
 #include <linc/Include.hpp>
 
@@ -10,7 +11,7 @@ namespace linc
     public:
         /// @brief Initialize a lexer object.
         /// @param source_code The actual source code to be tokenized.
-        explicit Lexer(const std::string& source_code);
+        explicit Lexer(const Code::Source& source_code);
         
         /// @brief Process the source code given to the lexer and output its tokenized form.
         /// @return The list of tokens that correspond to the original source code.
@@ -78,32 +79,19 @@ namespace linc
         /// @brief Get the character that is offseted by as many characters as specified by offset.
         /// @param offset The offset count.
         /// @return Optionally returns the requested character if that exists, otherwise returning nullopt.
-        [[nodiscard]] inline std::optional<char> peek(std::string::size_type offset) const
+        [[nodiscard]] inline std::optional<Code::Character> peek(std::string::size_type offset = 0ull) const
         {
-            if(m_index + offset > m_sourceCode.size() - 1)
-                return std::nullopt; 
-            return m_sourceCode[m_index + offset];
-        }
-
-        /// @brief Get the current character.
-        /// @return Optionally returns the current character if it exists, otherwise returning nullopt.
-        [[nodiscard]] inline std::optional<char> peek() const
-        {
-            if(m_index >= m_sourceCode.size())
-                return std::nullopt; 
-            return m_sourceCode[m_index];
+            return Code::peek(m_sourceCode, m_characterIndex, m_lineIndex, offset);
         }
 
         /// @brief Return the current character, and increment the index pointer by one.
         /// @return The character that was consumed.
-        inline char consume() const
+        inline Code::Character consume() const
         {
-            return m_sourceCode[m_index++];
+            return Code::consume(m_sourceCode, m_characterIndex, m_lineIndex);
         }
 
-        const std::string m_sourceCode;
-        mutable std::string::size_type m_index{};
-        mutable size_t m_lineNumber{0};
-        mutable std::string m_lineBuffer;
+        const Code::Source m_sourceCode;
+        mutable std::string::size_type m_characterIndex{}, m_lineIndex{};
     };
 }

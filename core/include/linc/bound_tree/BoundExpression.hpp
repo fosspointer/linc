@@ -6,11 +6,11 @@ namespace linc
     class BoundExpression : public BoundNode
     {
     public:
-        BoundExpression(Types::Type type)
+        BoundExpression(const Types::type& type)
             :BoundNode(type)
         {}
         
         virtual ~BoundExpression() = default;
-        virtual std::unique_ptr<const BoundExpression> clone_const() const = 0;
+        virtual std::unique_ptr<const BoundExpression> cloneConst() const = 0;
     };
 }

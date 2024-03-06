@@ -11,6 +11,6 @@ namespace linc
         {}
 
         virtual ~Expression() = default;
-        virtual std::unique_ptr<const Expression> clone_const() const = 0;
+        virtual std::unique_ptr<const Expression> cloneConst() const = 0;
     };
 }

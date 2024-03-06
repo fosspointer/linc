@@ -26,7 +26,7 @@ namespace linc
             if(report.span.text.empty())
                 Logger::log(report.type, "[$] $", stageToString(report.stage), report.message);
             else
-                Logger::log(report.type, "[$] $\n in ``", stageToString(report.stage), report.message, report.span.get());
+                Logger::log(report.type, "[$] $\n in `$`", stageToString(report.stage), report.message, report.span.get());
         }
     }
 

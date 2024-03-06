@@ -6,12 +6,12 @@ namespace linc
     class BoundLiteralExpression final : public BoundExpression
     {
     public:
-        BoundLiteralExpression(const TypedValue& value);
-        [[nodiscard]] TypedValue getValue() const;
+        BoundLiteralExpression(const PrimitiveValue& value, const Types::type& type);
+        [[nodiscard]] PrimitiveValue getValue() const;
 
-        virtual std::unique_ptr<const BoundExpression> clone_const() const final override;
+        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
     private:
         virtual std::string toStringInner() const final override;
-        const TypedValue m_value;
+        const PrimitiveValue m_value;
     };
 }

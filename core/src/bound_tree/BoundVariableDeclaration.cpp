@@ -2,13 +2,15 @@
 
 namespace linc
 {
-    BoundVariableDeclaration::BoundVariableDeclaration(Types::Type type, const std::string& name, bool is_mutable, std::unique_ptr<const BoundExpression> value_expression)
-        :BoundDeclaration(Types::Type::_void), m_type(type), m_name(name), m_valueExpression(std::move(value_expression)), m_mutable(is_mutable)
+    BoundVariableDeclaration::BoundVariableDeclaration(Types::type type, const std::string& name,
+        std::optional<std::unique_ptr<const BoundExpression>> default_value)
+        :BoundDeclaration(Types::voidType), m_actualType(type), m_name(name), m_defaultValue(std::move(default_value))
     {}
 
-    std::unique_ptr<const BoundDeclaration> BoundVariableDeclaration::clone_const() const
+    std::unique_ptr<const BoundDeclaration> BoundVariableDeclaration::cloneConst() const
     {
-        return std::make_unique<const BoundVariableDeclaration>(m_type, m_name, m_mutable, std::move(m_valueExpression->clone_const()));
+        return std::make_unique<const BoundVariableDeclaration>(m_actualType, m_name, 
+            m_defaultValue.has_value()? std::make_optional(m_defaultValue.value()->cloneConst()): std::nullopt);
     }
     
     std::string BoundVariableDeclaration::toStringInner() const

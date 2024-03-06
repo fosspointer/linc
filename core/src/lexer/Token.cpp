@@ -16,13 +16,16 @@ namespace linc
         case Type::KeywordTrue: return "True Keyword Literal";
         case Type::KeywordFalse: return "False Keyword Literal";
         case Type::KeywordMutability: return "Mutability Keyword";
+        case Type::KeywordAs: return "As Keyword";
+        case Type::KeywordFor: return "For Keyword";
+        case Type::KeywordIn: return "In Keyword";
         case Type::ParenthesisLeft: return "Opening Parenthesis";
         case Type::ParenthesisRight: return "Closing Parenthesis";
         case Type::SquareLeft: return "Opening Square Bracket";
         case Type::SquareRight: return "Closing Square Bracket";
         case Type::BraceLeft: return "Opening Curly Brace";
         case Type::BraceRight: return "Closing Curly Brace";
-        case Type::OperatorType: return "Type Operator";
+        case Type::TypeSpecifier: return "Type Operator";
         case Type::Comma: return "Comma";
         case Type::OperatorPlus: return "Plus Operator";
         case Type::OperatorMinus: return "Minus Operator";
@@ -112,6 +115,10 @@ namespace linc
         case Type::KeywordTrue:
         case Type::KeywordFalse:
         case Type::KeywordMutability:
+        case Type::KeywordFinally:
+        case Type::KeywordAs:
+        case Type::KeywordFor:
+        case Type::KeywordIn:
             return true;
         default: return false;
         }
@@ -127,7 +134,7 @@ namespace linc
         case Type::SquareRight:
         case Type::BraceLeft:
         case Type::BraceRight:
-        case Type::OperatorType:
+        case Type::TypeSpecifier:
         case Type::Comma:
             return true;
         default: return false;
@@ -270,6 +277,7 @@ namespace linc
         case Type::OperatorDecrement:
         case Type::OperatorLogicalNot:
         case Type::OperatorBitwiseNot:
+        case Type::TypeSpecifier:
             return true;
         default: return false;
         }

@@ -10,7 +10,7 @@ namespace linc
         BoundDeclarationStatement(std::unique_ptr<const BoundDeclaration> declaration);
         [[nodiscard]] inline const BoundDeclaration* const getDeclaration() const { return m_declaration.get(); }
 
-        virtual std::unique_ptr<const BoundStatement> clone_const() const final override;
+        virtual std::unique_ptr<const BoundStatement> cloneConst() const final override;
     private:
         virtual std::string toStringInner() const final override;
         const std::unique_ptr<const BoundDeclaration> m_declaration;

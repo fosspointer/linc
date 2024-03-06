@@ -1,0 +1,29 @@
+# File containing utility functions in linc. Cannot evaluate this file by itself as it does not have an entry point!
+
+fn println(str: string): void {
+    puts(str + '\n')
+}
+
+fn print(str: string): void {
+    puts(str)
+}
+
+fn abs_i32(value: i32): i32 {
+    if value >= 0i32 value
+    else -value
+}
+
+fn abs_i64(value: i64): i64 {
+    if value >= 0i64 value
+    else -value
+}
+
+fn abs_f32(value: f32): f32 {
+    if value >= 0f32 value
+    else -value
+}
+
+fn abs_f64(value: f64): f64 {
+    if value >= 0f64 value
+    else -value
+}

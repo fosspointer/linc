@@ -16,9 +16,9 @@ namespace linc
             return {m_declaration.get()};
         }
 
-        virtual std::unique_ptr<const Statement> clone_const() const final override
+        virtual std::unique_ptr<const Statement> cloneConst() const final override
         {
-            return std::make_unique<const DeclarationStatement>(std::move(m_declaration->clone_const()));
+            return std::make_unique<const DeclarationStatement>(std::move(m_declaration->cloneConst()));
         }
 
         inline const Declaration* getDeclaration() const { return m_declaration.get(); }

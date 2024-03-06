@@ -21,7 +21,7 @@ namespace linc
             Scope(const Scope& scope)
             {
                 for(const auto& symbol: scope.m_symbols)
-                    m_symbols.push_back(std::move(symbol->clone_const()));
+                    m_symbols.push_back(symbol->cloneConst());
             }
 
             Scope(Scope&& scope)
@@ -62,11 +62,6 @@ namespace linc
                     if(function->getName() == name)
                         return it;
                 }
-                else if(auto argument = dynamic_cast<const BoundArgumentDeclaration*>(it->get()))
-                {
-                    if(argument->getName() == name)
-                        return it;
-                }
                 else 
                 {
                     Reporting::push(Reporting::Report{
@@ -87,8 +82,6 @@ namespace linc
                 find = this->find(variable->getName());
             else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(symbol.get()))
                 find = this->find(function->getName());
-            else if(auto argument = dynamic_cast<const BoundArgumentDeclaration*>(symbol.get()))
-                find = this->find(argument->getName());
             else 
             {
                 Reporting::push(Reporting::Report{
@@ -142,24 +135,27 @@ namespace linc
 
         inline void reset() { m_boundDeclarations.clear(); }
     private:
-        static void reportInvalidBinaryOperator(BoundBinaryOperator::Kind operator_kind, Types::Type left_type, Types::Type right_type);
-        static void reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::Type operand_type);
+        static void reportInvalidBinaryOperator(BoundBinaryOperator::Kind operator_kind, Types::type left_type, Types::type right_type);
+        static void reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::type operand_type);
         [[nodiscard]] const std::unique_ptr<const BoundStatement> bindDeclarationStatement(const DeclarationStatement* statement);
         [[nodiscard]] const std::unique_ptr<const BoundStatement> bindExpressionStatement(const ExpressionStatement* statement);
         [[nodiscard]] const std::unique_ptr<const BoundStatement> bindScopeStatement(const ScopeStatement* statement);
         [[nodiscard]] const std::unique_ptr<const BoundStatement> bindPutCharacterStatement(const PutCharacterStatement* statement);
         [[nodiscard]] const std::unique_ptr<const BoundStatement> bindPutStringStatement(const PutStringStatement* statement);
-        [[nodiscard]] const std::unique_ptr<const BoundDeclaration> bindVariableDeclaration(const VariableDeclaration* declaration);
-        [[nodiscard]] const std::unique_ptr<const BoundDeclaration> bindArgumentDeclaration(const ArgumentDeclaration* declaration);
+        [[nodiscard]] const std::unique_ptr<const BoundDeclaration> bindVariableDeclaration(const VariableDeclaration* declaration, bool is_argument = false);
         [[nodiscard]] const std::unique_ptr<const BoundDeclaration> bindFunctionDeclaration(const FunctionDeclaration* declaration);
         [[nodiscard]] const std::unique_ptr<const BoundExpression> bindIdentifierExpression(const IdentifierExpression* expression);
+        [[nodiscard]] const std::unique_ptr<const BoundExpression> bindTypeExpression(const TypeExpression* expression);
         [[nodiscard]] const std::unique_ptr<const BoundExpression> bindIfElseExpression(const IfElseExpression* expression);
         [[nodiscard]] const std::unique_ptr<const BoundExpression> bindWhileExpression(const WhileExpression* expression);
-        [[nodiscard]] const std::unique_ptr<const BoundExpression> bindVariableAssignmentExpression(const VariableAssignmentExpression* expression);
+        [[nodiscard]] const std::unique_ptr<const BoundExpression> bindForExpression(const ForExpression* expression);
         [[nodiscard]] const std::unique_ptr<const BoundExpression> bindFunctionCallExpression(const FunctionCallExpression* expression);
         [[nodiscard]] const std::unique_ptr<const BoundExpression> bindLiteralExpression(const LiteralExpression* expression);
         [[nodiscard]] const std::unique_ptr<const BoundExpression> bindUnaryExpression(const UnaryExpression* expression);
         [[nodiscard]] const std::unique_ptr<const BoundExpression> bindBinaryExpression(const BinaryExpression* expression);
+        [[nodiscard]] const std::unique_ptr<const BoundExpression> bindConversionExpression(const ConversionExpression* expression);
+        [[nodiscard]] const std::unique_ptr<const BoundExpression> bindArrayInitializerExpression(const ArrayInitializerExpression* expression);
+        [[nodiscard]] const std::unique_ptr<const BoundExpression> bindArrayIndexExpression(const ArrayIndexExpression* expression);
         BoundUnaryOperator::Kind bindUnaryOperatorKind(Token::Type token_type);
         BoundBinaryOperator::Kind bindBinaryOperatorKind(Token::Type token_type);
 

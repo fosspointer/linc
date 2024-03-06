@@ -1,7 +1,10 @@
 #pragma once
 #include <linc/system/Exception.hpp>
 #include <linc/system/Types.hpp>
-#include <linc/system/TypedValue.hpp>
+#include <linc/system/Code.hpp>
+#include <linc/system/PrimitiveValue.hpp>
+#include <linc/system/ArrayValue.hpp>
+#include <linc/system/Value.hpp>
 #include <linc/system/Printable.hpp>
 #include <linc/system/Logger.hpp>
 #include <linc/system/TextSpan.hpp>

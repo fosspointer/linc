@@ -1,0 +1,14 @@
+# demonstration of default values in linc!
+
+;include "utility.linc"
+
+fn call(greeting: string = "Hello" first_name: string = "John" last_name: string = "Doe"): void {
+    println(greeting + " \"" + first_name + ' ' + last_name + '"')
+}
+
+fn main(): void {
+    call()
+    call("Hey")
+    call("Hey" "Jane")
+    call("Hey" "Jane" "Smith")
+}

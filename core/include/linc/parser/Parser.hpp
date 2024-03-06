@@ -15,10 +15,18 @@ namespace linc
         Parser(std::vector<Token> tokens);
         Program operator()() const;
         std::unique_ptr<const Statement> parseStatement() const;
+
         std::unique_ptr<const Declaration> parseDeclaration() const;
+        std::unique_ptr<const VariableDeclaration> parseVariableDeclaration() const;
+        std::unique_ptr<const FunctionDeclaration> parseFunctionDeclaration() const;
+
         std::unique_ptr<const Expression> parseExpression(uint16_t parent_precedence = 0) const;
         std::unique_ptr<const Expression> parsePrimaryExpression() const;
+        std::unique_ptr<const LiteralExpression> parseLiteralExpression() const;
+        std::unique_ptr<const IdentifierExpression> parseIdentifierExpression() const;
+        std::unique_ptr<const TypeExpression> parseTypeExpression() const;
 
+        inline auto parseEndOfFile() const { return match(Token::Type::EndOfFile); }
     private:
         [[nodiscard]] inline std::optional<Token> peek(TokenSize offset) const
         {
@@ -48,11 +56,15 @@ namespace linc
 
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                .message = Logger::format("Expected token of type '$', got '$'.", Token::typeToString(type), Token::typeToString(peek()->type))});
+                .message = Logger::format("$::$ Expected token of type '$', got '$'.", peek()->info.file, peek()->info.line, Token::typeToString(type),
+                    Token::typeToString(peek()->type))}, !m_matchFailed);
             
-            return Token{.type = type, .lineNumber = peek()->lineNumber};
+            m_matchFailed = true;
+            
+            return Token{.type = type, .info = peek()->info};
         }
 
+        mutable bool m_matchFailed{};
         TokenList m_tokens;
         mutable TokenSize m_index{0};
     };

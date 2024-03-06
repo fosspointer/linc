@@ -8,7 +8,7 @@ namespace linc
     {
     public:
         LiteralExpression(const Token& token)
-            :Expression({.tokenList = {token}, .lineNumber = token.lineNumber}), m_token(token)
+            :Expression({.tokenList = {token}, .info = token.info}), m_token(token)
         {
             if(!m_token.isLiteral())
                 Reporting::push(Reporting::Report{
@@ -29,7 +29,7 @@ namespace linc
             return {};
         }
 
-        virtual std::unique_ptr<const Expression> clone_const() const final override
+        virtual std::unique_ptr<const Expression> cloneConst() const final override
         {
             return std::make_unique<const LiteralExpression>(m_token); 
         }

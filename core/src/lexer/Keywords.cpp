@@ -13,6 +13,9 @@ namespace linc
         LINC_KEYWORD_MAP_PAIR("false", Token::Type::KeywordFalse),
         LINC_KEYWORD_MAP_PAIR("mut", Token::Type::KeywordMutability),
         LINC_KEYWORD_MAP_PAIR("finally", Token::Type::KeywordFinally),
+        LINC_KEYWORD_MAP_PAIR("as", Token::Type::KeywordAs),
+        LINC_KEYWORD_MAP_PAIR("for", Token::Type::KeywordFor),
+        LINC_KEYWORD_MAP_PAIR("in", Token::Type::KeywordIn),
     };
 
     Token::Type Keywords::get(const std::string& keyword_string)

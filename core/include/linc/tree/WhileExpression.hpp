@@ -43,13 +43,13 @@ namespace linc
             
         }
 
-        virtual std::unique_ptr<const Expression> clone_const() const final override
+        virtual std::unique_ptr<const Expression> cloneConst() const final override
         {
             return std::make_unique<const WhileExpression>(m_whileKeywordToken,
-                std::move(m_testExpression->clone_const()), std::move(m_bodyWhileStatement->clone_const()), m_finallyKeywordToken, 
-                m_bodyFinallyStatement.has_value()? std::move(m_bodyFinallyStatement.value()->clone_const()): std::optional<std::unique_ptr<const Statement>>(),
+                std::move(m_testExpression->cloneConst()), std::move(m_bodyWhileStatement->cloneConst()), m_finallyKeywordToken, 
+                m_bodyFinallyStatement.has_value()? std::move(m_bodyFinallyStatement.value()->cloneConst()): std::optional<std::unique_ptr<const Statement>>(),
                 m_elseKeywordToken,
-                m_bodyElseStatement.has_value()? std::move(m_bodyElseStatement.value()->clone_const()): std::optional<std::unique_ptr<const Statement>>());
+                m_bodyElseStatement.has_value()? std::move(m_bodyElseStatement.value()->cloneConst()): std::optional<std::unique_ptr<const Statement>>());
         }
 
         const Token& getWhileKeywordToken() const { return m_whileKeywordToken; }

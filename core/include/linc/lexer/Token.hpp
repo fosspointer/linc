@@ -10,6 +10,13 @@ namespace linc
     struct Token final
     {
     public:
+        /// @brief Struct holding data useful for error handling and logging
+        struct Info final 
+        {
+            std::string file;
+            std::size_t line;
+        };
+
         /// @brief The type of a Token
         enum class Type
         {
@@ -21,9 +28,10 @@ namespace linc
             
             // Keywords
             KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse, KeywordMutability, KeywordFinally,
-            
+            KeywordAs, KeywordFor, KeywordIn,
+
             // Symbols
-            ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, OperatorType, Comma,
+            ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, TypeSpecifier, Comma, 
             
             // Arithmetic operators
             OperatorPlus, OperatorMinus, OperatorAsterisk, OperatorSlash, OperatorPercent,
@@ -156,6 +164,6 @@ namespace linc
 
         Type type;
         std::optional<std::string> value;
-        size_t lineNumber;
+        Info info;
     };
 }

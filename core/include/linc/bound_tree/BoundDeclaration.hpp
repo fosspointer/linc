@@ -6,11 +6,11 @@ namespace linc
     class BoundDeclaration : public BoundNode
     {
     public:
-        BoundDeclaration(Types::Type type)
+        BoundDeclaration(const Types::type& type)
             :BoundNode(type)
         {}
         
         virtual ~BoundDeclaration() = default;
-        virtual std::unique_ptr<const BoundDeclaration> clone_const() const = 0;
+        virtual std::unique_ptr<const BoundDeclaration> cloneConst() const = 0;
     };
 }

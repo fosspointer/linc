@@ -2,11 +2,11 @@
 
 namespace linc
 {
-    BoundIdentifierExpression::BoundIdentifierExpression(const std::string& value, const Types::Type type)
+    BoundIdentifierExpression::BoundIdentifierExpression(const std::string& value, const Types::type type)
         :BoundExpression(type), m_value(value)
     {}
 
-    std::unique_ptr<const BoundExpression> BoundIdentifierExpression::clone_const() const
+    std::unique_ptr<const BoundExpression> BoundIdentifierExpression::cloneConst() const
     {
         return std::make_unique<const BoundIdentifierExpression>(m_value, getType());
     }

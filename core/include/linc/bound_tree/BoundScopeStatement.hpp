@@ -9,7 +9,7 @@ namespace linc
         BoundScopeStatement(std::vector<std::unique_ptr<const BoundStatement>> statements);
         [[nodiscard]] inline const std::vector<std::unique_ptr<const BoundStatement>>& getStatements() const { return m_statements; }
 
-        virtual std::unique_ptr<const BoundStatement> clone_const() const final override;
+        virtual std::unique_ptr<const BoundStatement> cloneConst() const final override;
     private:
         virtual std::string toStringInner() const final override;
         const std::vector<std::unique_ptr<const BoundStatement>> m_statements;

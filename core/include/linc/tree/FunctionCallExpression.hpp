@@ -17,20 +17,20 @@ namespace linc
             return {};
         }
 
-        virtual std::unique_ptr<const Expression> clone_const() const final override
+        virtual std::unique_ptr<const Expression> cloneConst() const final override
         {
             std::vector<std::unique_ptr<const Expression>> arguments;
 
             for(const auto& argument: m_arguments)
-                arguments.push_back(std::move(argument->clone_const()));
+                arguments.push_back(std::move(argument->cloneConst()));
 
             return std::make_unique<const FunctionCallExpression>(m_identifierToken, m_leftParenthesisToken, m_rightParenthesisToken,
                 std::move(arguments));
         }
 
         const Token& getIdentifierToken() const { return m_identifierToken; }
-        const Token& getLeftParenthesisToken() const { return m_leftParenthesisToken; }
-        const Token& getRightParenthesisToken() const { return m_rightParenthesisToken; }
+        const Token& getLeftParenthesis() const { return m_leftParenthesisToken; }
+        const Token& getRightParenthesis() const { return m_rightParenthesisToken; }
         const std::vector<std::unique_ptr<const Expression>>& getArguments() const { return m_arguments; }
     private:
         const Token m_identifierToken, m_leftParenthesisToken, m_rightParenthesisToken;

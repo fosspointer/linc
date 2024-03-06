@@ -6,11 +6,11 @@ namespace linc
     class BoundStatement : public BoundNode
     {
     public:
-        BoundStatement(Types::Type type)
+        BoundStatement(const Types::type& type)
             :BoundNode(type)
         {}
 
         virtual ~BoundStatement() = default;
-        virtual std::unique_ptr<const BoundStatement> clone_const() const = 0;
+        virtual std::unique_ptr<const BoundStatement> cloneConst() const = 0;
     };
 }

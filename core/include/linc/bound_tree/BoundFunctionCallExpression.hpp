@@ -15,14 +15,14 @@ namespace linc
             bool isMutable;
         };
 
-        BoundFunctionCallExpression(Types::Type type, const std::string& name, std::vector<Argument> arguments,
+        BoundFunctionCallExpression(Types::type type, const std::string& name, std::vector<Argument> arguments,
             std::unique_ptr<const BoundStatement> body);
 
         [[nodiscard]] inline const std::string& getName() const { return m_name; }
         [[nodiscard]] inline const std::vector<Argument>& getArguments() const { return m_arguments; }
         [[nodiscard]] inline const BoundStatement* getBody() const { return m_body.get(); }
 
-        virtual std::unique_ptr<const BoundExpression> clone_const() const final override;
+        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
     private:
         virtual std::string toStringInner() const final override;
         const std::string m_name;

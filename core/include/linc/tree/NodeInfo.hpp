@@ -7,7 +7,6 @@ namespace linc
     struct NodeInfo
     {
         std::vector<Token> tokenList{};
-        size_t lineNumber{0};
-        std::string filename{};
+        Token::Info info;
     };
 }

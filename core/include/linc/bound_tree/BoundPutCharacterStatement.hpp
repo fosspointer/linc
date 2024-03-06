@@ -10,7 +10,7 @@ namespace linc
         BoundPutCharacterStatement(std::unique_ptr<const BoundExpression> expression);
         [[nodiscard]] const BoundExpression* const getExpression() const { return m_expression.get(); }
 
-        virtual std::unique_ptr<const BoundStatement> clone_const() const final override;
+        virtual std::unique_ptr<const BoundStatement> cloneConst() const final override;
     private:
         virtual std::string toStringInner() const final override;
         const std::unique_ptr<const BoundExpression> m_expression;

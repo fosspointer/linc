@@ -8,7 +8,7 @@ namespace linc
     {
     public:
         IdentifierExpression(const Token& token)
-            :Expression(NodeInfo{.tokenList = {token}, .lineNumber = token.lineNumber}),
+            :Expression(NodeInfo{.tokenList = {token}, .info = token.info}),
             m_identifierToken(token)
         {
             if(m_identifierToken.type != Token::Type::Identifier)
@@ -32,7 +32,7 @@ namespace linc
             return {};
         }
 
-        virtual std::unique_ptr<const Expression> clone_const() const final override
+        virtual std::unique_ptr<const Expression> cloneConst() const final override
         {
             return std::make_unique<const IdentifierExpression>(m_identifierToken); 
         }

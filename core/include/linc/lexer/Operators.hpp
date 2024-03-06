@@ -9,15 +9,13 @@ namespace linc
     {
     public:
         using OperatorMap = std::unordered_map<std::string, Token::Type>;
-        using BinaryPrecedenceMap = std::unordered_map<Token::Type, std::uint16_t>;
-        using UnaryPrecedenceMap = std::unordered_map<Token::Type, std::uint16_t>;
+        using OperatorPrecedenceMap = std::unordered_map<Token::Type, std::uint16_t>;
         
         static Token::Type get(const std::string& operator_string);
         static uint16_t getBinaryPrecedence(Token::Type operator_token_type);
         static uint16_t getUnaryPrecedence(Token::Type operator_token_type);
     private:
-        static const OperatorMap s_OperatorMap;
-        static const UnaryPrecedenceMap s_UnaryOperatorPrecedenceMap;
-        static const BinaryPrecedenceMap s_BinaryOperatorPrecedenceMap;
+        static const OperatorMap s_operatorMap;
+        static const OperatorPrecedenceMap s_unaryOperatorPrecedenceMap, s_binaryOperatorPrecedenceMap;
     };
 }

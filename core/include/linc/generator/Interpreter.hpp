@@ -15,7 +15,7 @@ namespace linc
         struct VariableValue final
         {   
             std::string name;
-            TypedValue value{TypedValue::invalidValue};
+            Value value{PrimitiveValue::invalidValue};
             bool isMutable;
             bool temporary{false};
         };
@@ -47,13 +47,13 @@ namespace linc
             if(errors)
                 return LINC_EXIT_PROGRAM_FAILURE;
 
-            switch(bound_main_call->getType())
+            switch(bound_main_call->getType().kind)
             {
-            case Types::Type::u8: return evaluateExpression(bound_main_call.get()).getU8();
-            case Types::Type::i8: return evaluateExpression(bound_main_call.get()).getI8();
-            case Types::Type::i16: return evaluateExpression(bound_main_call.get()).getI16();
-            case Types::Type::i32: return evaluateExpression(bound_main_call.get()).getI32();
-            case Types::Type::_void:
+            case Types::Kind::u8: return evaluateExpression(bound_main_call.get()).getPrimitive().getU8();
+            case Types::Kind::i8: return evaluateExpression(bound_main_call.get()).getPrimitive().getI8();
+            case Types::Kind::i16: return evaluateExpression(bound_main_call.get()).getPrimitive().getI16();
+            case Types::Kind::i32: return evaluateExpression(bound_main_call.get()).getPrimitive().getI32();
+            case Types::Kind::_void:
                 evaluateExpression(bound_main_call.get());
                 return LINC_EXIT_PROGRAM_SUCCESS;
             default:
@@ -68,7 +68,7 @@ namespace linc
             }
         }
 
-        TypedValue evaluateStatement(const BoundStatement* statement)
+        Value evaluateStatement(const BoundStatement* statement)
         {
             if(auto declaration_statement = dynamic_cast<const BoundDeclarationStatement*>(statement))
                 return evaluateDeclaration(declaration_statement->getDeclaration());
@@ -78,7 +78,7 @@ namespace linc
             
             else if(auto scope_statement = dynamic_cast<const BoundScopeStatement*>(statement))
             {
-                TypedValue value = TypedValue::voidValue;
+                Value value = PrimitiveValue::voidValue;
                 for(const auto& stmt: scope_statement->getStatements())
                     value = evaluateStatement(stmt.get());
                 
@@ -86,41 +86,42 @@ namespace linc
             }
             else if(auto put_character_statement = dynamic_cast<const BoundPutCharacterStatement*>(statement))
             {
-                fputc(evaluateExpression(put_character_statement->getExpression()).getChar(), stdout);
-                return TypedValue::voidValue;
+                fputc(evaluateExpression(put_character_statement->getExpression()).getPrimitive().getChar(), stdout);
+                return PrimitiveValue::voidValue;
             }
             else if(auto put_string_statement = dynamic_cast<const BoundPutStringStatement*>(statement))
             {
-                fputs(evaluateExpression(put_string_statement->getExpression()).getString().c_str(), stdout);
-                return TypedValue::voidValue;
+                fputs(evaluateExpression(put_string_statement->getExpression()).getPrimitive().getString().c_str(), stdout);
+                return PrimitiveValue::voidValue;
             }
             else
             {
                 throw LINC_EXCEPTION("Encountered unrecognized statement type while evaluating program"); 
-                return TypedValue::invalidValue;
+                return PrimitiveValue::invalidValue;
             }
         }
 
-        TypedValue evaluateDeclaration(const BoundDeclaration* declaration)
+        Value evaluateDeclaration(const BoundDeclaration* declaration)
         {
             if(auto variable_declaration = dynamic_cast<const BoundVariableDeclaration*>(declaration))
             {
-                auto value = evaluateExpression(variable_declaration->getValueExpression());
+                auto value = variable_declaration->getDefaultValue()? evaluateExpression(*variable_declaration->getDefaultValue()):
+                    PrimitiveValue::fromDefault(variable_declaration->getActualType().kind);
                 auto variable = m_variables[variable_declaration->getName()] 
-                    = VariableValue{.name = variable_declaration->getName(), .value = value, .isMutable = variable_declaration->getMutable()};
+                    = VariableValue{.name = variable_declaration->getName(), .value = value, .isMutable = variable_declaration->getActualType().isMutable};
 
-                return TypedValue::voidValue;
+                return PrimitiveValue::voidValue;
             }
             else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
-                return TypedValue::voidValue;
+                return PrimitiveValue::voidValue;
             else
             {
                 throw LINC_EXCEPTION("Encountered unrecognized declaration type while evaluating program"); 
-                return TypedValue::invalidValue;
+                return PrimitiveValue::invalidValue;
             }
         }
 
-        TypedValue evaluateExpression(const BoundExpression* expression)
+        Value evaluateExpression(const BoundExpression* expression)
         {
             if(auto literal_expression = dynamic_cast<const BoundLiteralExpression*>(expression))
             {
@@ -128,27 +129,81 @@ namespace linc
             }
             else if(auto if_else_expression = dynamic_cast<const BoundIfElseExpression*>(expression))
             {
-                auto test = evaluateExpression(if_else_expression->getTestExpression()).getBool();
+                auto test = evaluateExpression(if_else_expression->getTestExpression()).getPrimitive().getBool();
 
                 if(test)
                     return evaluateStatement(if_else_expression->getIfBodyStatement());
                 else if(if_else_expression->hasElse())
                     return evaluateStatement(if_else_expression->getElseBodyStatement().value());
-                else return TypedValue::voidValue;
+                else return PrimitiveValue::voidValue;
+            }
+            else if(auto for_expression = dynamic_cast<const BoundForExpression*>(expression))
+            {
+                const auto& specifier = for_expression->getSpecifier();
+
+                if(auto variable_specifier = std::get_if<const BoundForExpression::BoundVariableForSpecifier>(&specifier))
+                {
+                    evaluateDeclaration(variable_specifier->variableDeclaration.get());
+                    Value return_value = PrimitiveValue::voidValue;
+
+                    while(evaluateExpression(variable_specifier->expression.get()).getPrimitive().getBool())
+                    {
+                        return_value = evaluateStatement(for_expression->getBody());
+                        evaluateStatement(variable_specifier->statement.get());
+                    }
+
+                    return return_value;
+                }
+                else if(auto range_specifier = std::get_if<const BoundForExpression::BoundRangeForSpecifier>(&specifier))
+                {
+                    auto find = m_variables.find(range_specifier->arrayIdentifier->getValue());
+                    auto type = range_specifier->arrayIdentifier->getType();
+                    std::size_t count{};
+                    ArrayValue array(std::vector<Types::_void_type>{Types::_void_type{}});
+
+                    if(!type.isArray && type.kind == Types::Kind::string)
+                    {
+                        auto string = find->second.value.getPrimitive().getString();
+
+                        count = string.size();
+                        array = ArrayValue(std::vector<char>(string.c_str(), string.c_str() + count));
+                    }
+                    else if(type.isArray)
+                    {
+                        count = find->second.value.getArray().getCount();
+                        array = find->second.value.getArray();
+                    }
+                    else return PrimitiveValue::invalidValue;
+
+                    Value return_value{PrimitiveValue::voidValue};
+                    
+                    for(std::size_t i = 0ull; i < count; ++i)
+                    {
+                        m_variables[range_specifier->valueIdentifier->getValue()] = VariableValue{
+                            .name = range_specifier->valueIdentifier->getValue(),
+                            .value = PrimitiveValue(array.get(i)),
+                            .isMutable = true
+                        };
+
+                        return_value = evaluateStatement(for_expression->getBody());
+                    }
+
+                    return return_value;
+                }
+                else return PrimitiveValue::invalidValue;
             }
             else if(auto while_expression = dynamic_cast<const BoundWhileExpression*>(expression))
             {
-                TypedValue return_value = TypedValue::voidValue;
-
+                Value return_value = PrimitiveValue::voidValue;
                 bool evaluated{false};
 
-                if(evaluateExpression(while_expression->getTestExpression()).getBool())
+                if(evaluateExpression(while_expression->getTestExpression()).getPrimitive().getBool())
                 {
                     evaluated = true;
                     return_value = evaluateStatement(while_expression->getWhileBodyStatement());
                 }
 
-                while(evaluateExpression(while_expression->getTestExpression()).getBool())
+                while(evaluateExpression(while_expression->getTestExpression()).getPrimitive().getBool())
                     return_value = evaluateStatement(while_expression->getWhileBodyStatement());
                 
                 auto finally = while_expression->getFinallyBodyStatement();
@@ -163,24 +218,65 @@ namespace linc
             }
             else if(auto binary_expression = dynamic_cast<const BoundBinaryExpression*>(expression))
             {
+                Value result = PrimitiveValue::fromDefault(binary_expression->getType().kind);
+                
                 if(binary_expression->getOperator()->getKind() == BoundBinaryOperator::Kind::LogicalAnd)
                 {
-                    if(evaluateExpression(binary_expression->getLeft()).getBool())
-                        return TypedValue(evaluateExpression(binary_expression->getRight()).getBool());
-                    else return TypedValue(false);
+                    if(evaluateExpression(binary_expression->getLeft()).getPrimitive().getBool())
+                        return PrimitiveValue(evaluateExpression(binary_expression->getRight()).getPrimitive().getBool());
+                    else return PrimitiveValue(false);
+                }
+                else if(binary_expression->getOperator()->getKind() == BoundBinaryOperator::Kind::LogicalOr)
+                {
+                    if(evaluateExpression(binary_expression->getLeft()).getPrimitive().getBool())
+                        return PrimitiveValue(true);
+                    else return PrimitiveValue(evaluateExpression(binary_expression->getRight()).getPrimitive().getBool());
+                }
+                else if(binary_expression->getOperator()->getKind() == BoundBinaryOperator::Kind::Addition)
+                {
+                    auto left = evaluateExpression(binary_expression->getLeft());
+                    auto right = evaluateExpression(binary_expression->getRight());
+
+                    result = left + right;
                 }
 
-                auto left = evaluateExpression(binary_expression->getLeft());
-                auto right = evaluateExpression(binary_expression->getRight());
+                auto left = evaluateExpression(binary_expression->getLeft()).getPrimitive();
+                auto right = evaluateExpression(binary_expression->getRight()).getPrimitive();
 
                 switch(binary_expression->getOperator()->getKind())
                 {
-                case BoundBinaryOperator::Kind::Addition:
-                    return left + right;
+                case BoundBinaryOperator::Kind::Assignment:
+                    if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(binary_expression->getLeft()))
+                    {
+                        m_variables.at(identifier->getValue()).value = right;
+                        result = right;
+                    }
+                    else if(auto array_index = dynamic_cast<const BoundArrayIndexExpression*>(binary_expression->getLeft()))
+                    {
+                        auto index = evaluateExpression(array_index->getIndex()).getPrimitive().getU64();
+                        auto find = m_variables.find(array_index->getIdentifier()->getValue());
+
+                        if(find == m_variables.end())
+                            return PrimitiveValue::invalidValue;
+
+                        find->second.value.getArray().set(index, right);
+                        result = right;
+                    }
+                    else
+                    {
+                        Reporting::push(Reporting::Report{
+                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                            .message = "Cannot use the assignment operator on temporary operands."
+                        });
+                        return PrimitiveValue::invalidValue;
+                    }
+                    break;
                 case BoundBinaryOperator::Kind::Subtraction:
-                    return left - right;
+                    result = left - right;
+                    break;
                 case BoundBinaryOperator::Kind::Multiplication:
-                    return left * right;
+                    result = left * right;
+                    break;
                 case BoundBinaryOperator::Kind::Division:
                     if(right.isZero())
                     {
@@ -189,28 +285,43 @@ namespace linc
                             .message = Logger::format("Attempted division by zero. Operands are '$' ('$') and '$' ('$').",
                                 left, Types::toString(left.getType()), right, Types::toString(right.getType()))
                         }});
-                        return TypedValue::invalidValue;
+                        return PrimitiveValue::invalidValue;
                     }
-                    return left / right;
-                case BoundBinaryOperator::Kind::LogicalOr:
-                    return TypedValue(left.getBool() || right.getBool());
+                    result = left / right;
+                    break;
                 case BoundBinaryOperator::Kind::Equals:
-                    return TypedValue(left == right);
+                    result = PrimitiveValue(left == right);
+                    break;
                 case BoundBinaryOperator::Kind::NotEquals:
-                    return TypedValue(left != right);
+                    result = PrimitiveValue(left != right);
+                    break;
                 case BoundBinaryOperator::Kind::Greater:
-                    return TypedValue(left > right);
+                    result = PrimitiveValue(left > right);
+                    break;
                 case BoundBinaryOperator::Kind::Less:
-                    return TypedValue(left < right);
+                    result = PrimitiveValue(left < right);
+                    break;
                 case BoundBinaryOperator::Kind::GreaterEqual:
-                    return TypedValue(left >= right);
+                    result = PrimitiveValue(left >= right);
+                    break;
                 case BoundBinaryOperator::Kind::LessEqual:
-                    return TypedValue(left <= right);
-                default: return TypedValue::invalidValue;
+                    result = PrimitiveValue(left <= right);
+                    break;
+                default: break;
                 }
+
+                if(result.getIfPrimitive() && (result.getPrimitive().getKind() == PrimitiveValue::Kind::Signed
+                    || result.getPrimitive().getKind() == PrimitiveValue::Kind::Unsigned))
+                    return result.getPrimitive().convert(binary_expression->getType().kind);
+                else return result;
             }
             else if(auto unary_expression = dynamic_cast<const BoundUnaryExpression*>(expression))
             {
+                Value result = PrimitiveValue::fromDefault(unary_expression->getType().kind);
+                
+                if(unary_expression->getOperator()->getKind() == BoundUnaryOperator::Kind::Typeof)
+                    return PrimitiveValue(unary_expression->getOperand()->getType());
+
                 auto operand = evaluateExpression(unary_expression->getOperand());
 
                 switch(unary_expression->getOperator()->getKind())
@@ -218,12 +329,13 @@ namespace linc
                 case BoundUnaryOperator::Kind::Increment:
                 case BoundUnaryOperator::Kind::Decrement:
                 {
+                    const BoundIdentifierExpression* operand;
                     if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(unary_expression->getOperand()))
                     {
                         auto var = m_variables.find(identifier->getValue());
 
                         if(var == m_variables.end())
-                            return TypedValue::invalidValue;
+                            return PrimitiveValue::invalidValue;
                         else
                         {
                             if(!var->second.isMutable)
@@ -234,13 +346,13 @@ namespace linc
                                         identifier->getValue())
                                 });
 
-                                return TypedValue::invalidValue;
+                                return PrimitiveValue::invalidValue;
                             }
                             else 
                             {
                                 if(unary_expression->getOperator()->getKind() == BoundUnaryOperator::Kind::Increment)
-                                    return ++var->second.value;
-                                else return --var->second.value;
+                                    return Value(++var->second.value).getPrimitive().convert(unary_expression->getType().kind);
+                                else return Value(--var->second.value).getPrimitive().convert(unary_expression->getType().kind);
                             }
                         }
                     }
@@ -251,19 +363,24 @@ namespace linc
                             .message = "Cannot increment non-identifier expression"
                         });
 
-                        return TypedValue::invalidValue;
+                        return PrimitiveValue::invalidValue;
                     }
                 }
                 case BoundUnaryOperator::Kind::Stringify:
-                    return TypedValue(operand.toString());
+                    return PrimitiveValue(operand.toString());
                 case BoundUnaryOperator::Kind::UnaryPlus:
                     return operand;
                 case BoundUnaryOperator::Kind::UnaryMinus:
                     return -operand;
                 case BoundUnaryOperator::Kind::LogicalNot:
-                    return TypedValue(!operand.getBool());
-                default: return TypedValue::invalidValue;
+                    return PrimitiveValue(!operand.getPrimitive().getBool());
+                default: return PrimitiveValue::invalidValue;
                 }
+
+                if(result.getIfPrimitive() && (result.getPrimitive().getKind() == PrimitiveValue::Kind::Signed
+                    || result.getPrimitive().getKind() == PrimitiveValue::Kind::Unsigned))
+                    return result.getPrimitive().convert(binary_expression->getType().kind);
+                else return result;
             }
             else if(auto identifier_expression = dynamic_cast<const BoundIdentifierExpression*>(expression))
             {
@@ -275,16 +392,14 @@ namespace linc
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
                         .message = Logger::format("Variable '$' does not exist!", identifier_expression->getValue())
                     });
-                    return TypedValue::invalidValue;
+                    return PrimitiveValue::invalidValue;
                 }
 
                 return find->second.value;
             }
-            else if(auto variable_assignment_expression = dynamic_cast<const BoundVariableAssignmentExpression*>(expression))
+            else if(auto type_expression = dynamic_cast<const BoundTypeExpression*>(expression))
             {
-                auto find = m_variables.find(variable_assignment_expression->getIdentifier());
-                find->second.value = evaluateExpression(variable_assignment_expression->getValue());
-                return find->second.value;
+                return PrimitiveValue(type_expression->getActualType());
             }
             else if(auto function_call_expression = dynamic_cast<const BoundFunctionCallExpression*>(expression))
             {
@@ -292,13 +407,12 @@ namespace linc
 
                 for(const auto& argument: function_call_expression->getArguments())
                 {
+                    auto find = m_variables.find(argument.name);
+
                     auto value = evaluateExpression(argument.value.get());
-                    if(m_variables.find(argument.name) == m_variables.end())
-                    {
-                        auto variable = m_variables[argument.name] 
-                            = VariableValue{.name = argument.name, .value = value, .isMutable = argument.isMutable, .temporary = true};
-                        args.push_back(variable.name);
-                    }
+                    auto variable = m_variables[argument.name] 
+                        = VariableValue{.name = argument.name, .value = value, .isMutable = argument.isMutable, .temporary = find == m_variables.end()};
+                    args.push_back(variable.name);
                 }
 
                 auto result = evaluateStatement(function_call_expression->getBody());
@@ -312,10 +426,38 @@ namespace linc
 
                 return result;
             }
+            else if(auto conversion_expression = dynamic_cast<const BoundConversionExpression*>(expression))
+            {
+                auto value = evaluateExpression(conversion_expression->getExpression());
+                return value.getPrimitive().convert(conversion_expression->getType().kind);
+            }
+            else if(auto array_initializer_expression = dynamic_cast<const BoundArrayInitializerExpression*>(expression))
+            {
+                ArrayValue result = ArrayValue::fromDefault(expression->getType().kind);
+
+                for(const auto& value: array_initializer_expression->getValues())
+                    result.push(evaluateExpression(value.get()).getPrimitive());
+
+                return std::move(result);
+            }
+            else if(auto array_index_expression = dynamic_cast<const BoundArrayIndexExpression*>(expression))
+            {
+                auto find = m_variables.find(array_index_expression->getIdentifier()->getValue());
+                auto index = evaluateExpression(array_index_expression->getIndex());
+                auto type = array_index_expression->getIdentifier()->getType();
+
+                if(type.kind == Types::Kind::string && !type.isArray)
+                    return PrimitiveValue(find->second.value.getPrimitive().getString().at(index.getPrimitive().getU64()));
+
+                else if(type.isArray)
+                    return find->second.value.getArray().get(index.getPrimitive().getU64());
+                
+                else return PrimitiveValue::invalidValue;
+            }
             else
             {
                 throw LINC_EXCEPTION("Encountered unrecognized expression type while evaluating program"); 
-                return TypedValue::invalidValue;
+                return PrimitiveValue::invalidValue;
             }
         }
 

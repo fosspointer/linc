@@ -1,4 +1,4 @@
-# File containing utility functions in linc. Cannot evaluate this file by itself as it does not have an entry point!
+# File containing utility functions in linc. Cannot evaluate this file as is, as it does not have an entry point.
 
 fn println(string str): void {
     puts(str + 10c)

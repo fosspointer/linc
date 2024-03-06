@@ -1,0 +1,76 @@
+add_executable(linctest ${CMAKE_CURRENT_SOURCE_DIR}/tests/linctest.cpp)
+target_link_libraries(linctest linc_core)
+
+include(CTest)
+enable_testing()
+
+set(index 0)
+macro(linc_test arg1 arg2 type)
+    add_test(TYPE_TEST_${index} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/linctest ${arg1} ${arg2} ${type})
+    math(EXPR index "${index}+1")
+endmacro()
+
+linc_test("1i8 + 1i8" "2i8" "i8")
+linc_test("1i16 + 1i16" "2i16" "i16")
+linc_test("1i32 + 1i32" "2i32" "i32")
+linc_test("1i64 + 1i64" "2i64" "i64")
+linc_test("1u8 + 1u8" "2u8" "u8")
+linc_test("1u16 + 1u16" "2u16" "u16")
+linc_test("1u32 + 1u32" "2u32" "u32")
+linc_test("1u64 + 1u64" "2u64" "u64")
+linc_test("1f32 + 1f32" "2f32" "f32")
+linc_test("1f64 + 1f64" "2f64" "f64")
+
+linc_test("1 + 1" "2" "i32")
+linc_test("1i + 1i" "2i" "i32")
+linc_test("1u + 1u" "2u" "u32")
+linc_test("1f + 1f" "2f" "f32")
+
+linc_test("33c + 33c" "\"!!\"" "string")
+linc_test("\"hello\" + '!'" "\"hello!\"" "string")
+linc_test("'!' + \"hello\"" "\"!hello\"" "string")
+
+linc_test("i32 == f32" "false" "bool")
+linc_test("true == false" "false" "bool")
+linc_test("false == true" "false" "bool")
+linc_test("i32[] == i32" "false" "bool")
+linc_test("i32[5] == i32[]" "false" "bool")
+linc_test("i32 != f32" "true" "bool")
+linc_test("true != false" "true" "bool")
+linc_test("false != true" "true" "bool")
+
+linc_test("-1u64 > 0u64" "true" "bool")
+linc_test("-1u32 > 0u32" "true" "bool")
+linc_test("-1u16 > 0u16" "true" "bool")
+linc_test("-1u8 > 0u8" "true" "bool")
+
+linc_test("255u8 + 1u8" "0u8" "u8")
+linc_test("255u8" "-1u8" "u8")
+linc_test("256u8" "0u8" "u8")
+
+linc_test("65535u16 + 1u16" "0u16" "u16")
+linc_test("65535u16" "-1u16" "u16")
+linc_test("65536u16" "0u16" "u16")
+
+linc_test("4294967295u32 + 1u32" "0u32" "u32")
+linc_test("4294967295u32" "-1u32" "u32")
+linc_test("4294967296u32" "0u32" "u32")
+
+linc_test("18446744073709551615u64 + 1u64" "0u64" "u64")
+linc_test("18446744073709551615u64" "-1u64" "u64")
+linc_test("18446744073709551616u64" "0u64" "u64")
+
+linc_test("5i32 >= 5i32" "true" "bool")
+linc_test("5i32 <= 5i32" "true" "bool")
+linc_test("5i32 > 5i32" "false" "bool")
+linc_test("5i32 < 5i32" "false" "bool")
+
+linc_test("5f32 >= 5f32" "true" "bool")
+linc_test("5f32 <= 5f32" "true" "bool")
+linc_test("5f32 > 5f32" "false" "bool")
+linc_test("5f32 < 5f32" "false" "bool")
+
+linc_test("5f64 >= 5f64" "true" "bool")
+linc_test("5f64 <= 5f64" "true" "bool")
+linc_test("5f64 > 5f64" "false" "bool")
+linc_test("5f64 < 5f64" "false" "bool")

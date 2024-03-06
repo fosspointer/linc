@@ -2,19 +2,59 @@
 #include <linc/system/Exception.hpp>
 #include <linc/Include.hpp>
 
+#define LINC_TYPES_KIND_TYPE char
+#define LINC_TYPE_BINARY_OPERATOR_INELIGIBLE_EXCEPTION(kind_literal) LINC_EXCEPTION("Binary " kind_literal " operator not eligible for 'type' operands.")
+
 namespace linc
 {   
     class Types final
     {
     public:
-        enum class Type: char
+        Types() = delete;
+        
+        enum class Kind: LINC_TYPES_KIND_TYPE
         {
             invalid,
             u8, u16, u32, u64,
             i8, i16, i32, i64,
             f32, f64,
-            string,
+            string, type,
             _char, _bool, _void
+        };
+
+        struct type
+        {
+            Kind kind;
+            bool isMutable{false};
+            bool isArray{false};
+            std::optional<std::size_t> arraySize{std::nullopt};
+
+            bool operator==(const type& other) const
+            {
+                return kind == other.kind && isMutable == other.isMutable && isArray == other.isArray && arraySize == other.arraySize; 
+            }
+
+            bool operator!=(const type& other) const 
+            {
+                return !(*this == other);
+            }
+
+            bool isAssignableTo(const type& identifier_type) const
+            {
+                if(kind != identifier_type.kind || isArray != identifier_type.isArray) return false;
+                else if(isArray)
+                {
+                    if((arraySize && identifier_type.arraySize && arraySize.value() == identifier_type.arraySize.value())
+                    || !identifier_type.arraySize) return true;
+                    else return false;
+                }
+                else return true;
+            }
+
+            bool isCompatible(const type& other) const
+            {
+                return isAssignableTo(other) || other.isAssignableTo(*this);
+            }
         };
         
         using u8 = std::uint8_t;
@@ -35,24 +75,43 @@ namespace linc
 
         using string = std::string;
         struct _void_type {};
-        struct invalid_type {};
+        struct _invalid_type {};
 
-        using Variant = std::variant<u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, _char, _bool, _void_type, invalid_type, string>;
+        using Variant = std::variant<_invalid_type, _void_type, _bool, _char, u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, string, type>;
+        using TypeMap = std::unordered_map<std::string, Kind>;
 
-        using TypeMap = std::unordered_map<std::string, Type>;
+        static type voidType, invalidType;
         
-        static Variant toVariant(Type type, const std::string& value);
-        static std::string toString(Type type);
-        static Type fromString(const std::string& value);
-        static Type fromUserString(const std::string& value);
-        static Type fromUserStringSuffix(const std::string& value);
+        template <typename To, typename From> 
+        [[nodiscard]] inline static const std::unique_ptr<To> unique_cast_dynamic(std::unique_ptr<From> p)
+        {
+            std::unique_ptr<To> result(dynamic_cast<To*>(p.get()));
+            p.release();
+            return std::move(result);
+        }
+
+        template <typename To, typename From> 
+        [[nodiscard]] inline static const std::unique_ptr<To> unique_cast(std::unique_ptr<From> p)
+        {
+            std::unique_ptr<To> result(static_cast<To*>(p.get()));
+            p.release();
+            return std::move(result);
+        }
+
+        static Variant toVariant(Kind type, const std::string& value);
+        static std::string kindToString(Kind kind);
+        static std::string toString(const type& type);
+        static type fromKind(Kind kind);
+        static Kind kindFromString(const std::string& value);
+        static Kind kindFromUserString(const std::string& value);
+        static Kind kindFromUserStringSuffix(const std::string& value);
         static Types::_bool parseBoolean(const std::string& str);
         static Types::_char parseUserCharacter(const std::string& str);
-        static bool isNumeric(Type type);
-        static bool isIntegral(Type type);
-        static bool isSigned(Type type);
-        static bool isUnsigned(Type type);
-        static bool isFloating(Type type);
+        static bool isNumeric(Kind type);
+        static bool isIntegral(Kind type);
+        static bool isSigned(Kind type);
+        static bool isUnsigned(Kind type);
+        static bool isFloating(Kind type);
     private:
         static const TypeMap s_typeMap, s_suffixMap;
     };

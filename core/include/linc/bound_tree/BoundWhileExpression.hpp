@@ -7,7 +7,7 @@ namespace linc
     class BoundWhileExpression final : public BoundExpression
     {
     public:
-        BoundWhileExpression(Types::Type type, std::unique_ptr<const BoundExpression> test_expression,
+        BoundWhileExpression(Types::type type, std::unique_ptr<const BoundExpression> test_expression,
             std::unique_ptr<const BoundStatement> body_while_statement, 
             std::optional<std::unique_ptr<const BoundStatement>> body_finally_statement = {},
             std::optional<std::unique_ptr<const BoundStatement>> body_else_statement = {});
@@ -29,7 +29,7 @@ namespace linc
             else return std::nullopt;
         }
 
-        virtual std::unique_ptr<const BoundExpression> clone_const() const final override;
+        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
     private:
         virtual std::string toStringInner() const final override;
         

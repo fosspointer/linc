@@ -1,0 +1,16 @@
+# Array demonstration in linc!
+
+;include "utility.linc"
+
+fn main(): void {
+    poem: string[] = [
+        "To be or not to be"
+        "That is the question"
+        "Whether 'tis nobler in the mind"
+        "To suffer the slings and arrows of outrageous fortune"
+        "Or to take arms against a sea of troubles"
+        "And by opposing end them"]
+
+    for(in poem line)
+        println(line)
+}

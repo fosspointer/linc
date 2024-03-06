@@ -16,9 +16,9 @@ namespace linc
             return {m_expression.get()};
         }
 
-        virtual std::unique_ptr<const Statement> clone_const() const final override
+        virtual std::unique_ptr<const Statement> cloneConst() const final override
         {
-            return std::make_unique<const ExpressionStatement>(std::move(m_expression->clone_const()));
+            return std::make_unique<const ExpressionStatement>(std::move(m_expression->cloneConst()));
         }
 
         inline const Expression* getExpression() const { return m_expression.get(); }

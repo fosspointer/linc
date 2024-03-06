@@ -1,5 +1,5 @@
 #pragma once
-#include <linc/system/TypedValue.hpp>
+#include <linc/system/Value.hpp>
 #include <linc/Include.hpp>
 
 
@@ -10,11 +10,19 @@ namespace linc
     public:
         enum class Type
         {
-            String, SignedIntegral, UnsignedIntegral, Floating, Nullptr, Boolean, Character, TypedValue
+            String, SignedIntegral, UnsignedIntegral, Floating, Nullptr, Boolean, Character, PrimitiveValue, ArrayValue, Value
         };
 
-        Printable(const TypedValue& value)
-            :m_typedValue(value), m_type(Type::TypedValue)
+        Printable(const Value& value)
+            :m_value(value), m_type(Type::Value)
+        {}
+
+        Printable(const PrimitiveValue& value)
+            :m_primitiveValue(value), m_type(Type::PrimitiveValue)
+        {}
+
+        Printable(const ArrayValue& value)
+            :m_arrayValue(value), m_type(Type::ArrayValue)
         {}
 
         Printable(const std::string& str)
@@ -93,7 +101,7 @@ namespace linc
             case Type::Nullptr: m_nullptr = other.m_nullptr; break;
             case Type::Boolean: m_boolean = other.m_boolean; break;
             case Type::Character: m_character = other.m_character; break;
-            case Type::TypedValue: m_typedValue = other.m_typedValue; break;
+            case Type::Value: m_value = other.m_value; break;
             }
         }
 
@@ -111,7 +119,7 @@ namespace linc
             case Type::Nullptr: m_nullptr = other.m_nullptr; break;
             case Type::Boolean: m_boolean = other.m_boolean; break;
             case Type::Character: m_character = other.m_character; break;
-            case Type::TypedValue: m_typedValue = other.m_typedValue; break;
+            case Type::Value: m_value = other.m_value; break;
             }
         }
 
@@ -128,7 +136,7 @@ namespace linc
             case Type::Nullptr: m_nullptr = printable.m_nullptr; break;
             case Type::Boolean: m_boolean = printable.m_boolean; break;
             case Type::Character: m_character = printable.m_character; break;
-            case Type::TypedValue: m_typedValue = printable.m_typedValue; break;
+            case Type::Value: m_value = printable.m_value; break;
             }
 
             return this;
@@ -144,27 +152,27 @@ namespace linc
 
         const std::string& getString() const { return m_string; }
         
-        std::string floatingToString(size_t precision)
+        std::string floatingToString(size_t precision) const
         {
             return precisionToString(m_floating, precision);
         }
 
-        std::string signedToString()
+        std::string signedToString() const
         {
             return std::to_string(m_signed);
         }
 
-        std::string unsignedToString()
+        std::string unsignedToString() const
         {
             return std::to_string(m_unsigned);
         }
 
-        std::string nullptrToString()
+        std::string nullptrToString() const
         {
             return "nullptr";
         }
 
-        std::string booleanToString(bool lexical_bool)
+        std::string booleanToString(bool lexical_bool) const
         {
             if(lexical_bool)
                 return m_boolean? "true": "false";
@@ -172,17 +180,27 @@ namespace linc
                 return m_boolean? "1": "0";
         }
 
-        std::string typedValueToString()
+        std::string valueToString() const
         {
-            return m_typedValue.toString();
+            return m_value.toString();
         }
 
-        std::string characterToString()
+        std::string primitiveValueToString() const
+        {
+            return m_primitiveValue.toString();
+        }
+
+        std::string arrayValueToString() const
+        {
+            return m_arrayValue.toString();
+        }
+
+        std::string characterToString() const
         {
             return std::string{m_character};
         }
     private:
-        inline std::string precisionToString(std::float64_t value, size_t precision)
+        inline std::string precisionToString(std::float64_t value, size_t precision) const
         {
             std::ostringstream out;
             out.precision(precision);
@@ -199,7 +217,9 @@ namespace linc
             std::string m_string;
             bool m_boolean;
             char m_character;
-            TypedValue m_typedValue;
+            Value m_value;
+            PrimitiveValue m_primitiveValue;
+            ArrayValue m_arrayValue;
         };
         Type m_type;
     };

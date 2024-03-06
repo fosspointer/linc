@@ -1,6 +1,7 @@
 #pragma once
 #include <linc/system/Files.hpp>
 #include <linc/system/Reporting.hpp>
+#include <linc/system/Code.hpp>
 #include <linc/Include.hpp>
 
 #define LINC_PREPROCESSOR_DIRECTIVE_SPECIFIER ';'
@@ -10,13 +11,23 @@ namespace linc
     class Preprocessor final 
     {
     public:
-        Preprocessor(const std::string& source_code, const std::string& working_directory = "")
-            :m_sourceCode(source_code), m_workingDirectory(working_directory)
+        Preprocessor(const std::string& raw_source_code, const std::string& filepath = "")
+            :m_sourceCode(Code::toSource(raw_source_code, filepath)), m_filepath(filepath)
+        {}
+
+        Preprocessor(const Code::Source& source_code, const std::string& filepath = "")
+            :m_sourceCode(source_code), m_filepath(filepath)
         {}
         
-        std::string operator()() const
+        Code::Source operator()() const
         {
-            std::string output{};
+            Code::Source output{Code::Line{
+                .text = "",
+                .file = m_filepath,
+                .line = m_lineIndex + 1
+            }};
+
+            output.reserve(m_sourceCode.size());
 
             while(peek().has_value())
             {
@@ -27,11 +38,16 @@ namespace linc
 
                     if(directive_name == "include")
                     {
-                        std::string filepath_string = readStringLiteral();
-                        std::string raw_source = Files::read(m_workingDirectory + "/" + filepath_string);
-                        Preprocessor preprocessor(std::move(raw_source));
-                        auto source = preprocessor();
-                        output.append(std::move(source));
+                        auto relative_filepath = readStringLiteral();
+                        auto filepath = filepathToDirectory(m_filepath) + "/" + relative_filepath;
+
+                        std::string raw_source = Files::read(filepath);
+                        Code::Source source = Code::toSource(raw_source, filepath);
+
+                        Preprocessor preprocessor(std::move(source), filepath);
+                        auto new_source = preprocessor();
+                        
+                        Code::append(output, std::move(new_source));
                     }
                     else if(directive_name == "instance")
                     {
@@ -79,7 +95,17 @@ namespace linc
                             .message = Logger::format("Invalid preprocessor directive '$'", directive_name)
                         });
                 }
-                else output.push_back(consume());
+                else if(peek().value() == '\n')
+                {
+                    consume();
+                    output.push_back(Code::Line{
+                        .text = "",
+                        .file = m_filepath,
+                        .line = m_lineIndex + 1
+                    });
+                }
+                else
+                    output.back().text.push_back(consume());
             }
 
             for(const auto& macro: m_macros)
@@ -89,44 +115,51 @@ namespace linc
                 else wordReplace(output, macro.to, macro.from);
             }
 
-            m_index = {};
+            m_characterIndex = m_lineIndex = {};
             return output;
         }
     private:
+        static std::string filepathToDirectory(const std::string& path)
+        {
+            return path.substr(0ull, path.find_last_of('/'));
+        }
+
         struct Macro
         {
             std::string to, from;
             bool strict;
         };
 
-        inline static void strictReplace(std::string& str, std::string_view to, std::string_view from)
+        inline static void strictReplace(Code::Source& output, std::string_view to, std::string_view from)
         {
             std::string::size_type index{};
             
-            while (std::string::npos != (index = str.find(from, index)))
-            {
-                str.replace(index, from.size(), to);
-                index += to.size();
-            }
+            for(auto& line : output)
+                while (std::string::npos != (index = line.text.find(from, index)))
+                {
+                    line.text.replace(index, from.size(), to);
+                    index += to.size();
+                }
         }
 
-        inline static void wordReplace(std::string& str, std::string_view to, std::string_view from)
+        inline static void wordReplace(Code::Source& output, std::string_view to, std::string_view from)
         {
             std::string::size_type index{};
             
-            while (std::string::npos != (index = str.find(from, index)))
-            {
-                auto next_index = index + from.size();
-
-                if((index != 0 && isWordCharacter(str.at(index - 1))) || (next_index < str.size() && isWordCharacter(str.at(next_index))))
+            for(auto& line : output)
+                while (std::string::npos != (index = line.text.find(from, index)))
                 {
-                    index = next_index;
-                    continue;
-                }
+                    auto next_index = index + from.size();
 
-                str.replace(index, from.size(), to);
-                index += to.size();
-            }
+                    if((index != 0 && isWordCharacter(line.text.at(index - 1))) || (next_index < line.text.size() && isWordCharacter(line.text.at(next_index))))
+                    {
+                        index = next_index;
+                        continue;
+                    }
+
+                    line.text.replace(index, from.size(), to);
+                    index += to.size();
+                }
         }
 
         inline std::string readWord() const
@@ -210,23 +243,14 @@ namespace linc
                 consume();
         }
 
-        [[nodiscard]] inline std::optional<char> peek() const
+        [[nodiscard]] inline std::optional<char> peek(std::string::size_type offset = 0ull) const
         {
-            if(m_index >= m_sourceCode.size())
-                return std::nullopt; 
-            return m_sourceCode[m_index];
-        }
-
-        [[nodiscard]] inline std::optional<char> peek(std::string::size_type offset) const
-        {
-            if(m_index + offset > m_sourceCode.size() - 1)
-                return std::nullopt; 
-            return m_sourceCode[m_index + offset];
+            return Code::peek(m_sourceCode, m_characterIndex, m_lineIndex, offset);
         }
 
         inline char consume() const
         {
-            return m_sourceCode[m_index++];
+            return Code::consume(m_sourceCode, m_characterIndex, m_lineIndex);
         }
 
         [[nodiscard]] inline static bool isWordCharacter(char character)
@@ -234,8 +258,9 @@ namespace linc
             return std::isalnum(character) || character == '_';
         }
 
-        const std::string m_sourceCode, m_workingDirectory;
-        mutable std::string::size_type m_index{};
+        const Code::Source m_sourceCode;
+        const std::string m_filepath;
+        mutable std::string::size_type m_characterIndex{}, m_lineIndex{};
         mutable std::vector<Macro> m_macros;
     };
 }

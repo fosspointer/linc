@@ -2,28 +2,30 @@
 
 - **Program →** Declaration*
 - **Statement →** ExpressionStatement | DeclarationStatement | ScopeStatement | PutCharacterStatement | PutStringStatement
-- **Declaration →** VariableDeclaration | FunctionDeclaration | ArgumentDeclaration
+- **Declaration →** VariableDeclaration | FunctionDeclaration
 - **Expression →** PrimaryExpression | UnaryExpression | BinaryExpression | '(' Expression ')'
 - **ExpressionStatement →** Expression
 - **DeclarationStatement →** Declaration
-- **VariableDeclaration →** ('mut') Identifier Identifier '=' Expression
-- **ArgumentDeclaration →** ('mut') Identifier Identifier ('=' Expression)
-- **FunctionDeclaration →** 'fn' Identifier '(' ArgumentDeclaration* ')' ':' Identifier Statement 
+- **VariableDeclaration →** Identifier ':' TypeExpression ('=' Expression)
+- **FunctionDeclaration →** 'fn' Identifier '(' VariableDeclaration* ')' ':' TypeExpression Statement 
 - **ScopeStatement →** '{' Statement* '}'
 - **PutCharacterStatement →** 'putc' '(' Expression ')'
 - **PutStringStatement →** 'puts' '(' Expression ')'
-- **PrimaryExpression →** Identifier | Value | IfElseExpression | WhileExpression | AssignmentExpression | FunctionCallExpression 
+- **PrimaryExpression →** Identifier | TypeExpression | Value | IfElseExpression | WhileExpression | ForExpression | FunctionCallExpression | ArrayInitializerExpression | ArrayIndexExpression
+- **TypeExpression →** ('mut') Identifier ('[(Integer LiteralSuffix)]')
 - **IfElseExpression →** 'if' Expression Statement ('else' Statement)
 - **WhileExpression →** 'while' Expression Statement ('finally' Statement) ('else Statement)
-- **AssignmentExpression →** Identifier '=' Expression
+- **ForExpression →** 'for' '(' {VariableDeclaration Expression Statement} | {'in' 'Identifier' 'Identifier} ')' Statement
 - **FunctionCallExpression →** Identifier '(' Expression* ')'
+- **ArrayInitializerExpresssion →** '[' Expression* ']'
+- **ArrayIndexExpression →** Identifier '[' Expression ']'
 - **UnaryExpression →** UnaryOperator Expression
 - **BinaryExpression →** Expression BinaryOperator Expression
 - **UnaryOperator →** '+' | '-' | '!' | '@'
-- **BinaryOperator →** '+' | '-' | '*' | '/' | '==' | '!=' | '&&' | '||' | '>' | '<' | '>=' | '<='
+- **BinaryOperator →** '+' | '-' | '*' | '/' | '==' | '!=' | '&&' | '||' | '>' | '<' | '>=' | '<=' | '='
 - **Value →** {{Integer | Floating} LiteralSuffix} | BooleanLiteral | CharacterLiteral | StringLiteral
 - **LiteralSuffix →**  '' | 'u8' | 'u16' | 'u32' | 'u64' | 'u' | 'i8' | 'i16' | 'i32' | 'i64' | 'i' | 'f32' | 'f64' | 'f' | 'c' | 'b'
-- **Identifier →** Letter | '_' (Letter | Digit | '_')*
+- **Identifier →** {Letter | '_'} {Letter | Digit | '_'}*
 - **CharacterLiteral →** ''' . .* '''
 - **StringLiteral →** '"' .* '"'
 - **BooleanLiteral →** true | false | {Integer LiteralSuffix}

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(linc DESCRIPTION "Linc Is Not C" VERSION 0.4 LANGUAGES CXX)
+project(linc DESCRIPTION "Linc Is Not C" VERSION 0.5 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -42,4 +42,7 @@ if(doxygen)
 endif()
 
 add_executable(lincenv ${CMAKE_CURRENT_SOURCE_DIR}/src/lincenv.cpp)
+# add_executable(lincc ${CMAKE_CURRENT_SOURCE_DIR}/src/lincc.cpp)
 target_link_libraries(lincenv linc_core)
+# target_link_libraries(lincc linc_core)
+include(tests/testing.cmake)

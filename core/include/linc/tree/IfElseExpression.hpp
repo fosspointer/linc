@@ -36,13 +36,13 @@ namespace linc
                 return {m_testExpression.get(), m_bodyIfStatement.get()};
         }
 
-        virtual std::unique_ptr<const Expression> clone_const() const final override
+        virtual std::unique_ptr<const Expression> cloneConst() const final override
         {
             if(m_bodyElseStatement.has_value() && m_elseKeywordToken.has_value())
-                return std::make_unique<const IfElseExpression>(m_ifKeywordToken, std::move(m_testExpression->clone_const()), 
-                    std::move(m_bodyIfStatement->clone_const()), m_elseKeywordToken.value(), std::move(m_bodyElseStatement.value()->clone_const()));
-            else return std::make_unique<const IfElseExpression>(m_ifKeywordToken, std::move(m_testExpression->clone_const()), 
-                    std::move(m_bodyIfStatement->clone_const()));
+                return std::make_unique<const IfElseExpression>(m_ifKeywordToken, std::move(m_testExpression->cloneConst()), 
+                    std::move(m_bodyIfStatement->cloneConst()), m_elseKeywordToken.value(), std::move(m_bodyElseStatement.value()->cloneConst()));
+            else return std::make_unique<const IfElseExpression>(m_ifKeywordToken, std::move(m_testExpression->cloneConst()), 
+                    std::move(m_bodyIfStatement->cloneConst()));
         }
 
         const Token& getIfKeywordToken() const { return m_ifKeywordToken; } 

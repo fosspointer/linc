@@ -9,7 +9,7 @@ namespace linc
         ParenthesisExpression(const Token& left_parenthesis_token, const Token& right_parenthesis_token, std::unique_ptr<const Expression> expression)
             :Expression(NodeInfo{
                 .tokenList = {left_parenthesis_token},
-                .lineNumber = left_parenthesis_token.lineNumber}),
+                .info = left_parenthesis_token.info}),
             m_expression(std::move(expression)), m_leftParenthesisToken(left_parenthesis_token), m_rightParenthesisToken(right_parenthesis_token)
         {
             addTokens(m_expression->getTokens());
@@ -37,9 +37,9 @@ namespace linc
             return {m_expression.get()};
         }
 
-        virtual std::unique_ptr<const Expression> clone_const() const final override
+        virtual std::unique_ptr<const Expression> cloneConst() const final override
         {
-            return std::make_unique<const ParenthesisExpression>(m_leftParenthesisToken, m_rightParenthesisToken, std::move(m_expression->clone_const()));
+            return std::make_unique<const ParenthesisExpression>(m_leftParenthesisToken, m_rightParenthesisToken, std::move(m_expression->cloneConst()));
         }
 
         inline const Expression* const getExpression() const { return m_expression.get(); }

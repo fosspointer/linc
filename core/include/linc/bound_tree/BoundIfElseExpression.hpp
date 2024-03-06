@@ -8,9 +8,9 @@ namespace linc
     {
     public:
         BoundIfElseExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundStatement> body_if_statement, 
-            std::unique_ptr<const BoundStatement> body_else_statement, Types::Type type);
+            std::unique_ptr<const BoundStatement> body_else_statement, Types::type type);
 
-        BoundIfElseExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundStatement> body_if_statement, Types::Type type);
+        BoundIfElseExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundStatement> body_if_statement, Types::type type);
 
         [[nodiscard]] inline const BoundExpression* const getTestExpression() const { return m_testExpression.get(); }
         [[nodiscard]] inline const BoundStatement* const getIfBodyStatement() const { return m_bodyIfStatement.get(); }
@@ -22,7 +22,7 @@ namespace linc
         }
         [[nodiscard]] inline const bool hasElse() const { return m_bodyElseStatement.has_value(); }
 
-        virtual std::unique_ptr<const BoundExpression> clone_const() const final override;
+        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
     private:
         virtual std::string toStringInner() const final override;
         

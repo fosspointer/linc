@@ -7,6 +7,8 @@ namespace linc
     class Reporting final
     {
     public:
+        Reporting() = delete;
+
         using Type = Logger::Type;
         enum class Stage
         {

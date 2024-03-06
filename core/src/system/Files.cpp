@@ -4,6 +4,11 @@ namespace linc
 {
     std::unordered_map<std::filesystem::path, std::fstream*> Files::s_fileMap;
 
+    std::string Files::toAbsolute(const std::string& filepath_string)
+    {
+        return std::filesystem::absolute(filepath_string).string();
+    }
+
     std::fstream* Files::load(const std::string& filepath_string)
     {
         std::filesystem::path filepath = std::filesystem::absolute(filepath_string);
@@ -36,5 +41,6 @@ namespace linc
     {
         auto* file = load(filepath_string);
         (*file) << contents;
+        file->close();
     }
 }

@@ -3,9 +3,9 @@
 namespace linc
 {
     BoundPutCharacterStatement::BoundPutCharacterStatement(std::unique_ptr<const BoundExpression> expression)
-        :BoundStatement(Types::Type::_void), m_expression(std::move(expression))
+        :BoundStatement(Types::voidType), m_expression(std::move(expression))
     {
-        if(m_expression->getType() != Types::Type::_char)
+        if(m_expression->getType().kind != Types::Kind::_char)
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -15,9 +15,9 @@ namespace linc
         }
     }
 
-    std::unique_ptr<const BoundStatement> BoundPutCharacterStatement::clone_const() const
+    std::unique_ptr<const BoundStatement> BoundPutCharacterStatement::cloneConst() const
     {
-        return std::make_unique<const BoundPutCharacterStatement>(std::move(m_expression->clone_const()));
+        return std::make_unique<const BoundPutCharacterStatement>(std::move(m_expression->cloneConst()));
     }
 
     std::string BoundPutCharacterStatement::toStringInner() const
