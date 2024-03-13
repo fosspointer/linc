@@ -241,7 +241,7 @@ namespace linc
             }
         }
 
-        std::size_t getCount() const 
+        Types::u64 getCount() const 
         {
             switch(m_kind)
             {

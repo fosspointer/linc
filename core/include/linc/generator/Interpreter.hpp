@@ -26,16 +26,40 @@ namespace linc
         };
 
         [[nodiscard("The return type of this function is to be returned by main()")]]
-        int evaluateProgram(const BoundProgram* program, Binder& binder)
+        int evaluateProgram(const BoundProgram* program, Binder& binder, std::unique_ptr<const ArrayInitializerExpression> argument_list)
         {
             for(const auto& declaration: program->declarations)
                 evaluateDeclaration(declaration.get());
         
+            auto find_main = binder.find("main");
+            if(find_main == binder.end())
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                    .message = "Cannot evaluate program, for which the entry-point is not defined. Have you tried defining the main() function?"
+                });
+                return LINC_EXIT_PROGRAM_FAILURE;
+            }
+            else if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(find_main->get()))
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                    .message = "The symbol-name 'main' is reserved for the entry point function, and cannot be used elsewhere."
+                });
+                return LINC_EXIT_PROGRAM_FAILURE;
+            }
+
+            auto main = dynamic_cast<const BoundFunctionDeclaration*>(find_main->get());
+            auto main_argument_list = std::vector<std::unique_ptr<const Expression>>{};
+            
+            if(!main->getArguments().empty())
+                main_argument_list.push_back(std::move(argument_list));
+
             auto main_call = std::make_unique<const linc::FunctionCallExpression>(
-                linc::Token{.type = linc::Token::Type::Identifier, .value = "main"},
+                linc::Token{.type = linc::Token::Type::Identifier, .value = main->getName()},
                 linc::Token{.type = linc::Token::Type::ParenthesisLeft},
                 linc::Token{.type = linc::Token::Type::ParenthesisRight},
-                std::vector<std::unique_ptr<const linc::Expression>>{});
+                std::move(main_argument_list));
 
             auto bound_main_call = binder.bindExpression(main_call.get());
 
@@ -369,7 +393,13 @@ namespace linc
                 case BoundUnaryOperator::Kind::Stringify:
                     return PrimitiveValue(operand.toString());
                 case BoundUnaryOperator::Kind::UnaryPlus:
-                    return operand;
+                    if(operand.getIfArray())
+                        return PrimitiveValue(operand.getArray().getCount());
+                    else if(operand.getPrimitive().getKind() == PrimitiveValue::Kind::String)
+                        return PrimitiveValue(static_cast<Types::u64>(operand.getPrimitive().getString().size()));
+                    else if(operand.getPrimitive().getKind() == PrimitiveValue::Kind::Character)
+                        return PrimitiveValue(static_cast<Types::i32>(operand.getPrimitive().getChar()));
+                    else return operand;
                 case BoundUnaryOperator::Kind::UnaryMinus:
                     return -operand;
                 case BoundUnaryOperator::Kind::LogicalNot:

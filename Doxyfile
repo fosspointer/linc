@@ -2,7 +2,7 @@
 
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = "linc"
-PROJECT_NUMBER         = 0.5
+PROJECT_NUMBER         = 0.5.1
 PROJECT_BRIEF          = "Linc is a general-purpose programming language inspired by C"
 PROJECT_LOGO           = ../assets/images/linc64.png
 PROJECT_ICON           = ../assets/images/linc64.png

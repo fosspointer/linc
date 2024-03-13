@@ -421,7 +421,10 @@ namespace linc
         {
             auto array_identifier = Types::unique_cast<const BoundIdentifierExpression>(bindIdentifierExpression(range_specifier->arrayIdentifier.get()));
             auto variable_declaration = std::make_unique<const BoundVariableDeclaration>(
-                Types::type{.kind = array_identifier->getType().kind, .isMutable = true}, range_specifier->valueIdentifier->getValue(), std::nullopt);
+                Types::type{
+                    .kind = !array_identifier->getType().isArray && array_identifier->getType().kind == Types::Kind::string?
+                        Types::Kind::_char: array_identifier->getType().kind,
+                    .isMutable = true}, range_specifier->valueIdentifier->getValue(), std::nullopt);
             
             if(!m_boundDeclarations.push(variable_declaration->cloneConst()))
                 Reporting::push(Reporting::Report{
@@ -707,11 +710,11 @@ namespace linc
             return std::make_unique<const BoundArrayIndexExpression>(std::move(identifier), std::move(index), Types::invalidType);
         }
 
-        return std::make_unique<const BoundArrayIndexExpression>(std::move(identifier), std::move(index), Types::type{
-            .kind = identifier->getType().kind,
-            .isMutable = identifier->getType().isMutable,
-        });
+        auto type = Types::type{
+            .kind = identifier->getType().kind == Types::Kind::string && !identifier->getType().isArray? Types::Kind::_char: identifier->getType().kind,
+            .isMutable = identifier->getType().isMutable
+        };
 
-        return std::make_unique<const BoundArrayIndexExpression>(std::move(identifier), std::move(index), Types::invalidType);
+        return std::make_unique<const BoundArrayIndexExpression>(std::move(identifier), std::move(index), type);
     }
 }

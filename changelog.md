@@ -17,6 +17,11 @@
 - Added "else" requirement for typed while loops, which are now typed void by default.
 - Changed variable declaration syntax to `<variable>: <type> = <value>` (the assignment is optional).
 
+## Changelog for linc version 0.5.1
+
+- Added arguments to the entry-point function.
+- Fixed string pseudo-array equivalence (i.e. the returned 'members' are now characters instead of strings).
+
 ## Future plans
 
 - Add right-associative binary operators (along with the pre-existing left-associative ones). 

@@ -40,7 +40,11 @@ namespace linc
             return Types::fromKind(Types::Kind::type);
         
         if(operand_type.isArray)
-            return Types::invalidType;
+        {
+            if(operator_kind == Kind::UnaryPlus)
+                return Types::fromKind(Types::Kind::u64);
+            else return Types::invalidType;
+        }
 
         switch(operator_kind)
         {
@@ -54,6 +58,9 @@ namespace linc
                 return operand_type;
             else if(operand_type.kind == Types::Kind::_char)
                 return Types::fromKind(Types::Kind::i32);
+            else if(operand_type.kind == Types::Kind::string)
+                return Types::fromKind(Types::Kind::u64);
+            else return Types::invalidType;
         case Kind::UnaryMinus:
             if(Types::isSigned(operand_type.kind) || Types::isFloating(operand_type.kind))
                 return operand_type;

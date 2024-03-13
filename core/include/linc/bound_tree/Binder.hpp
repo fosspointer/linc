@@ -5,6 +5,7 @@
 
 namespace linc
 {
+    /// @brief Management class for 'registering' and scoping symbols.
     class BoundDeclarations final
     {
     public:
@@ -13,9 +14,11 @@ namespace linc
             beginScope();
         }
 
+        /// @brief Scope management class.
         class Scope final
         {
         public:
+            /// @brief Default constructor
             Scope() = default;
 
             Scope(const Scope& scope)
@@ -119,6 +122,7 @@ namespace linc
         std::stack<Scope> m_scopes;
     };
 
+    /// @brief Class responsible for the binding stage of compilation.
     class Binder final
     {
     public:
@@ -132,6 +136,9 @@ namespace linc
         [[nodiscard]] std::unique_ptr<const BoundStatement> bindStatement(const Statement* statement);
         [[nodiscard]] std::unique_ptr<const BoundDeclaration> bindDeclaration(const Declaration* expression);
         [[nodiscard]] std::unique_ptr<const BoundExpression> bindExpression(const Expression* expression);
+
+        [[nodiscard]] inline auto find(const std::string& name){ return m_boundDeclarations.find(name); }
+        [[nodiscard]] inline auto end(){ return m_boundDeclarations.end(); }
 
         inline void reset() { m_boundDeclarations.clear(); }
     private:

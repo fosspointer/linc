@@ -17,8 +17,8 @@ namespace linc
             if(!m_operatorToken.isBinaryOperator())
             {
                 Reporting::push(Reporting::Report{
-                        .type = Reporting::Type::Error, .stage = Reporting::Stage::AST,
-                        .message = "Binary expression expected a binary operator"});
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::AST,
+                    .message = "Binary expression expected a binary operator"});
             }
         }
 

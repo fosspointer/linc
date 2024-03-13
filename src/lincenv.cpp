@@ -13,7 +13,7 @@
 #define LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION 3
 #define LINC_EXIT_COMPILATION_FAILURE 4
 
-static int evaluate_file(std::string filepath)
+static int evaluate_file(std::string filepath, int argc, const char** argv)
 {
     filepath = linc::Files::toAbsolute(filepath);
     auto raw_code = linc::Files::read(filepath);
@@ -38,16 +38,25 @@ static int evaluate_file(std::string filepath)
     if(!errors)
     {
         linc::Interpreter interpreter;
-        return interpreter.evaluateProgram(&bound_program, binder);
+        std::vector<std::unique_ptr<const linc::Expression>> arguments;
+        for(std::size_t i = 0ull; i < argc; ++i)
+            arguments.push_back(std::make_unique<const linc::LiteralExpression>(linc::Token{
+                .type = linc::Token::Type::StringLiteral,
+                .value = argv[i]
+            }));
+
+        return interpreter.evaluateProgram(&bound_program, binder, std::make_unique<const linc::ArrayInitializerExpression>(
+            linc::Token{.type = linc::Token::Type::SquareLeft}, linc::Token{.type = linc::Token::Type::SquareRight}, std::move(arguments)
+        ));
     }
     else return LINC_EXIT_COMPILATION_FAILURE;
 }
 
-int main(int argument_count, char** arguments)
+int main(int argument_count, const char** arguments)
 try
 {
     if(argument_count >= 2)
-        return evaluate_file(arguments[1]);
+        return evaluate_file(arguments[1], argument_count, arguments);
 
     bool show_tree{false}, show_lexer{false};
 
@@ -116,7 +125,12 @@ try
             linc::Logger::print("Enter the file to evaluate: ");
             std::getline(std::cin, filename);
 
-            evaluate_file(filename);
+            const char** _arguments = new const char*[2ull];
+            _arguments[0ull] = arguments[0ull];
+            _arguments[1ull] = filename.c_str();
+
+            evaluate_file(filename, 2ull, _arguments);
+            delete[] _arguments;
             continue;
         }
         else if(buffer_tolower == "/?" || buffer_tolower == "/help" || buffer_tolower == "?")
