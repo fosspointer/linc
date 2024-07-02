@@ -10,10 +10,10 @@ namespace linc
 
     std::string BoundLiteralExpression::toStringInner() const
     {
-        return Logger::format("Bound Literal Expression (='$')", m_value.toString());
+        return Logger::format("Literal Expression (='$')", m_value.toString());
     }
 
-    std::unique_ptr<const BoundExpression> BoundLiteralExpression::cloneConst() const
+    std::unique_ptr<const BoundExpression> BoundLiteralExpression::clone() const
     {
         return std::make_unique<const BoundLiteralExpression>(m_value, getType());
     }

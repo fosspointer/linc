@@ -5,23 +5,29 @@
 #include <cstring>
 #include <cstdlib>
 
-#define LINC_ARRAY_TYPE_FUNCTIONS(type, type_fn) \
-    LINC_ARRAY_VALUE_CONSTRUCTOR(type) \
-    LINC_ARRAY_VALUE_PUSH(type, type_fn)
+#define LINC_ARRAY_TYPE_FUNCTIONS(_type, type_fn) \
+    LINC_ARRAY_VALUE_CONSTRUCTOR(_type) \
+    LINC_ARRAY_VALUE_PUSH(_type, type_fn)
 
-#define LINC_ARRAY_VALUE_CONSTRUCTOR(type) \
-    ArrayValue(std::vector<Types::type> array) \
-        :m_kind(Types::Kind::type) \
+#define LINC_ARRAY_VALUE_CONSTRUCTOR(_type) \
+    ArrayValue(std::vector<Types::_type> array) \
+        :m_kind(Types::Kind::_type) \
     { \
-        new (&m_array_##type) std::vector{std::move(array)}; \
+        new (&m_array_##_type) std::vector{std::move(array)}; \
+    } \
+    ArrayValue(Types::_type value, std::size_t count) \
+        :m_kind(Types::Kind::_type) \
+    { \
+        new (&m_array_##_type) std::vector{value}; \
+        m_array_##_type.resize(count, value); \
     }
 
-#define LINC_ARRAY_VALUE_PUSH(type, type_fn) \
-    void push##type_fn(Types::type value) \
+#define LINC_ARRAY_VALUE_PUSH(_type, type_fn) \
+    void push##type_fn(Types::_type value) \
     { \
-        if(m_kind != Types::Kind::type) \
+        if(m_kind != Types::Kind::_type) \
             throw LINC_EXCEPTION_INVALID_INPUT("Cannot push value of incorrect type to array value."); \
-        m_array_##type.push_back(std::move(value)); \
+        m_array_##_type.push_back(std::move(value)); \
     }
 namespace linc
 {
@@ -34,10 +40,40 @@ namespace linc
             new (&m_array_invalid) std::vector{std::move(array)};
         }
 
+        ArrayValue(Types::_invalid_type value, std::size_t count)
+            :m_kind(Types::Kind::invalid)
+        {
+            new (&m_array_invalid) std::vector{value};
+            m_array_invalid.resize(count);
+        }
+
         ArrayValue(std::vector<Types::_void_type> array)
             :m_kind(Types::Kind::_void)
         {
             new (&m_array__void) std::vector{std::move(array)};
+        }
+
+        ArrayValue(Types::_void_type value, std::size_t count)
+            :m_kind(Types::Kind::_void)
+        {
+            new (&m_array__void) std::vector{value};
+            m_array__void.resize(count);
+        }
+
+        ArrayValue(const ArrayValue& value, std::size_t count)
+            :m_isNested(true)
+        {
+            new (&m_array_array) std::vector<ArrayValue>{};
+            m_array_array.resize(count, value);
+        }
+
+        ArrayValue(std::vector<ArrayValue> array)
+            :m_isNested(true)
+        {
+            new (&m_array_array) std::vector<ArrayValue>{};
+            m_array_array.reserve(array.size());
+            for(const auto& element: array)
+                m_array_array.push_back(element);
         }
 
         LINC_ARRAY_TYPE_FUNCTIONS(_bool, Bool)
@@ -64,31 +100,16 @@ namespace linc
             m_array__void.push_back(std::move(value));
         }
 
-        void push(const PrimitiveValue& value)
-        {
-            switch(m_kind)
-            {
-            case Types::Kind::_void: pushVoid(value.getIfVoid().value()); break;
-            case Types::Kind::_bool: pushBool(value.getIfBool().value()); break;
-            case Types::Kind::_char: pushChar(value.getIfChar().value()); break;
-            case Types::Kind::u8: pushU8(value.getIfU8().value()); break;
-            case Types::Kind::u16: pushU16(value.getIfU16().value()); break;
-            case Types::Kind::u32: pushU32(value.getIfU32().value()); break;
-            case Types::Kind::u64: pushU64(value.getIfU64().value()); break;
-            case Types::Kind::i8: pushI8(value.getIfI8().value()); break;
-            case Types::Kind::i16: pushI16(value.getIfI16().value()); break;
-            case Types::Kind::i32: pushI32(value.getIfI32().value()); break;
-            case Types::Kind::i64: pushI64(value.getIfI64().value()); break;
-            case Types::Kind::f32: pushF32(value.getIfF32().value()); break;
-            case Types::Kind::f64: pushF64(value.getIfF64().value()); break;
-            case Types::Kind::string: pushString(value.getIfString().value()); break;
-            case Types::Kind::type: pushType(value.getIfType().value()); break;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
-            }
-        }
+        void push(const class Value& value);
 
         ~ArrayValue()
         {
+            if(m_isNested)
+            {
+                m_array_array.~vector();
+                return;
+            }
+
             switch(m_kind)
             {
             case Types::Kind::invalid: m_array_invalid.~vector(); break;
@@ -111,8 +132,18 @@ namespace linc
         }
 
         ArrayValue(const ArrayValue& other)
-            :m_kind(other.m_kind)
+            :m_kind(other.m_kind), m_isNested(other.m_isNested)
         {
+            if(m_isNested)
+            {
+                new (&m_array_array) std::vector<ArrayValue>{};
+                m_array_array.reserve(other.m_array_array.size());
+                
+                for(const auto& element: other.m_array_array)
+                    m_array_array.push_back(element);
+                return;
+            }
+
             switch(m_kind)
             {
             case Types::Kind::_void: new (&m_array__void) std::vector{other.m_array__void}; break;
@@ -135,9 +166,20 @@ namespace linc
         }
 
         ArrayValue(ArrayValue&& other)
-            :m_kind(other.m_kind)
+            :m_kind(other.m_kind), m_isNested(other.m_isNested)
         {
             other.m_kind = Types::Kind::invalid;
+            other.m_isNested = {};
+
+            if(m_isNested)
+            {
+                new (&m_array_array) std::vector<ArrayValue>{};
+                m_array_array.reserve(other.m_array_array.size());
+                
+                for(const auto& element: other.m_array_array)
+                    m_array_array.push_back(std::move(element));
+                return;
+            }
 
             switch(m_kind)
             {
@@ -165,6 +207,17 @@ namespace linc
         ArrayValue& operator=(const ArrayValue& other)
         {
             m_kind = other.m_kind;
+            m_isNested = other.m_isNested;
+
+            if(m_isNested)
+            {
+                new (&m_array_array) std::vector<ArrayValue>{};
+                m_array_array.reserve(other.m_array_array.size());
+                
+                for(const auto& element: other.m_array_array)
+                    m_array_array.push_back(element);
+                return *this;
+            }
 
             switch(m_kind)
             {
@@ -192,7 +245,19 @@ namespace linc
         ArrayValue& operator=(ArrayValue&& other)
         {
             m_kind = other.m_kind;
+            m_isNested = other.m_isNested;
             other.m_kind = Types::Kind::invalid;
+            other.m_isNested = {};
+
+            if(m_isNested)
+            {
+                new (&m_array_array) std::vector<ArrayValue>{};
+                m_array_array.reserve(other.m_array_array.size());
+                
+                for(const auto& element: other.m_array_array)
+                    m_array_array.push_back(std::move(element));
+                return *this;
+            }
 
             switch(m_kind)
             {
@@ -218,26 +283,37 @@ namespace linc
             return *this;
         }
 
-        static ArrayValue fromDefault(Types::Kind kind)
+        static ArrayValue fromDefault(Types::Kind kind, std::size_t count = 0ul)
         {
             switch(kind)
             {
-            case Types::Kind::_void: return ArrayValue(std::vector<Types::_void_type>{});
-            case Types::Kind::_bool: return ArrayValue(std::vector<Types::_bool>{});
-            case Types::Kind::_char: return ArrayValue(std::vector<Types::_char>{});
-            case Types::Kind::u8: return ArrayValue(std::vector<Types::u8>{});
-            case Types::Kind::u16: return ArrayValue(std::vector<Types::u16>{});
-            case Types::Kind::u32: return ArrayValue(std::vector<Types::u32>{});
-            case Types::Kind::u64: return ArrayValue(std::vector<Types::u64>{});
-            case Types::Kind::i8: return ArrayValue(std::vector<Types::i8>{});
-            case Types::Kind::i16: return ArrayValue(std::vector<Types::i16>{});
-            case Types::Kind::i32: return ArrayValue(std::vector<Types::i32>{});
-            case Types::Kind::i64: return ArrayValue(std::vector<Types::i64>{});
-            case Types::Kind::f32: return ArrayValue(std::vector<Types::f32>{});
-            case Types::Kind::f64: return ArrayValue(std::vector<Types::f64>{});
-            case Types::Kind::string: return ArrayValue(std::vector<Types::string>{});
-            case Types::Kind::type: return ArrayValue(std::vector<Types::type>{});
+            case Types::Kind::_void: return ArrayValue(Types::_void_type{}, count);
+            case Types::Kind::_bool: return ArrayValue(Types::_bool{}, count);
+            case Types::Kind::_char: return ArrayValue(Types::_char{}, count);
+            case Types::Kind::u8: return ArrayValue(Types::u8{}, count);
+            case Types::Kind::u16: return ArrayValue(Types::u16{}, count);
+            case Types::Kind::u32: return ArrayValue(Types::u32{}, count);
+            case Types::Kind::u64: return ArrayValue(Types::u64{}, count);
+            case Types::Kind::i8: return ArrayValue(Types::i8{}, count);
+            case Types::Kind::i16: return ArrayValue(Types::i16{}, count);
+            case Types::Kind::i32: return ArrayValue(Types::i32{}, count);
+            case Types::Kind::i64: return ArrayValue(Types::i64{}, count);
+            case Types::Kind::f32: return ArrayValue(Types::f32{}, count);
+            case Types::Kind::f64: return ArrayValue(Types::f64{}, count);
+            case Types::Kind::string: return ArrayValue(Types::string{}, count);
+            case Types::Kind::type: return ArrayValue(Types::voidType, count);
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            }
+        }
+
+        static ArrayValue fromDefault(const Types::type& type, std::size_t count = 0ul)
+        {
+            switch(type.kind)
+            {
+            case Types::type::Kind::Primitive: return fromDefault(type.primitive, count);
+            case Types::type::Kind::Array: return ArrayValue(fromDefault(*type.array.base_type, type.array.count.value_or(0ul)), count);
+            case Types::type::Kind::Structure: throw LINC_EXCEPTION_INVALID_INPUT("Arrays of structures are not yet implemented in linc");
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
             }
         }
 
@@ -264,51 +340,8 @@ namespace linc
             }
         }
 
-        PrimitiveValue get(std::size_t index) const
-        {
-            switch(m_kind)
-            {
-            case Types::Kind::_void: return PrimitiveValue::voidValue;
-            case Types::Kind::_bool: return m_array__bool[index];
-            case Types::Kind::_char: return m_array__char[index];
-            case Types::Kind::u8: return m_array_u8[index];
-            case Types::Kind::u16: return m_array_u16[index];
-            case Types::Kind::u32: return m_array_u32[index];
-            case Types::Kind::u64: return m_array_u64[index];
-            case Types::Kind::i8: return m_array_i8[index];
-            case Types::Kind::i16: return m_array_i16[index];
-            case Types::Kind::i32: return m_array_i32[index];
-            case Types::Kind::i64: return m_array_i64[index];
-            case Types::Kind::f32: return m_array_f32[index];
-            case Types::Kind::f64: return m_array_f64[index];
-            case Types::Kind::string: return m_array_string[index];
-            case Types::Kind::type: return m_array_type[index];
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
-            }
-        }
-
-        void set(std::size_t index, const PrimitiveValue& value)
-        {
-            switch(m_kind)
-            {
-            case Types::Kind::_void: m_array__void[index] = value.getVoid(); break;
-            case Types::Kind::_bool: m_array__bool[index] = value.getBool(); break;
-            case Types::Kind::_char: m_array__char[index] = value.getChar(); break;
-            case Types::Kind::u8: m_array_u8[index] = value.getU8(); break;
-            case Types::Kind::u16: m_array_u16[index] = value.getU16(); break;
-            case Types::Kind::u32: m_array_u32[index] = value.getU32(); break;
-            case Types::Kind::u64: m_array_u64[index] = value.getU64(); break;
-            case Types::Kind::i8: m_array_i8[index] = value.getI8(); break;
-            case Types::Kind::i16: m_array_i16[index] = value.getI16(); break;
-            case Types::Kind::i32: m_array_i32[index] = value.getI32(); break;
-            case Types::Kind::i64: m_array_i64[index] = value.getI64(); break;
-            case Types::Kind::f32: m_array_f32[index] = value.getF32(); break;
-            case Types::Kind::f64: m_array_f64[index] = value.getF64(); break;
-            case Types::Kind::string: m_array_string[index] = value.getString(); break;
-            case Types::Kind::type: m_array_type[index] = value.getType(); break;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
-            }
-        }
+        class Value get(std::size_t index) const;
+        void set(std::size_t index, const class Value& value);
 
         ArrayValue operator+(const ArrayValue& other) const
         {
@@ -406,24 +439,61 @@ namespace linc
             return result;
         }
 
+        std::string toApplicationString() const
+        {
+            std::string result{"["};
+            
+            if(!m_isNested)
+            {
+                auto list = toPrimitiveList();
+                for(std::size_t i{0ul}; i < list.size(); ++i)
+                    result.append((i == 0ul? "": ", ") + list[i].toApplicationString());
+            }
+
+            else for(std::size_t i{0ul}; i < m_array_array.size(); ++i)
+                result.append((i == 0ul? "": ", ") + m_array_array[i].toApplicationString());
+
+            result.push_back(']');
+            return result;            
+        }
+
         std::string toString() const 
         {
             std::string result;
+            result.append(Colors::push(Colors::Color::Purple));
             result.push_back('[');
 
-            auto list = toPrimitiveList();
-            for(std::size_t i = 0ull; i < list.size(); ++i)
+            if(!m_isNested)
             {
-                result.append(list[i].toString());
+                auto list = toPrimitiveList();
+                for(std::size_t i = 0ul; i < list.size(); ++i)
+                {
+                    result.append(list[i].toString());
 
-                if(i != list.size() - 1)
+                    if(i != list.size() - 1ul)
+                    {
+                        result.append(Colors::push(Colors::Color::Purple));
+                        result.append(", ");
+                        result.append(Colors::pop());
+                    }
+                }
+            }
+            else for(std::size_t i = 0ul; i < m_array_array.size(); ++i)
+            {
+                result.append(m_array_array[i].toString());
+
+                if(i != m_array_array.size() - 1ul)
+                {
+                    result.append(Colors::push(Colors::Color::Purple));
                     result.append(", ");
+                    result.append(Colors::pop());
+                }
             }
 
             result.push_back(']');
+            result.append(Colors::pop());
             return result;
         }
-
     private:
         union
         {
@@ -443,7 +513,10 @@ namespace linc
             std::vector<Types::f64> m_array_f64;
             std::vector<Types::string> m_array_string;
             std::vector<Types::type> m_array_type;
+            std::vector<ArrayValue> m_array_array;
         };
+
         Types::Kind m_kind;
+        bool m_isNested{false};
     };
 }

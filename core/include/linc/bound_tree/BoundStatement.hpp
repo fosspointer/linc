@@ -11,6 +11,6 @@ namespace linc
         {}
 
         virtual ~BoundStatement() = default;
-        virtual std::unique_ptr<const BoundStatement> cloneConst() const = 0;
+        virtual std::unique_ptr<const BoundStatement> clone() const = 0;
     };
 }

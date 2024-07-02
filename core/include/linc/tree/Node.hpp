@@ -12,12 +12,16 @@ namespace linc
             :m_info(info)
         {}
 
+        Node(const Token::Info& token_info)
+            :m_info(NodeInfo{.tokenList = {}, .info = token_info})
+        {}
+
         virtual ~Node() = default;
-        virtual std::vector<const Node*> getChildren() const = 0;
 
         [[nodiscard]] inline const Token::Info& getTokenInfo() const { return m_info.info; }
         [[nodiscard]] inline std::vector<Token>& getTokens() const { return m_info.tokenList; }
-        [[nodiscard]] inline const NodeInfo& getInfo() const { return m_info; } 
+        [[nodiscard]] inline const NodeInfo& getInfo() const { return m_info; }
+        [[nodiscard]] inline std::string getInfoString() const { return m_info.info.file + ":" + std::to_string(m_info.info.line); }
 
         inline void setLineNumber(size_t line_number) const { m_info.info.line = line_number; }
         inline void setTokens(std::vector<Token> tokens) const { m_info.tokenList = std::move(tokens); }
@@ -25,7 +29,7 @@ namespace linc
         inline void addToken(const Token& token) const { m_info.tokenList.push_back(token); }
         inline void addTokens(const std::vector<Token>& tokens) const { m_info.tokenList.insert(m_info.tokenList.end(), tokens.begin(), tokens.end()); }
         
-        std::unique_ptr<const Node> cloneConst() const;
+        std::unique_ptr<const Node> clone() const;
     private:
         mutable NodeInfo m_info;
     };

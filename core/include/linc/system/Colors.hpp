@@ -1,4 +1,6 @@
 #pragma once
+#include <linc/system/Exception.hpp>
+#include <linc/Include.hpp>
 
 namespace linc
 {
@@ -14,10 +16,30 @@ namespace linc
             Default, Black, Red, Green, Yellow, Blue, Purple, Cyan, White
         };
 
+        /// @brief Push the specified color onto the stack.
+        /// @param color Color to push.
+        /// @return The specified color converted to its ANSI sequence equivalent.
+        inline static std::string push(Color color)
+        {
+            s_colorStack.push(color);
+            return toANSI(color);
+        }
+
+        /// @brief Pop the top of the color-stack.
+        /// @return The stack top after removing the color, converted to its ANSI sequence equivalent.
+        inline static std::string pop()
+        {
+            if(s_colorStack.empty())
+                throw LINC_EXCEPTION("Tried to call pop when the color stack was empty.");
+
+            s_colorStack.pop();
+            return toANSI(getCurrentColor());
+        }
+
         /// @brief Convert an enumerator to its corresponding ANSI color-sequence, such that following text is of the specified color (until re-specified). 
         /// @param color The enumerator corresponding to the selected color.
         /// @return The resulting ANSI color-sequence.
-        static std::string toANSI(Color color)
+        [[nodiscard]] static std::string toANSI(Color color)
         {
             static const std::string black  = "\e[0;30m";
             static const std::string red    = "\e[0;31m";
@@ -43,5 +65,11 @@ namespace linc
                 return _default;
             }
         }
+
+        /// @brief Get the color at the top of the stack. If the stack is empty, return the default color.
+        /// @return The enumerator corresponding to the current color.
+        [[nodiscard]] inline static Color getCurrentColor() { return s_colorStack.empty()? Color::Default: s_colorStack.top(); }
+    private:
+        static std::stack<Color> s_colorStack;
     };
 }

@@ -1,0 +1,4 @@
+#guard
+#include `stdmath.linc`
+#include `stdio.linc`
+#include `stdstring.linc`

@@ -29,7 +29,21 @@ namespace linc
             else return std::nullopt;
         }
 
-        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
+        inline virtual std::vector<const BoundNode*> getChildren() const final override
+        {
+            if(m_bodyFinallyStatement.has_value())
+                if(m_bodyElseStatement.has_value())
+                    return {m_testExpression.get(), m_bodyWhileStatement.get(), m_bodyFinallyStatement.value().get(), m_bodyElseStatement.value().get()};
+                else
+                    return {m_testExpression.get(), m_bodyWhileStatement.get(), m_bodyFinallyStatement.value().get()};
+            else if(m_bodyElseStatement.has_value())
+                return {m_testExpression.get(), m_bodyWhileStatement.get(), m_bodyElseStatement.value().get()};
+            else
+                return {m_testExpression.get(), m_bodyWhileStatement.get()};
+            
+        }
+
+        virtual std::unique_ptr<const BoundExpression> clone() const final override;
     private:
         virtual std::string toStringInner() const final override;
         

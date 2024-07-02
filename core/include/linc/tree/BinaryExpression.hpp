@@ -7,7 +7,7 @@ namespace linc
     {
     public:
         BinaryExpression(const Token& operator_token, std::unique_ptr<const Expression> left, std::unique_ptr<const Expression> right)
-            :Expression({.info = operator_token.info}),
+            :Expression(operator_token.info),
             m_left(std::move(left)), m_right(std::move(right)), m_operatorToken(operator_token)
         {
             addTokens(m_left->getTokens());
@@ -22,14 +22,9 @@ namespace linc
             }
         }
 
-        virtual std::vector<const Node*> getChildren() const final override 
+        virtual std::unique_ptr<const Expression> clone() const final override
         {
-            return {m_left.get(), m_right.get()};
-        }
-
-        virtual std::unique_ptr<const Expression> cloneConst() const final override
-        {
-            return std::make_unique<const BinaryExpression>(m_operatorToken, std::move(m_left->cloneConst()), std::move(m_right->cloneConst()));
+            return std::make_unique<const BinaryExpression>(m_operatorToken, std::move(m_left->clone()), std::move(m_right->clone()));
         }
 
         inline const Expression* const getLeft() const { return m_left.get(); }

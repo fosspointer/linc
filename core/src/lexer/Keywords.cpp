@@ -16,6 +16,11 @@ namespace linc
         LINC_KEYWORD_MAP_PAIR("as", Token::Type::KeywordAs),
         LINC_KEYWORD_MAP_PAIR("for", Token::Type::KeywordFor),
         LINC_KEYWORD_MAP_PAIR("in", Token::Type::KeywordIn),
+        LINC_KEYWORD_MAP_PAIR("ext", Token::Type::KeywordExternal),
+        LINC_KEYWORD_MAP_PAIR("jump", Token::Type::KeywordJump),
+        LINC_KEYWORD_MAP_PAIR("break", Token::Type::KeywordBreak),
+        LINC_KEYWORD_MAP_PAIR("continue", Token::Type::KeywordContinue),
+        LINC_KEYWORD_MAP_PAIR("struct", Token::Type::KeywordStructure),
     };
 
     Token::Type Keywords::get(const std::string& keyword_string)

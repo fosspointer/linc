@@ -26,14 +26,14 @@ namespace linc
         /// @param str The string to be formatted.
         /// @param args The list of arguments to format with.
         /// @return The resulting string.
-        static std::string format(const std::string& str, std::vector<Printable> args);
+        static std::string format(const std::string& str, const std::vector<Printable>& _args);
 
         /// @brief String formatting utility method, similar to std::format.
         /// @param str The string to be formatted.
         /// @param ...args The variadic argument list to format with.
         /// @return The resulting string.
         template <typename... Args>
-        static std::string format(const std::string& str, Args... args)
+        static inline std::string format(const std::string& str, Args... args)
         {
             return format(str, std::vector<Printable>{args...});
         }
@@ -47,7 +47,21 @@ namespace linc
         template <typename... Args>
         inline static void print(const std::string& str, Args... args)
         {
-            fputs(format(str, args...).c_str(), stdout);
+            fputs(format(Colors::toANSI(Colors::getCurrentColor()) + str, args...).c_str(), stdout);
+        }
+
+        /// @brief Read string from stdin until return key entered.
+        /// @return The resulting string, as read from stdin.
+        static std::string read(const std::string& prompt = "");
+
+        /// @brief Format a string and append it to the output string. 
+        /// @param output_string The output string.
+        /// @param str The string to be formatted.
+        /// @param ...args The variadic argument list to format with.
+        template <typename... Args>
+        inline static void append(std::string& output_string, const std::string& str, Args... args)
+        {
+            output_string.append(format(str, args...));
         }
 
         /// @brief Format a string, append new-line, then print it to stdout. 
@@ -56,7 +70,15 @@ namespace linc
         template <typename... Args>
         inline static void println(const std::string& str, Args... args)
         {
-            puts(format(str, args...).c_str());
+            fputs(format(Colors::toANSI(Colors::getCurrentColor()) + str + '\n', args...).c_str(), stdout);
+        }
+
+        /// @brief Prints a new-line character to stdout.
+        /// @tparam ...Args Placeholder template argument (required for function overload).
+        template <typename... Args>
+        inline static void println()
+        {
+            fputc('\n', stdout);
         }
 
         /// @brief Log a formatted message to stdout, according to its type.
@@ -71,13 +93,29 @@ namespace linc
                     return;
             #endif
             std::string type_string = logTypeToString(type);
-            puts(format(s_logFormat, type_string, format(str, args...)).c_str());
+            std::fputs(format(s_logFormat + '\n', type_string, format(str, args...)).c_str(), getLogTypeFile(type));
         }
     private:
+
+        inline static FILE* getLogTypeFile(Type type)
+        {
+            switch(type)
+            {
+            case Type::Info:
+            case Type::Debug:
+                return stdout;
+            case Type::Warning:
+            case Type::Error:
+                return stderr;
+            default:
+                throw LINC_EXCEPTION_OUT_OF_BOUNDS(Logger::Type);
+            }
+        }
+
         /// @brief Internal utility method to convert a printable value to string and append it, according to its type. 
         /// @param output The string to append the output to.
         /// @param printable The printable value to test.
-        /// @param lexical_bool Flag corresponding to whether bools are represented using the keyword 'true' and 'false', instead of 1 and 0 respectively.
+        /// @param lexical_bool Flag corresponding to whether bools are represented using the keywords 'true' and 'false', instead of 1 and 0 respectively.
         /// @param precision The number of decimal digits to allow precision for.
         inline static void appendPrintable(std::string& output, Printable& printable, bool lexical_bool, size_t precision)
         {
@@ -90,9 +128,6 @@ namespace linc
             case Printable::Type::Nullptr: output += printable.nullptrToString(); break;
             case Printable::Type::Boolean: output += printable.booleanToString(lexical_bool); break;
             case Printable::Type::Character: output += printable.characterToString(); break;
-            case Printable::Type::Value: output += printable.valueToString(); break;
-            case Printable::Type::PrimitiveValue: output += printable.primitiveValueToString(); break;
-            case Printable::Type::ArrayValue: output += printable.arrayValueToString(); break;
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Printable::Type);
             }
         }

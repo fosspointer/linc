@@ -9,9 +9,11 @@ namespace linc
 
     std::string Exception::info() const noexcept
     {
-        std::ostringstream stream;
-        stream << m_file << ':' << m_line << " -> exception thrown in function " << m_function
-            << ". Error message: \"" << m_message << "\"";
+        std::ostringstream stream; stream
+        #ifdef LINC_DEBUG
+        << m_file << ':' << m_line << ' '
+        #endif
+        << "-> exception thrown in function " << m_function << ". Error message: \"" << m_message << "\"";
         return stream.str();
     }
 }

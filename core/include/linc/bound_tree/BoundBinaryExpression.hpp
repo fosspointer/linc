@@ -8,8 +8,10 @@ namespace linc
     public:
         enum class Kind: char
         {
-            Invalid, Addition, Subtraction, Multiplication, Division, LogicalAnd, LogicalOr,
-            Equals, NotEquals, Greater, Less, GreaterEqual, LessEqual, Assignment
+            Invalid, Addition, Subtraction, Multiplication, Division, Modulo, LogicalAnd, LogicalOr,
+            Equals, NotEquals, Greater, Less, GreaterEqual, LessEqual, Assignment,
+            AdditionAssignment, SubtractionAssignment, MultiplicationAssignment, DivisionAssignment,
+            ModuloAssignment, BitwiseAnd, BitwiseOr, BitwiseXor, BitwiseShiftLeft, BitwiseShiftRight
         };
 
         BoundBinaryOperator(Kind kind, Types::type left_type, Types::type right_type);
@@ -19,7 +21,7 @@ namespace linc
         [[nodiscard]] inline const Types::type& getRightType() const { return m_rightType; }
         [[nodiscard]] inline const Types::type& getReturnType() const { return m_returnType; }
 
-        std::unique_ptr<const BoundBinaryOperator> cloneConst() const;
+        std::unique_ptr<const BoundBinaryOperator> clone() const;
 
         static std::string kindToString(Kind kind);
     private:
@@ -39,7 +41,12 @@ namespace linc
         [[nodiscard]] inline const BoundExpression* const getLeft() const { return m_left.get(); }
         [[nodiscard]] inline const BoundExpression* const getRight() const { return m_right.get(); }
 
-        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
+        virtual std::unique_ptr<const BoundExpression> clone() const final override;
+        
+        inline virtual std::vector<const BoundNode*> getChildren() const final override 
+        {
+            return {m_left.get(), m_right.get()};
+        }
     private:
         virtual std::string toStringInner() const final override;
         

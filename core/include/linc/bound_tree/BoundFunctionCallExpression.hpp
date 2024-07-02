@@ -8,11 +8,10 @@ namespace linc
     class BoundFunctionCallExpression final : public BoundExpression
     {
     public:
-        struct Argument
+        struct Argument final
         {
             std::string name;
             std::unique_ptr<const BoundExpression> value;
-            bool isMutable;
         };
 
         BoundFunctionCallExpression(Types::type type, const std::string& name, std::vector<Argument> arguments,
@@ -22,7 +21,7 @@ namespace linc
         [[nodiscard]] inline const std::vector<Argument>& getArguments() const { return m_arguments; }
         [[nodiscard]] inline const BoundStatement* getBody() const { return m_body.get(); }
 
-        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
+        virtual std::unique_ptr<const BoundExpression> clone() const final override;
     private:
         virtual std::string toStringInner() const final override;
         const std::string m_name;

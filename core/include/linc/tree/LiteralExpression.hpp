@@ -22,14 +22,10 @@ namespace linc
         }
 
         inline std::string getValue() const { return m_token.value.value_or(""); }
+        inline std::optional<Token::NumberBase> getNumberBase() const { return m_token.numberBase; }
         inline Token::Type getType() const { return m_token.type; }
 
-        virtual std::vector<const Node*> getChildren() const final override 
-        {
-            return {};
-        }
-
-        virtual std::unique_ptr<const Expression> cloneConst() const final override
+        virtual std::unique_ptr<const Expression> clone() const final override
         {
             return std::make_unique<const LiteralExpression>(m_token); 
         }

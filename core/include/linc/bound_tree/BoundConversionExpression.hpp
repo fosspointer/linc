@@ -8,7 +8,7 @@ namespace linc
     public:
         BoundConversion(Types::type initial_type, Types::type target_type);
 
-        std::unique_ptr<const BoundConversion> cloneConst() const;
+        std::unique_ptr<const BoundConversion> clone() const;
 
         [[nodiscard]] inline const Types::type& getInitialType() const { return m_initialType; }
         [[nodiscard]] inline const Types::type& getReturnType() const { return m_returnType; }
@@ -24,7 +24,12 @@ namespace linc
 
         [[nodiscard]] inline const BoundExpression* const getExpression() const { return m_expression.get(); }    
         [[nodiscard]] inline const BoundConversion* const getConversion() const { return m_conversion.get(); }    
-        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
+        virtual std::unique_ptr<const BoundExpression> clone() const final override;
+
+        inline virtual std::vector<const BoundNode*> getChildren() const final override
+        {
+            return {m_expression.get()};
+        }
     private:
         virtual std::string toStringInner() const final override;
         std::unique_ptr<const BoundExpression> m_expression;

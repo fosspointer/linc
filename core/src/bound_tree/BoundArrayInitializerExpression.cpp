@@ -8,15 +8,15 @@ namespace linc
 
     std::string BoundArrayInitializerExpression::toStringInner() const
     {
-        return "Bound Array Initializer Expression";
+        return "Array Initializer Expression";
     }
 
-    std::unique_ptr<const BoundExpression> BoundArrayInitializerExpression::cloneConst() const
+    std::unique_ptr<const BoundExpression> BoundArrayInitializerExpression::clone() const
     {
         std::vector<std::unique_ptr<const BoundExpression>> values;
 
         for(const auto& value: m_values)
-            values.push_back(value->cloneConst());
+            values.push_back(value->clone());
 
         return std::make_unique<const BoundArrayInitializerExpression>(std::move(values), getType());
     }

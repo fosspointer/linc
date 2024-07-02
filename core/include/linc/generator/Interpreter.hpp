@@ -20,46 +20,43 @@ namespace linc
             bool temporary{false};
         };
 
-        struct Function final
-        {
-            const BoundFunctionDeclaration* function;
-        };
-
-        [[nodiscard("The return type of this function is to be returned by main()")]]
+        [[nodiscard("The return value of this function must match that of the environment's entry point (i.e. main()).")]]
         int evaluateProgram(const BoundProgram* program, Binder& binder, std::unique_ptr<const ArrayInitializerExpression> argument_list)
         {
             for(const auto& declaration: program->declarations)
                 evaluateDeclaration(declaration.get());
         
-            auto find_main = binder.find("main");
+            auto main_name = linc::PrimitiveValue(std::string{"main"});
+            auto find_main = binder.find(main_name.getString());
             if(find_main == binder.end())
             {
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                    .message = "Cannot evaluate program, for which the entry-point is not defined. Have you tried defining the main() function?"
+                    .message = Logger::format("Call to undeclared entry-point function $.", main_name)
                 });
                 return LINC_EXIT_PROGRAM_FAILURE;
             }
-            else if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(find_main->get()))
+            else if(auto main = dynamic_cast<const BoundFunctionDeclaration*>(find_main->get()); !main)
             {
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                    .message = "The symbol-name 'main' is reserved for the entry point function, and cannot be used elsewhere."
+                    .message = Logger::format("The symbol-name $ is reserved for the entry point function, and cannot be used for other symbol types.",
+                        main_name)
                 });
                 return LINC_EXIT_PROGRAM_FAILURE;
             }
 
-            auto main = dynamic_cast<const BoundFunctionDeclaration*>(find_main->get());
-            auto main_argument_list = std::vector<std::unique_ptr<const Expression>>{};
+            auto main = static_cast<const BoundFunctionDeclaration*>(find_main->get());
+            auto main_argument_list = std::vector<CallExpression::Argument>{};
             
             if(!main->getArguments().empty())
-                main_argument_list.push_back(std::move(argument_list));
+                main_argument_list.push_back(CallExpression::Argument{std::nullopt, std::move(argument_list)});
 
-            auto main_call = std::make_unique<const linc::FunctionCallExpression>(
+            auto main_call = std::make_unique<const linc::CallExpression>(
                 linc::Token{.type = linc::Token::Type::Identifier, .value = main->getName()},
                 linc::Token{.type = linc::Token::Type::ParenthesisLeft},
                 linc::Token{.type = linc::Token::Type::ParenthesisRight},
-                std::move(main_argument_list));
+                std::move(main_argument_list), false);
 
             auto bound_main_call = binder.bindExpression(main_call.get());
 
@@ -71,7 +68,7 @@ namespace linc
             if(errors)
                 return LINC_EXIT_PROGRAM_FAILURE;
 
-            switch(bound_main_call->getType().kind)
+            switch(bound_main_call->getType().primitive)
             {
             case Types::Kind::u8: return evaluateExpression(bound_main_call.get()).getPrimitive().getU8();
             case Types::Kind::i8: return evaluateExpression(bound_main_call.get()).getPrimitive().getI8();
@@ -86,7 +83,7 @@ namespace linc
                     .message = Logger::format("Defined function main() using return type $. "
                         "Main only supports void and signed integral return types of at most 32 bits, "
                         "as well as 8-bit unsigned integers.",
-                        Types::toString(bound_main_call->getType()))
+                        bound_main_call->getType())
                 }});
                 return LINC_EXIT_PROGRAM_FAILURE;
             }
@@ -94,30 +91,43 @@ namespace linc
 
         Value evaluateStatement(const BoundStatement* statement)
         {
+            if(m_returnValue.has_value())
+                return m_returnValue.value();
+                
             if(auto declaration_statement = dynamic_cast<const BoundDeclarationStatement*>(statement))
                 return evaluateDeclaration(declaration_statement->getDeclaration());
             
             else if(auto expression_statement = dynamic_cast<const BoundExpressionStatement*>(statement))
                 return evaluateExpression(expression_statement->getExpression());
             
-            else if(auto scope_statement = dynamic_cast<const BoundScopeStatement*>(statement))
+            else if(auto label_statement = dynamic_cast<const BoundLabelStatement*>(statement))
+                return evaluateStatement(label_statement->getNext());
+
+            else if(auto jump_statement = dynamic_cast<const BoundJumpStatement*>(statement))
             {
-                Value value = PrimitiveValue::voidValue;
-                for(const auto& stmt: scope_statement->getStatements())
-                    value = evaluateStatement(stmt.get());
-                
-                return value; 
-            }
-            else if(auto put_character_statement = dynamic_cast<const BoundPutCharacterStatement*>(statement))
-            {
-                fputc(evaluateExpression(put_character_statement->getExpression()).getPrimitive().getChar(), stdout);
+                m_jumpIndex = jump_statement->getBlockIndex();
+                m_jumpScope = jump_statement->getScope();
                 return PrimitiveValue::voidValue;
             }
-            else if(auto put_string_statement = dynamic_cast<const BoundPutStringStatement*>(statement))
+
+            else if(auto return_statement = dynamic_cast<const BoundReturnStatement*>(statement))
             {
-                fputs(evaluateExpression(put_string_statement->getExpression()).getPrimitive().getString().c_str(), stdout);
+                m_returnValue = evaluateExpression(return_statement->getExpression());
+                return m_returnValue.value();
+            }
+
+            else if(auto break_statement = dynamic_cast<const BoundBreakStatement*>(statement))
+            {
+                m_breakScope = break_statement->getScope();
                 return PrimitiveValue::voidValue;
             }
+
+            else if(auto continue_statement = dynamic_cast<const BoundContinueStatement*>(statement))
+            {
+                m_continueScope = continue_statement->getScope();
+                return PrimitiveValue::voidValue;
+            }
+
             else
             {
                 throw LINC_EXCEPTION("Encountered unrecognized statement type while evaluating program"); 
@@ -127,16 +137,23 @@ namespace linc
 
         Value evaluateDeclaration(const BoundDeclaration* declaration)
         {
+            if(m_returnValue.has_value())
+                return m_returnValue.value();
+                
             if(auto variable_declaration = dynamic_cast<const BoundVariableDeclaration*>(declaration))
             {
                 auto value = variable_declaration->getDefaultValue()? evaluateExpression(*variable_declaration->getDefaultValue()):
-                    PrimitiveValue::fromDefault(variable_declaration->getActualType().kind);
+                    Value::fromDefault(variable_declaration->getActualType());
                 auto variable = m_variables[variable_declaration->getName()] 
                     = VariableValue{.name = variable_declaration->getName(), .value = value, .isMutable = variable_declaration->getActualType().isMutable};
 
                 return PrimitiveValue::voidValue;
             }
             else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
+                return PrimitiveValue::voidValue;
+            else if(auto external_declaration = dynamic_cast<const BoundExternalDeclaration*>(declaration))
+                return PrimitiveValue::voidValue;
+            else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(declaration))
                 return PrimitiveValue::voidValue;
             else
             {
@@ -147,88 +164,159 @@ namespace linc
 
         Value evaluateExpression(const BoundExpression* expression)
         {
+            if(m_returnValue.has_value())
+                return m_returnValue.value();
+                
             if(auto literal_expression = dynamic_cast<const BoundLiteralExpression*>(expression))
             {
                 return literal_expression->getValue();
             }
-            else if(auto if_else_expression = dynamic_cast<const BoundIfElseExpression*>(expression))
+            else if(auto block_expression = dynamic_cast<const BoundBlockExpression*>(expression))
             {
-                auto test = evaluateExpression(if_else_expression->getTestExpression()).getPrimitive().getBool();
+                Value value = PrimitiveValue::voidValue; 
+                m_returnValue = std::nullopt;
+                ++m_scope;
+                for(std::size_t i{0ul}; i < block_expression->getStatements().size(); ++i)
+                {
+                    if(m_jumpIndex != -1ul && m_scope == m_jumpScope)
+                    {
+                        i = m_jumpIndex -1ul;
+                        m_jumpIndex = m_jumpScope = -1ul;
+                        continue;
+                    }
+                    else if(m_scope == m_breakScope)
+                    {
+                        --m_breakScope;
+                        break;
+                    }
+                    else if(m_scope == m_continueScope)
+                    {
+                        --m_continueScope;
+                        break;
+                    }
+                    else if(m_scope > m_breakScope || m_scope > m_continueScope)
+                        break;
+                        
+                    if(m_returnValue.has_value())
+                        break;
+
+                    const auto& stmt = block_expression->getStatements()[i];
+                    value = evaluateStatement(stmt.get());
+
+                }
+                --m_scope;
+                
+                return m_returnValue.has_value()? m_returnValue.value(): value; 
+            }
+            else if(auto if_expression = dynamic_cast<const BoundIfExpression*>(expression))
+            {
+                auto test = evaluateExpression(if_expression->getTestExpression()).getPrimitive().getBool();
 
                 if(test)
-                    return evaluateStatement(if_else_expression->getIfBodyStatement());
-                else if(if_else_expression->hasElse())
-                    return evaluateStatement(if_else_expression->getElseBodyStatement().value());
+                    return evaluateStatement(if_expression->getIfBodyStatement());
+                else if(if_expression->hasElse())
+                    return evaluateStatement(if_expression->getElseBodyStatement().value());
                 else return PrimitiveValue::voidValue;
             }
             else if(auto for_expression = dynamic_cast<const BoundForExpression*>(expression))
             {
                 const auto& specifier = for_expression->getSpecifier();
 
+                ++m_scope;
                 if(auto variable_specifier = std::get_if<const BoundForExpression::BoundVariableForSpecifier>(&specifier))
                 {
                     evaluateDeclaration(variable_specifier->variableDeclaration.get());
                     Value return_value = PrimitiveValue::voidValue;
 
-                    while(evaluateExpression(variable_specifier->expression.get()).getPrimitive().getBool())
+                    while(!m_returnValue.has_value() && evaluateExpression(variable_specifier->expression.get()).getPrimitive().getBool())
                     {
+                        if(m_scope == m_breakScope)
+                        {
+                            m_breakScope = -1ul;
+                            break;
+                        }
+                        else if(m_scope == m_continueScope)
+                        {
+                            m_continueScope = -1ul;
+                            continue;
+                        }
+                        else if(m_scope > m_breakScope || m_scope > m_continueScope)
+                            break;
+
                         return_value = evaluateStatement(for_expression->getBody());
                         evaluateStatement(variable_specifier->statement.get());
                     }
-
-                    return return_value;
+                    
+                    return (--m_scope, return_value);
                 }
                 else if(auto range_specifier = std::get_if<const BoundForExpression::BoundRangeForSpecifier>(&specifier))
                 {
                     auto find = m_variables.find(range_specifier->arrayIdentifier->getValue());
                     auto type = range_specifier->arrayIdentifier->getType();
                     std::size_t count{};
-                    ArrayValue array(std::vector<Types::_void_type>{Types::_void_type{}});
+                    ArrayValue array(Types::voidType, 0ul);
 
-                    if(!type.isArray && type.kind == Types::Kind::string)
+                    if(type.kind == Types::type::Kind::Primitive && type.primitive == Types::Kind::string)
                     {
                         auto string = find->second.value.getPrimitive().getString();
 
                         count = string.size();
                         array = ArrayValue(std::vector<char>(string.c_str(), string.c_str() + count));
                     }
-                    else if(type.isArray)
+                    else if(type.kind == Types::type::Kind::Array)
                     {
                         count = find->second.value.getArray().getCount();
                         array = find->second.value.getArray();
                     }
-                    else return PrimitiveValue::invalidValue;
-
+                    else return (--m_scope, PrimitiveValue::invalidValue);
                     Value return_value{PrimitiveValue::voidValue};
                     
-                    for(std::size_t i = 0ull; i < count; ++i)
+                    for(std::size_t i{0ul}; i < count; ++i)
                     {
                         m_variables[range_specifier->valueIdentifier->getValue()] = VariableValue{
                             .name = range_specifier->valueIdentifier->getValue(),
-                            .value = PrimitiveValue(array.get(i)),
+                            .value = array.get(i),
                             .isMutable = true
                         };
 
                         return_value = evaluateStatement(for_expression->getBody());
                     }
 
-                    return return_value;
+                    return (--m_scope, return_value);
                 }
-                else return PrimitiveValue::invalidValue;
+                else return (--m_scope, PrimitiveValue::invalidValue);
             }
             else if(auto while_expression = dynamic_cast<const BoundWhileExpression*>(expression))
             {
                 Value return_value = PrimitiveValue::voidValue;
-                bool evaluated{false};
+                bool evaluated{false}, can_continue{true};
 
+                ++m_scope;
                 if(evaluateExpression(while_expression->getTestExpression()).getPrimitive().getBool())
                 {
-                    evaluated = true;
                     return_value = evaluateStatement(while_expression->getWhileBodyStatement());
+
+                    evaluated = true;
+                    if(m_scope == m_breakScope) { m_breakScope = -1ul; can_continue = false; }
                 }
 
-                while(evaluateExpression(while_expression->getTestExpression()).getPrimitive().getBool())
+                while(evaluated && can_continue && !m_returnValue.has_value() && evaluateExpression(while_expression->getTestExpression()).getPrimitive().getBool())
+                {
+                    if(m_scope == m_breakScope)
+                    {
+                        m_breakScope = -1ul;
+                        break;
+                    }
+                    else if(m_scope == m_continueScope)
+                    {
+                        m_continueScope = -1ul;
+                        continue;
+                    }
+                    else if(m_scope > m_breakScope || m_scope > m_continueScope)
+                        break;
+
                     return_value = evaluateStatement(while_expression->getWhileBodyStatement());
+                }
                 
                 auto finally = while_expression->getFinallyBodyStatement();
                 auto _else = while_expression->getElseBodyStatement();
@@ -238,11 +326,11 @@ namespace linc
                 else if(!evaluated && _else.has_value())
                     return_value = evaluateStatement(_else.value());
 
-                return return_value;
+                return (--m_scope, return_value);
             }
             else if(auto binary_expression = dynamic_cast<const BoundBinaryExpression*>(expression))
             {
-                Value result = PrimitiveValue::fromDefault(binary_expression->getType().kind);
+                Value result = Value::fromDefault(binary_expression->getType());
                 
                 if(binary_expression->getOperator()->getKind() == BoundBinaryOperator::Kind::LogicalAnd)
                 {
@@ -264,37 +352,23 @@ namespace linc
                     result = left + right;
                 }
 
-                auto left = evaluateExpression(binary_expression->getLeft()).getPrimitive();
-                auto right = evaluateExpression(binary_expression->getRight()).getPrimitive();
+                auto left = evaluateExpression(binary_expression->getLeft());
+                auto right = evaluateExpression(binary_expression->getRight());
 
                 switch(binary_expression->getOperator()->getKind())
                 {
                 case BoundBinaryOperator::Kind::Assignment:
-                    if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(binary_expression->getLeft()))
-                    {
-                        m_variables.at(identifier->getValue()).value = right;
-                        result = right;
-                    }
-                    else if(auto array_index = dynamic_cast<const BoundArrayIndexExpression*>(binary_expression->getLeft()))
-                    {
-                        auto index = evaluateExpression(array_index->getIndex()).getPrimitive().getU64();
-                        auto find = m_variables.find(array_index->getIdentifier()->getValue());
-
-                        if(find == m_variables.end())
-                            return PrimitiveValue::invalidValue;
-
-                        find->second.value.getArray().set(index, right);
-                        result = right;
-                    }
-                    else
-                    {
-                        Reporting::push(Reporting::Report{
-                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                            .message = "Cannot use the assignment operator on temporary operands."
-                        });
-                        return PrimitiveValue::invalidValue;
-                    }
-                    break;
+                    return evaluateMutableOperator(binary_expression->getType(), binary_expression->getLeft(), right);
+                case BoundBinaryOperator::Kind::AdditionAssignment:
+                    return evaluateMutableOperator(binary_expression->getType(), binary_expression->getLeft(), left + right);
+                case BoundBinaryOperator::Kind::SubtractionAssignment:
+                    return evaluateMutableOperator(binary_expression->getType(), binary_expression->getLeft(), left.getPrimitive() - right.getPrimitive());
+                case BoundBinaryOperator::Kind::MultiplicationAssignment:
+                    return evaluateMutableOperator(binary_expression->getType(), binary_expression->getLeft(), left.getPrimitive() * right.getPrimitive());
+                case BoundBinaryOperator::Kind::DivisionAssignment:
+                    return evaluateMutableOperator(binary_expression->getType(), binary_expression->getLeft(), left.getPrimitive() / right.getPrimitive());
+                case BoundBinaryOperator::Kind::ModuloAssignment:
+                    return evaluateMutableOperator(binary_expression->getType(), binary_expression->getLeft(), left.getPrimitive() % right.getPrimitive());
                 case BoundBinaryOperator::Kind::Subtraction:
                     result = left - right;
                     break;
@@ -302,16 +376,22 @@ namespace linc
                     result = left * right;
                     break;
                 case BoundBinaryOperator::Kind::Division:
-                    if(right.isZero())
-                    {
-                        Reporting::push({Reporting::Report{
+                    if(right.getPrimitive().isZero())
+                        return (Reporting::push(Reporting::Report{
                             .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                            .message = Logger::format("Attempted division by zero. Operands are '$' ('$') and '$' ('$').",
-                                left, Types::toString(left.getType()), right, Types::toString(right.getType()))
-                        }});
-                        return PrimitiveValue::invalidValue;
-                    }
+                            .message = Logger::format("Attempted division by zero. Operands are `$` and `$` (`$`).",
+                                left, right, binary_expression->getLeft()->getType())
+                        }), PrimitiveValue::invalidValue);
                     result = left / right;
+                    break;
+                case BoundBinaryOperator::Kind::Modulo:
+                    if(right.getPrimitive().isZero())
+                        return (Reporting::push(Reporting::Report{
+                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                            .message = Logger::format("Attempted modulo division by zero. Operands are `$` and `$` (`$`).",
+                                left, right, binary_expression->getLeft()->getType())
+                        }), PrimitiveValue::invalidValue);
+                    result = left % right;
                     break;
                 case BoundBinaryOperator::Kind::Equals:
                     result = PrimitiveValue(left == right);
@@ -331,17 +411,32 @@ namespace linc
                 case BoundBinaryOperator::Kind::LessEqual:
                     result = PrimitiveValue(left <= right);
                     break;
+                case BoundBinaryOperator::Kind::BitwiseAnd:
+                    result = left & right;
+                    break;
+                case BoundBinaryOperator::Kind::BitwiseOr:
+                    result = left | right;
+                    break;
+                case BoundBinaryOperator::Kind::BitwiseXor:
+                    result = left ^ right;
+                    break;
+                case BoundBinaryOperator::Kind::BitwiseShiftLeft:
+                    result = left << right;
+                    break;
+                case BoundBinaryOperator::Kind::BitwiseShiftRight:
+                    result = left >> right;
+                    break;
                 default: break;
                 }
 
                 if(result.getIfPrimitive() && (result.getPrimitive().getKind() == PrimitiveValue::Kind::Signed
                     || result.getPrimitive().getKind() == PrimitiveValue::Kind::Unsigned))
-                    return result.getPrimitive().convert(binary_expression->getType().kind);
+                    return result.getPrimitive().convert(binary_expression->getType().primitive);
                 else return result;
             }
             else if(auto unary_expression = dynamic_cast<const BoundUnaryExpression*>(expression))
             {
-                Value result = PrimitiveValue::fromDefault(unary_expression->getType().kind);
+                Value result = PrimitiveValue::fromDefault(unary_expression->getType().primitive);
                 
                 if(unary_expression->getOperator()->getKind() == BoundUnaryOperator::Kind::Typeof)
                     return PrimitiveValue(unary_expression->getOperand()->getType());
@@ -351,65 +446,41 @@ namespace linc
                 switch(unary_expression->getOperator()->getKind())
                 {
                 case BoundUnaryOperator::Kind::Increment:
+                    result = evaluateMutableOperator(unary_expression->getType(), unary_expression->getOperand(),
+                        operand + PrimitiveValue{1}.convert(unary_expression->getType().primitive));
+                    break;
                 case BoundUnaryOperator::Kind::Decrement:
-                {
-                    const BoundIdentifierExpression* operand;
-                    if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(unary_expression->getOperand()))
-                    {
-                        auto var = m_variables.find(identifier->getValue());
-
-                        if(var == m_variables.end())
-                            return PrimitiveValue::invalidValue;
-                        else
-                        {
-                            if(!var->second.isMutable)
-                            {
-                                Reporting::push(Reporting::Report{
-                                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                                    .message = Logger::format("Cannot increment/decrement immutable variable '$'.",
-                                        identifier->getValue())
-                                });
-
-                                return PrimitiveValue::invalidValue;
-                            }
-                            else 
-                            {
-                                if(unary_expression->getOperator()->getKind() == BoundUnaryOperator::Kind::Increment)
-                                    return Value(++var->second.value).getPrimitive().convert(unary_expression->getType().kind);
-                                else return Value(--var->second.value).getPrimitive().convert(unary_expression->getType().kind);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Reporting::push(Reporting::Report{
-                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                            .message = "Cannot increment non-identifier expression"
-                        });
-
-                        return PrimitiveValue::invalidValue;
-                    }
-                }
+                    result = evaluateMutableOperator(unary_expression->getType(), unary_expression->getOperand(), 
+                        operand - PrimitiveValue{1}.convert(unary_expression->getType().primitive));
+                    break;
                 case BoundUnaryOperator::Kind::Stringify:
-                    return PrimitiveValue(operand.toString());
+                    result = PrimitiveValue(operand.toApplicationString());
+                    break;
                 case BoundUnaryOperator::Kind::UnaryPlus:
                     if(operand.getIfArray())
-                        return PrimitiveValue(operand.getArray().getCount());
+                        result = PrimitiveValue(operand.getArray().getCount());
                     else if(operand.getPrimitive().getKind() == PrimitiveValue::Kind::String)
-                        return PrimitiveValue(static_cast<Types::u64>(operand.getPrimitive().getString().size()));
+                        result = PrimitiveValue(static_cast<Types::u64>(operand.getPrimitive().getString().size()));
                     else if(operand.getPrimitive().getKind() == PrimitiveValue::Kind::Character)
-                        return PrimitiveValue(static_cast<Types::i32>(operand.getPrimitive().getChar()));
-                    else return operand;
+                        result = PrimitiveValue(+operand.getPrimitive().getChar());
+                    else result = operand;
+                    break;
                 case BoundUnaryOperator::Kind::UnaryMinus:
-                    return -operand;
+                    result = -operand;
+                    break;
                 case BoundUnaryOperator::Kind::LogicalNot:
-                    return PrimitiveValue(!operand.getPrimitive().getBool());
-                default: return PrimitiveValue::invalidValue;
+                    result = PrimitiveValue(!operand.getPrimitive().getBool());
+                    break;
+                case BoundUnaryOperator::Kind::BitwiseNot:
+                    result = ~operand;
+                    break;
+                default: 
+                    result = PrimitiveValue::invalidValue;
                 }
 
                 if(result.getIfPrimitive() && (result.getPrimitive().getKind() == PrimitiveValue::Kind::Signed
                     || result.getPrimitive().getKind() == PrimitiveValue::Kind::Unsigned))
-                    return result.getPrimitive().convert(binary_expression->getType().kind);
+                    return result.getPrimitive().convert(unary_expression->getType().primitive);
                 else return result;
             }
             else if(auto identifier_expression = dynamic_cast<const BoundIdentifierExpression*>(expression))
@@ -417,13 +488,10 @@ namespace linc
                 auto find = m_variables.find(identifier_expression->getValue());
                 
                 if(find == m_variables.end())
-                {
-                    Reporting::push(Reporting::Report{
+                    return (Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
                         .message = Logger::format("Variable '$' does not exist!", identifier_expression->getValue())
-                    });
-                    return PrimitiveValue::invalidValue;
-                }
+                    }), PrimitiveValue::invalidValue);
 
                 return find->second.value;
             }
@@ -434,14 +502,17 @@ namespace linc
             else if(auto function_call_expression = dynamic_cast<const BoundFunctionCallExpression*>(expression))
             {
                 std::vector<std::string> args;
+                m_returnValue = std::nullopt;
 
+                ++m_scope;
                 for(const auto& argument: function_call_expression->getArguments())
                 {
                     auto find = m_variables.find(argument.name);
 
                     auto value = evaluateExpression(argument.value.get());
                     auto variable = m_variables[argument.name] 
-                        = VariableValue{.name = argument.name, .value = value, .isMutable = argument.isMutable, .temporary = find == m_variables.end()};
+                        = VariableValue{.name = argument.name, .value = value, .isMutable = argument.value->getType().isMutable,
+                            .temporary = find == m_variables.end()};
                     args.push_back(variable.name);
                 }
 
@@ -454,35 +525,124 @@ namespace linc
                         m_variables.erase(find);
                 }
 
-                return result;
+                return (--m_scope, result);
+            }
+            else if(auto external_call = dynamic_cast<const BoundExternalCallExpression*>(expression))
+            {
+                const auto& name = external_call->getName();
+                
+                if(name == "puts")
+                {
+                    fputs(evaluateExpression(external_call->getArguments().at(0ul).get()).getPrimitive().getString().c_str(), stdout);
+                    return PrimitiveValue::voidValue;
+                }
+                else if(name == "putc")
+                {
+                    fputc(evaluateExpression(external_call->getArguments().at(0ul).get()).getPrimitive().getChar(), stdout);
+                    return PrimitiveValue::voidValue;
+                }
+                else if(name == "readchar")
+                {
+                    return PrimitiveValue(static_cast<char>(std::getchar()));
+                }
+                else if(name == "readraw")
+                {
+                    std::string result;
+                    std::getline(std::cin, result);
+                    return linc::PrimitiveValue(result);
+                }
+                else if(name == "readln")
+                {
+                    auto prompt = evaluateExpression(external_call->getArguments().at(0ul).get()).getPrimitive().getString();
+                    return linc::PrimitiveValue(Logger::read(prompt));
+                }
+                else if(name == "system")
+                {
+                    class Deleter
+                    {
+                    public:
+                        inline void operator()(std::FILE* file){ pclose(file); }
+                    };
+
+                    static std::array<char, 128> buffer;
+                    auto argument = evaluateExpression(external_call->getArguments().at(0ul).get());
+
+                    std::string result, command = argument.getPrimitive().getString();
+
+                    std::unique_ptr<std::FILE, Deleter> pipe(popen(command.c_str(), "r"));
+                    
+                    if(!pipe)
+                        return (Reporting::push(Reporting::Report{
+                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                            .message = Logger::format("Failed to open pipe while evaluating shell expression (with command '$').", command)
+                        }), PrimitiveValue::invalidValue);
+
+                    while(std::fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) result += buffer.data();
+                    return PrimitiveValue(result);
+                }
+                
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                    .message = Logger::format("Internal function `$` has not been implemented.", name)
+                });
+
+                return PrimitiveValue::invalidValue;
             }
             else if(auto conversion_expression = dynamic_cast<const BoundConversionExpression*>(expression))
             {
                 auto value = evaluateExpression(conversion_expression->getExpression());
-                return value.getPrimitive().convert(conversion_expression->getType().kind);
+                return value.getPrimitive().convert(conversion_expression->getType().primitive);
             }
             else if(auto array_initializer_expression = dynamic_cast<const BoundArrayInitializerExpression*>(expression))
             {
-                ArrayValue result = ArrayValue::fromDefault(expression->getType().kind);
+                ArrayValue result = ArrayValue::fromDefault(*expression->getType().array.base_type);
 
                 for(const auto& value: array_initializer_expression->getValues())
-                    result.push(evaluateExpression(value.get()).getPrimitive());
+                    result.push(evaluateExpression(value.get()));
 
                 return std::move(result);
             }
-            else if(auto array_index_expression = dynamic_cast<const BoundArrayIndexExpression*>(expression))
+            else if(auto structure_initializer_expression = dynamic_cast<const BoundStructureInitializerExpression*>(expression))
             {
-                auto find = m_variables.find(array_index_expression->getIdentifier()->getValue());
-                auto index = evaluateExpression(array_index_expression->getIndex());
-                auto type = array_index_expression->getIdentifier()->getType();
+                std::vector<Value> values;
 
-                if(type.kind == Types::Kind::string && !type.isArray)
-                    return PrimitiveValue(find->second.value.getPrimitive().getString().at(index.getPrimitive().getU64()));
+                for(const auto& value: structure_initializer_expression->getFields())
+                    values.push_back(evaluateExpression(value.get()));
 
-                else if(type.isArray)
-                    return find->second.value.getArray().get(index.getPrimitive().getU64());
+                return Value(std::move(values));
+            }
+            else if(auto index_expression = dynamic_cast<const BoundIndexExpression*>(expression))
+            {
+                auto array = evaluateExpression(index_expression->getArray());
+                auto index = evaluateExpression(index_expression->getIndex());
+                auto type = index_expression->getArray()->getType();
+
+                if(type.kind == Types::type::Kind::Primitive && type.primitive == Types::Kind::string)
+                    return PrimitiveValue(array.getPrimitive().getString().at(index.getPrimitive().getU64()));
+
+                else if(type.kind == Types::type::Kind::Array)
+                    return array.getArray().get(index.getPrimitive().getU64());
                 
                 else return PrimitiveValue::invalidValue;
+            }
+            else if(auto access_expression = dynamic_cast<const BoundAccessExpression*>(expression))
+            {
+                auto base = evaluateExpression(access_expression->getBase());
+                auto index = access_expression->getIndex();
+
+                if(!base.getIfStructure())
+                    return (Reporting::push(Reporting::Report{
+                        .type = Reporting::Type::Info, .stage = Reporting::Stage::Generator,
+                        .message = "Tried to evaluate access expression on non structure operand."
+                    }), PrimitiveValue::invalidValue);
+
+                if(index >= base.getStructure().size())
+                    return (Reporting::push(Reporting::Report{
+                        .type = Reporting::Type::Info, .stage = Reporting::Stage::Generator,
+                        .message = "Tried to access value outside of array's bounds."
+                    }), base.getStructure().empty()? Value(PrimitiveValue::invalidValue): base.getStructure().at(0ul));
+
+                return base.getStructure().at(index);
             }
             else
             {
@@ -496,24 +656,100 @@ namespace linc
             m_variables.clear();
         }
 
-        static void printNodeTree(Binder binder, const Node* node, std::string indent = "", bool last = true)
+        static void printNodeTree(const BoundNode* node, std::string indent = "", bool last = true)
         {
             auto marker = last? "└──" : "├──";
+            
+            if(auto expression_statement = dynamic_cast<const BoundExpressionStatement*>(node))
+            {
+                printNodeTree(expression_statement->getExpression(), indent, last);
+                return;
+            }
+            else if(auto declaration_statement = dynamic_cast<const BoundDeclarationStatement*>(node))
+            {
+                printNodeTree(declaration_statement->getDeclaration(), indent, last);
+                return;
+            }
 
-            binder.reset();
-            Logger::println("$:$:$", indent, marker, binder.bindNode(node)->toString());
-
+            Logger::println("$:$:$", indent, marker, node->toString());
             indent += last? "   ": "│  ";
 
-            const Node* last_child = node->getChildren().size() > 0? node->getChildren()[node->getChildren().size() - 1]: nullptr;
+            const BoundNode* const last_child = node->getChildren().size() > 0ul? node->getChildren()[node->getChildren().size() - 1ul]: nullptr;
 
             for(auto child: node->getChildren())
-            {
-                printNodeTree(binder, child, indent, child == last_child);
-            }
+                printNodeTree(child, indent, child == last_child);
         }
     private:
+        Value evaluateMutableOperator(const Types::type& type, const BoundExpression* expression, const Value& new_value)
+        {
+            Value result = Value::fromDefault(type);
+
+            if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(expression))
+            {
+                m_variables.at(identifier->getValue()).value = new_value;
+                result = new_value;
+            }
+            else if(auto index_expression = dynamic_cast<const BoundIndexExpression*>(expression))
+            {
+                auto index = evaluateExpression(index_expression->getIndex()).getPrimitive().getU64();
+                auto array = index_expression->getArray();
+
+                if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(array))
+                {
+                    auto find = m_variables.find(identifier->getValue());
+                    
+                    if(find == m_variables.end())
+                        return PrimitiveValue::invalidValue;
+
+                    find->second.value.getArray().set(index, new_value);
+                    result = new_value;
+                    return result;
+                }
+                
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                    .message = "Cannot use mutable operator on temporary array operands."
+                });
+
+                return PrimitiveValue::invalidValue;
+            }
+            else if(auto access_expression = dynamic_cast<const BoundAccessExpression*>(expression))
+            {
+                auto index = access_expression->getIndex();
+                auto base = access_expression->getBase();
+
+                if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(base))
+                {
+                    auto find = m_variables.find(identifier->getValue());
+                    
+                    if(find == m_variables.end())
+                        return PrimitiveValue::invalidValue;
+
+                    find->second.value.getStructure().at(index) = new_value;
+                    result = new_value;
+                    return result;
+                }
+
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                    .message = "Cannot use mutable operator on temporary structure operands."
+                });
+
+                return PrimitiveValue::invalidValue;
+            }
+            else return (Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                    .message = "Cannot use mutable operator on temporary operands."
+                }), PrimitiveValue::invalidValue);
+
+            if(result.getIfPrimitive() && (result.getPrimitive().getKind() == PrimitiveValue::Kind::Signed
+                || result.getPrimitive().getKind() == PrimitiveValue::Kind::Unsigned))
+                return result.getPrimitive().convert(type.primitive);
+            else return result;
+        }
+
+        Types::u64 m_scope{0ul}, m_jumpIndex{-1ul}, m_jumpScope{-1ul}, m_breakScope{-1ul}, m_continueScope{-1ul};
         std::unordered_map<std::string, VariableValue> m_variables;
-        std::unordered_map<std::string, VariableValue> m_functions;
+        std::optional<Value> m_returnValue{std::nullopt};
     };
 }

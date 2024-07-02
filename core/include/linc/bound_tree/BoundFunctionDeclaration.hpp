@@ -29,7 +29,17 @@ namespace linc
             return count;
         }
 
-        virtual std::unique_ptr<const BoundDeclaration> cloneConst() const final override;
+        virtual std::unique_ptr<const BoundDeclaration> clone() const final override;
+
+        inline virtual std::vector<const BoundNode*> getChildren() const final override 
+        {
+            std::vector<const BoundNode*> nodes;
+            for(const auto& argument: m_arguments)
+                nodes.push_back(argument.get());
+            
+            nodes.push_back(m_body.get());
+            return std::move(nodes);
+        }
     private:
         virtual std::string toStringInner() const final override;
 

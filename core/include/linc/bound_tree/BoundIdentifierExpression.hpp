@@ -9,7 +9,7 @@ namespace linc
         BoundIdentifierExpression(const std::string& value, const Types::type type);
         [[nodiscard]] const std::string& getValue() const;
 
-        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
+        virtual std::unique_ptr<const BoundExpression> clone() const final override;
     private:
         virtual std::string toStringInner() const final override;
         const std::string m_value;

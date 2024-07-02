@@ -2,6 +2,8 @@
 #include <linc/system/Types.hpp>
 #include <linc/bound_tree/BoundExpression.hpp>
 #include <linc/bound_tree/BoundDeclaration.hpp>
+#include <linc/bound_tree/BoundIdentifierExpression.hpp>
+#include <linc/bound_tree/BoundTypeExpression.hpp>
 
 namespace linc
 {
@@ -18,7 +20,14 @@ namespace linc
                 std::make_optional(m_defaultValue.value().get()): std::nullopt;
         }
 
-        virtual std::unique_ptr<const BoundDeclaration> cloneConst() const final override;
+        virtual std::unique_ptr<const BoundDeclaration> clone() const final override;
+
+        inline virtual std::vector<const BoundNode*> getChildren() const final override 
+        {
+            if(m_defaultValue.has_value())
+                return {m_defaultValue.value().get()};
+            else return {};
+        }
     private:
         virtual std::string toStringInner() const final override;
         const Types::type m_actualType;

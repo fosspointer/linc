@@ -14,7 +14,7 @@ namespace linc
         struct Info final 
         {
             std::string file;
-            std::size_t line;
+            std::size_t line, characterIndex;
         };
 
         /// @brief The type of a Token
@@ -28,10 +28,11 @@ namespace linc
             
             // Keywords
             KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse, KeywordMutability, KeywordFinally,
-            KeywordAs, KeywordFor, KeywordIn,
+            KeywordAs, KeywordFor, KeywordIn, KeywordExternal, KeywordJump, KeywordBreak, KeywordContinue, KeywordStructure,
 
             // Symbols
-            ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, TypeSpecifier, Comma, 
+            ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, Colon, Comma, Tilde, Dot, PreprocessorSpecifier,
+            GlueSpecifier,
             
             // Arithmetic operators
             OperatorPlus, OperatorMinus, OperatorAsterisk, OperatorSlash, OperatorPercent,
@@ -75,6 +76,17 @@ namespace linc
             Identifier, 
         };
 
+        /// @brief Enumeration of supported number system bases.
+        enum class NumberBase: unsigned char
+        {
+            Decimal, Hexadecimal, Binary
+        };
+        
+        /// @brief Convert a given number base to its corresponding integer (in decimal).
+        /// @param base The base enumerator.
+        /// @return Unsigned char (integer) corresponding to the number base.
+        static unsigned char baseToInt(Token::NumberBase base);
+        
         /// @brief Convert a given token type to a string, essential for error handling/debugging/IO.
         /// @param type The type of the token, to be converted to string.
         /// @return String corresponding to the given token type.
@@ -164,6 +176,7 @@ namespace linc
 
         Type type;
         std::optional<std::string> value;
+        std::optional<NumberBase> numberBase;
         Info info;
     };
 }

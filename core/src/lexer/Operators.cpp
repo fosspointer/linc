@@ -2,7 +2,8 @@
 #include <linc/system/Reporting.hpp>
 
 #define LINC_OPERATOR_MAP_PAIR(first, second) std::pair<std::string, linc::Token::Type>(first, second)
-#define LINC_OPERATOR_PRECEDENCE_MAP_PAIR(first, second) std::pair<Token::Type, std::uint16_t>(first, second)
+#define LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(first, second) std::pair<linc::Token::Type, linc::Operators::Associativity>(first, second)
+#define LINC_OPERATOR_PRECEDENCE_MAP_PAIR(first, second) std::pair<linc::Token::Type, std::uint16_t>(first, second)
 
 struct UnaryOperator
 {
@@ -23,32 +24,76 @@ namespace linc
 {
     const Operators::OperatorPrecedenceMap Operators::s_binaryOperatorPrecedenceMap = {
         LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorAssignment, 1),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorAsignmentAddition, 1),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorAsignmentSubstraction, 1),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorAssignmentMultiplication, 1),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorAssignmentDivision, 1),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorAssignmentModulo, 1),
         LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorLogicalOr, 2),
         LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorLogicalAnd, 3),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorEquals, 4),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorNotEquals, 4),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorGreater, 4),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorGreaterEqual, 4),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorLess, 4),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorLessEqual, 4),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorPlus, 5),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorMinus, 5),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorAsterisk, 6),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorSlash, 6),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorBitwiseOr, 4),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorBitwiseXor, 5),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorBitwiseAnd, 6),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorEquals, 7),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorNotEquals, 7),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorGreater, 7),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorGreaterEqual, 7),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorLess, 7),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorLessEqual, 7),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorBitwiseShiftLeft, 8),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorBitwiseShiftRight, 8),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorPlus, 9),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorMinus, 9),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorAsterisk, 10),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorSlash, 10),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorPercent, 10)
+    };
+
+    const Operators::OperatorAssociativityMap Operators::s_operatorAssociativityMap = {
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorAssignment, Operators::Associativity::Right),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorAsignmentAddition, Operators::Associativity::Right),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorAsignmentSubstraction, Operators::Associativity::Right),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorAssignmentMultiplication, Operators::Associativity::Right),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorAssignmentDivision, Operators::Associativity::Right),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorAssignmentModulo, Operators::Associativity::Right),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorLogicalOr, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorLogicalAnd, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorBitwiseOr, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorBitwiseXor, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorBitwiseAnd, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorEquals, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorNotEquals, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorGreater, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorGreaterEqual, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorLess, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorLessEqual, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorBitwiseShiftLeft, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorBitwiseShiftRight, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorPlus, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorMinus, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorAsterisk, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorSlash, Operators::Associativity::Left),
+        LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(Token::Type::OperatorPercent, Operators::Associativity::Left)
     };
 
     const Operators::OperatorPrecedenceMap Operators::s_unaryOperatorPrecedenceMap = {
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorStringify, 7),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorIncrement, 7),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorDecrement, 7),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorMinus, 8),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorPlus, 8),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorLogicalNot, 8),
-        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::TypeSpecifier, 9),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorStringify, 11),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorBitwiseNot, 11),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorIncrement, 11),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorDecrement, 11),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorMinus, 12),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorPlus, 12),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::OperatorLogicalNot, 12),
+        LINC_OPERATOR_PRECEDENCE_MAP_PAIR(Token::Type::Colon, 13)
     };
 
     const Operators::OperatorMap Operators::s_operatorMap = {
-        LINC_OPERATOR_MAP_PAIR(":", Token::Type::TypeSpecifier),
+        LINC_OPERATOR_MAP_PAIR("~", Token::Type::Tilde),
+        LINC_OPERATOR_MAP_PAIR(":", Token::Type::Colon),
+        LINC_OPERATOR_MAP_PAIR(".", Token::Type::Dot),
+        LINC_OPERATOR_MAP_PAIR(",", Token::Type::Comma),
+        LINC_OPERATOR_MAP_PAIR("#", Token::Type::PreprocessorSpecifier),
+        LINC_OPERATOR_MAP_PAIR("##", Token::Type::GlueSpecifier),
         LINC_OPERATOR_MAP_PAIR("+", Token::Type::OperatorPlus),
         LINC_OPERATOR_MAP_PAIR("++", Token::Type::OperatorIncrement),
         LINC_OPERATOR_MAP_PAIR("--", Token::Type::OperatorDecrement),
@@ -77,7 +122,7 @@ namespace linc
         LINC_OPERATOR_MAP_PAIR("&", Token::Type::OperatorBitwiseAnd),
         LINC_OPERATOR_MAP_PAIR("|", Token::Type::OperatorBitwiseOr),
         LINC_OPERATOR_MAP_PAIR("^", Token::Type::OperatorBitwiseXor),
-        LINC_OPERATOR_MAP_PAIR("~", Token::Type::OperatorBitwiseNot),
+        LINC_OPERATOR_MAP_PAIR("!!", Token::Type::OperatorBitwiseNot)
     };
 
     Token::Type Operators::get(const std::string& operator_string)
@@ -89,9 +134,23 @@ namespace linc
 
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-            .message = linc::Logger::format("Expected operator, found invalid character sequence '$'", operator_string)});
+            .message = linc::Logger::format("Expected operator, found invalid character sequence '$'.", operator_string)});
         
         return Token::Type::InvalidToken;
+    }
+
+    auto Operators::getAssociativity(Token::Type operator_token_type) -> Associativity {
+        auto find = s_operatorAssociativityMap.find(operator_token_type);
+
+        if(find != s_operatorAssociativityMap.end())
+            return find->second;
+
+        Reporting::push(Reporting::Report{
+            .type = Reporting::Type::Info, .stage = Reporting::Stage::Parser,
+            .message = linc::Logger::format("Cannot determine the associativity of token-type '$', as it is not a valid binary operator.", 
+                Token::typeToString(operator_token_type))});
+        
+        return Associativity::Left;
     }
 
     uint16_t Operators::getBinaryPrecedence(Token::Type operator_token_type)

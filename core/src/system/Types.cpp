@@ -1,5 +1,4 @@
 #include <linc/system/Types.hpp>
-#include <linc/system/Logger.hpp>
 
 #define LINC_TYPE_MAP_PAIR(first, second) std::pair<std::string, linc::Types::Kind>(first, linc::Types::Kind::second)
 
@@ -46,6 +45,7 @@ namespace linc
         LINC_TYPE_MAP_PAIR("f32", f32),
         LINC_TYPE_MAP_PAIR("f64", f64),
         LINC_TYPE_MAP_PAIR("f", f32),
+        LINC_TYPE_MAP_PAIR("d", f64),
 
         LINC_TYPE_MAP_PAIR("c", _char),
         LINC_TYPE_MAP_PAIR("b", _bool)
@@ -96,15 +96,33 @@ namespace linc
         }
     }
 
-    std::string Types::toString(const type& type)
+    std::string Types::toString(const type& type, bool ignore_mutability)
     {
-        return Logger::format("$:$:$", type.isMutable? "mut ": "", kindToString(type.kind),
-            type.isArray? type.arraySize? "[" + std::to_string(*type.arraySize) + "]": "[]": "");
+        std::string result;
+        if(type.isMutable && !ignore_mutability)
+            result.append("mut ");
+
+        switch(type.kind)
+        {
+        case type::Kind::Primitive: result.append(kindToString(type.primitive)); break;
+        case type::Kind::Array:
+            result.append(toString(*type.array.base_type, true));
+            result.append(type.array.count? "[" + std::to_string(*type.array.count) + "]": "[]");
+            break;
+        case type::Kind::Structure:
+            result.push_back('{');
+            for(type::Structure::size_type i{0ul}; i < type.structure.size(); ++i)
+                result.append((i == 0ul? "": ", ") + type.structure[i].first + ": " + toString(*type.structure[i].second));
+            result.push_back('}');
+            break;
+        }   
+
+        return result;
     }
 
     auto Types::fromKind(Kind kind) -> type
     {
-        return type{.kind = kind};
+        return type(kind);
     }
 
     Types::Kind Types::kindFromString(const std::string& value)
@@ -134,6 +152,34 @@ namespace linc
         else return Kind::invalid;
     }
 
+    Types::Size Types::sizeFromKind(Kind kind)
+    {
+        switch(kind)
+        {
+        case Kind::_bool:
+        case Kind::u8:
+        case Kind::i8:
+        case Kind::_char:
+            return Size::Byte;
+        case Kind::i16:
+        case Kind::u16:
+            return Size::Word;
+        case Kind::i32:
+        case Kind::u32:
+        case Kind::f32:
+            return Size::DoubleWord;
+        case Kind::f64:
+        case Kind::u64:
+        case Kind::i64:
+        case Kind::string:
+            return Size::QuadWord;
+        case Kind::_void:
+        case Kind::invalid:
+        default:
+            return Size::Zero;
+        }
+    }
+
     Types::_bool Types::parseBoolean(const std::string& str)
     {
         if(str == "true")
@@ -159,7 +205,7 @@ namespace linc
             
         if(*p)
         {
-            if(str.empty() || str.size() > 1ull)
+            if(str.empty() || str.size() > 1ul)
                 return '\0';
             else return str[0];
         }

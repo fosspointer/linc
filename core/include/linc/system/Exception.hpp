@@ -1,9 +1,15 @@
 #pragma once
 #include <linc/Include.hpp>
 
-#define LINC_EXCEPTION(message) linc::Exception(__FILE__, __LINE__, __FUNCTION__, message)
-#define LINC_EXCEPTION_INVALID_INPUT(message) linc::Exception(__FILE__, __LINE__, __FUNCTION__, "Invalid input: " message)
-#define LINC_EXCEPTION_OUT_OF_BOUNDS(type) linc::Exception(__FILE__, __LINE__, __FUNCTION__, "Type '" #type "' out of bounds")
+#ifdef LINC_DEBUG
+    #define LINC_EXCEPTION(message) linc::Exception(__FILE__, __LINE__, __FUNCTION__, message)
+    #define LINC_EXCEPTION_INVALID_INPUT(message) linc::Exception(__FILE__, __LINE__, __FUNCTION__, "Invalid input: " message ".")
+    #define LINC_EXCEPTION_OUT_OF_BOUNDS(type) linc::Exception(__FILE__, __LINE__, __FUNCTION__, "Type '" #type "' out of bounds.")
+#else
+    #define LINC_EXCEPTION(message) linc::Exception({}, {}, __FUNCTION__, message)
+    #define LINC_EXCEPTION_INVALID_INPUT(message) linc::Exception({}, {}, __FUNCTION__, "Invalid input: " message ".")
+    #define LINC_EXCEPTION_OUT_OF_BOUNDS(type) linc::Exception({}, {}, __FUNCTION__, "Type '" #type "' out of bounds.")
+#endif
 
 namespace linc
 {

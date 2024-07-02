@@ -31,9 +31,14 @@ namespace linc
         [[nodiscard]] inline const std::variant<const BoundVariableForSpecifier, const BoundRangeForSpecifier>& getSpecifier() const { return m_specifier; }
         [[nodiscard]] inline const BoundStatement* const getBody() const { return m_body.get(); }
 
-        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
-        virtual std::string toStringInner() const final override;
+        virtual std::unique_ptr<const BoundExpression> clone() const final override;
+        
+        inline virtual std::vector<const BoundNode*> getChildren() const final override
+        {
+            return {m_body.get()};
+        }
     private:
+        virtual std::string toStringInner() const final override;
         const std::variant<const BoundVariableForSpecifier, const BoundRangeForSpecifier> m_specifier;
         const std::unique_ptr<const BoundStatement> m_body;
     };

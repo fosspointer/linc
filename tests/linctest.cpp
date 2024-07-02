@@ -9,12 +9,12 @@
 
 [[nodiscard]] static std::unique_ptr<const linc::BoundStatement> const evaluate_statement(const std::string& statement_raw)
 {
-    linc::Preprocessor preprocessor(statement_raw, "testing");
-        
-    auto code = preprocessor();
-    
+    const auto test_path = "testing";
+    auto code = linc::Code::toSource(statement_raw);
     linc::Lexer lexer(code);
-    linc::Parser parser(lexer());
+    linc::Preprocessor preprocessor(lexer(), test_path);
+    linc::Parser parser;
+    parser.set(preprocessor(), test_path);
     linc::Binder binder;
     
     auto statement = parser.parseStatement();
@@ -74,26 +74,26 @@
 
 int main(int argument_count, char** arguments)
 try {
-    if(argument_count != 4ull)
+    if(argument_count != 4ul)
     {
         linc::Logger::println("[TEST] Incorrect number of arguments given to test.");
         return EXIT_FAILURE;
     }
 
-    auto raw_statement_initial = arguments[1ull];
-    auto raw_statement_comparison = arguments[2ull];
-    auto raw_type = arguments[3ull];
+    auto raw_statement_initial = arguments[1ul];
+    auto raw_statement_comparison = arguments[2ul];
+    auto raw_type = arguments[3ul];
 
     auto result = evaluate_and_compare(raw_statement_initial, raw_statement_comparison);
     auto type = linc::Types::kindFromUserString(raw_type);
 
-    if(result.kind == linc::Types::Kind::invalid)
+    if(result.primitive == linc::Types::Kind::invalid)
         return EXIT_FAILURE;
 
-    else if(result.kind != type)
+    else if(result.primitive != type)
     {
         linc::Logger::println("[TEST] Type check failed! The statement does not type match the given type (expression evaluated to type '$', but '$' was given).",
-            linc::Types::kindToString(result.kind), linc::Types::kindToString(type));
+            linc::Types::kindToString(result.primitive), linc::Types::kindToString(type));
         return EXIT_FAILURE;
     }
 

@@ -2,6 +2,17 @@
 
 namespace linc
 {
+    unsigned char Token::baseToInt(Token::NumberBase base)
+    {
+        switch(base)
+        {
+        case Token::NumberBase::Decimal: return 10;
+        case Token::NumberBase::Hexadecimal: return 16;
+        case Token::NumberBase::Binary: return 2;
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Token::NumberBase);
+        }
+    }
+    
     std::string Token::typeToString(Type type)
     {
         switch(type)
@@ -16,17 +27,27 @@ namespace linc
         case Type::KeywordTrue: return "True Keyword Literal";
         case Type::KeywordFalse: return "False Keyword Literal";
         case Type::KeywordMutability: return "Mutability Keyword";
+        case Type::KeywordFinally: return "Finally Keyword";
         case Type::KeywordAs: return "As Keyword";
         case Type::KeywordFor: return "For Keyword";
         case Type::KeywordIn: return "In Keyword";
+        case Type::KeywordExternal: return "External Keyword";
+        case Type::KeywordJump: return "Jump Keyword";
+        case Type::KeywordBreak: return "Break Keyword";
+        case Type::KeywordContinue: return "Continue Keyword";
+        case Type::KeywordStructure: return "Structure Keyword";
         case Type::ParenthesisLeft: return "Opening Parenthesis";
         case Type::ParenthesisRight: return "Closing Parenthesis";
         case Type::SquareLeft: return "Opening Square Bracket";
         case Type::SquareRight: return "Closing Square Bracket";
         case Type::BraceLeft: return "Opening Curly Brace";
         case Type::BraceRight: return "Closing Curly Brace";
-        case Type::TypeSpecifier: return "Type Operator";
+        case Type::Colon: return "Colon";
         case Type::Comma: return "Comma";
+        case Type::Tilde: return "Tilde";
+        case Type::Dot: return "Dot";
+        case Type::PreprocessorSpecifier: return "Preprocessor Specifier";
+        case Type::GlueSpecifier: return "Glue Specifier";
         case Type::OperatorPlus: return "Plus Operator";
         case Type::OperatorMinus: return "Minus Operator";
         case Type::OperatorAsterisk: return "Asterisk Operator";
@@ -119,6 +140,11 @@ namespace linc
         case Type::KeywordAs:
         case Type::KeywordFor:
         case Type::KeywordIn:
+        case Type::KeywordExternal:
+        case Type::KeywordJump:
+        case Type::KeywordBreak:
+        case Type::KeywordContinue:
+        case Type::KeywordStructure:
             return true;
         default: return false;
         }
@@ -134,8 +160,12 @@ namespace linc
         case Type::SquareRight:
         case Type::BraceLeft:
         case Type::BraceRight:
-        case Type::TypeSpecifier:
+        case Type::Colon:
         case Type::Comma:
+        case Type::Tilde:
+        case Type::Dot:
+        case Type::PreprocessorSpecifier:
+        case Type::GlueSpecifier:
             return true;
         default: return false;
         }
@@ -277,7 +307,7 @@ namespace linc
         case Type::OperatorDecrement:
         case Type::OperatorLogicalNot:
         case Type::OperatorBitwiseNot:
-        case Type::TypeSpecifier:
+        case Type::Colon:
             return true;
         default: return false;
         }

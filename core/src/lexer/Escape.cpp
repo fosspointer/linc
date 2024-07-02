@@ -9,6 +9,7 @@ namespace linc
         LINC_ESCAPE_CHARACTER_MAP_PAIR('a', '\a'),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('b', '\b'),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('e', '\e'),
+        LINC_ESCAPE_CHARACTER_MAP_PAIR('f', '\f'),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('n', '\n'),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('r', '\r'),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('t', '\t'),

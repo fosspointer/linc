@@ -9,7 +9,7 @@ namespace linc
     public:
         ConversionExpression(const Token& as_keyword, const Token& left_parenthesis, const Token& right_parenthesis,
             std::unique_ptr<const TypeExpression> type, std::unique_ptr<const Expression> expression)
-            :m_asKeyword(as_keyword), m_leftParenthesis(left_parenthesis), m_rightParenthesis(right_parenthesis),
+            :Expression(as_keyword.info), m_asKeyword(as_keyword), m_leftParenthesis(left_parenthesis), m_rightParenthesis(right_parenthesis),
             m_type(std::move(type)), m_expression(std::move(expression))
         {
             addTokens(std::vector<Token>{m_asKeyword, m_leftParenthesis});
@@ -23,17 +23,12 @@ namespace linc
         inline const TypeExpression* const getType() const { return m_type.get(); }
         inline const Expression* const getExpression() const { return m_expression.get(); }
 
-        virtual std::vector<const Node*> getChildren() const final override
+        virtual std::unique_ptr<const Expression> clone() const final override
         {
-            return {m_expression.get()};
-        }
-
-        virtual std::unique_ptr<const Expression> cloneConst() const final override
-        {
-            auto type = Types::unique_cast<const TypeExpression>(m_type->cloneConst());
+            auto type = Types::unique_cast<const TypeExpression>(m_type->clone());
             
             return std::make_unique<const ConversionExpression>(m_asKeyword, m_leftParenthesis, m_rightParenthesis, std::move(type),
-                m_expression->cloneConst()); 
+                m_expression->clone()); 
         }
     private:
         const Token m_asKeyword, m_leftParenthesis, m_rightParenthesis;

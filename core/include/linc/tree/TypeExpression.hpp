@@ -6,47 +6,65 @@ namespace linc
     class TypeExpression final : public Expression
     {
     public:
-        TypeExpression(const Token& type_identifier, const std::optional<Token>& mutability_Keyword, const std::optional<Token>& left_bracket,
-            const std::optional<Token>& right_bracket, std::unique_ptr<const LiteralExpression> array_size)
-            :m_typeIdentifier(type_identifier), m_mutabilityKeyword(mutability_Keyword), m_leftBracket(left_bracket),
-            m_rightBracket(right_bracket), m_arraySize(std::move(array_size))
-        {}
+        struct ArraySpecifier final
+        {
+            std::optional<const Token> leftBracket, rightBracket;
+            std::unique_ptr<const LiteralExpression> count;
+        };
 
-        TypeExpression(const Token& type_identifier, const std::optional<Token>& mutability_Keyword, const std::optional<Token>& left_bracket,
-            const std::optional<Token>& right_bracket)
-            :m_typeIdentifier(type_identifier), m_mutabilityKeyword(mutability_Keyword), m_leftBracket(left_bracket),
-            m_rightBracket(right_bracket), m_arraySize(std::nullopt)
-        {}
+        TypeExpression(const Token& type_identifier, const std::optional<Token>& mutability_Keyword, std::vector<ArraySpecifier> array_specifiers)
+            :Expression(type_identifier.info), m_typeIdentifier(type_identifier), m_mutabilityKeyword(mutability_Keyword),
+            m_arraySpecifiers(std::move(array_specifiers))
+        {
+            handleTokens();
+        }
+
+        TypeExpression(const Token& type_identifier, const std::optional<Token>& mutability_Keyword)
+            :Expression(type_identifier.info), m_typeIdentifier(type_identifier), m_mutabilityKeyword(mutability_Keyword), m_arraySpecifiers{}
+        {
+            handleTokens();
+        }
 
         inline const Token& getTypeIdentifier() const { return m_typeIdentifier; }
         inline const std::optional<const Token>& getMutabilityKeyword() const { return m_mutabilityKeyword; }
-        inline const std::optional<const Token>& getLeftBracket() const { return m_leftBracket; }
-        inline const std::optional<const Token>& getRightBracket() const { return m_rightBracket; }
-        inline std::optional<const LiteralExpression* const> getArraySize() const
-        {
-            return m_arraySize? std::make_optional((*m_arraySize).get()): std::nullopt;
-        }
+        inline const std::vector<ArraySpecifier>& getArraySpecifiers() const { return m_arraySpecifiers; }
 
-        virtual std::vector<const Node*> getChildren() const final override
+        virtual std::unique_ptr<const Expression> clone() const final override
         {
-            return {};
-        }
+            std::vector<ArraySpecifier> array_specifiers;
+            array_specifiers.reserve(m_arraySpecifiers.size());
 
-        virtual std::unique_ptr<const Expression> cloneConst() const final override
-        {
-            if(m_arraySize)
+            for(const auto& specifier: m_arraySpecifiers)
             {
-                auto array_size = Types::unique_cast<const LiteralExpression>((*m_arraySize)->cloneConst());
-
-                return std::make_unique<const TypeExpression>(m_typeIdentifier, m_mutabilityKeyword, m_leftBracket, m_rightBracket, std::move(array_size));
+                auto count = specifier.count? specifier.count->clone(): nullptr;
+                array_specifiers.push_back(ArraySpecifier{
+                    .leftBracket = specifier.leftBracket, .rightBracket = specifier.rightBracket,
+                    .count = Types::unique_cast<const LiteralExpression>(std::move(count))
+                });
             }
 
-            return std::make_unique<const TypeExpression>(m_typeIdentifier, m_mutabilityKeyword, m_leftBracket, m_rightBracket);
+            return std::make_unique<const TypeExpression>(m_typeIdentifier, m_mutabilityKeyword, std::move(array_specifiers));
         }
     private:
+        inline void handleTokens() const
+        {
+            if(m_mutabilityKeyword)
+                addToken(*m_mutabilityKeyword);
+            
+            addToken(m_typeIdentifier);
+            
+            for(const auto& specifier: m_arraySpecifiers)
+                if(specifier.leftBracket && specifier.rightBracket)
+                {
+                    addToken(*specifier.leftBracket);
+                    if(specifier.count)
+                        addTokens(specifier.count->getTokens());
+                    addToken(*specifier.rightBracket);
+                }
+        }
+
         const Token m_typeIdentifier;
         const std::optional<const Token> m_mutabilityKeyword;
-        const std::optional<const Token> m_leftBracket, m_rightBracket;
-        const std::optional<const std::unique_ptr<const LiteralExpression>> m_arraySize;
+        const std::vector<ArraySpecifier> m_arraySpecifiers;
     };
 }

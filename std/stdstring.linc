@@ -1,0 +1,60 @@
+#guard
+#define STD_SIZE u64#
+fn to_lower_char(ch: char): char {
+    if +ch >= +'A' && +ch <= +'Z'
+        as char (+ch + (+'a' - +'A'))
+    else ch
+}
+
+fn to_upper_char(ch: char): char {
+    if +ch >= +'a' && +ch <= +'z'
+        as char (+ch + (+'A' - +'a'))
+    else ch
+}
+
+fn to_lower(str: string): string {
+    res: mut string
+
+    for(in str ch)
+        res += to_lower_char(ch)
+
+    res
+}
+
+fn to_upper(str: string): string {
+    res: mut string
+
+    for(in str ch)
+        res += to_upper_char(ch)
+
+    res
+}
+
+fn contains_char(str: string, ch: char): bool {
+    for(in str test)
+        if test == ch return true
+    
+    false
+}
+
+fn is_space(ch: char): bool
+    contains_char(" \f\n\r\t\v", ch)
+
+fn is_print(ch: char): bool
+    +ch >= +32 && +ch <= +126
+
+fn is_digit(ch: char): bool
+    +ch >= +'0' && +ch <= +'9'
+
+fn is_alpha(ch: char): bool
+    +ch >= +'A' && +ch <= +'z'
+
+fn is_alnum(ch: char): bool
+    is_digit(ch) || is_alpha(ch)
+
+fn substr(str: string, start: STD_SIZE, end: STD_SIZE = -1u64): string {
+    res: mut string
+    for(i: mut STD_SIZE = start i <= end && i < +str ++i)
+        res += str[i]
+    res
+}

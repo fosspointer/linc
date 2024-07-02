@@ -6,13 +6,13 @@ namespace linc
         :BoundStatement(declaration->getType()), m_declaration(std::move(declaration))
     {}
 
-    std::unique_ptr<const BoundStatement> BoundDeclarationStatement::cloneConst() const
+    std::unique_ptr<const BoundStatement> BoundDeclarationStatement::clone() const
     {
-        return std::make_unique<const BoundDeclarationStatement>(std::move(m_declaration->cloneConst()));
+        return std::make_unique<const BoundDeclarationStatement>(std::move(m_declaration->clone()));
     }
 
     std::string BoundDeclarationStatement::toStringInner() const
     {
-        return "Bound Declaration Statement";
+        return "Declaration Statement";
     }
 }

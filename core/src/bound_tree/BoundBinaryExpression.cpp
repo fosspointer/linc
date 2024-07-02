@@ -7,7 +7,7 @@ namespace linc
         m_returnType(getReturnType(kind, left_type, right_type))
     {}
 
-    std::unique_ptr<const BoundBinaryOperator> BoundBinaryOperator::cloneConst() const 
+    std::unique_ptr<const BoundBinaryOperator> BoundBinaryOperator::clone() const 
     {
         return std::make_unique<const BoundBinaryOperator>(m_kind, m_leftType, m_rightType);
     }
@@ -21,6 +21,7 @@ namespace linc
         case Kind::Subtraction: return "Arithmetic Subtraction Operator";
         case Kind::Multiplication: return "Arithmetic Multiplication Operator";
         case Kind::Division: return "Arithmetic Division Operator";
+        case Kind::Modulo: return "Modulo Operator";
         case Kind::LogicalAnd: return "Logical AND Operator";
         case Kind::LogicalOr: return "Logical OR Operator";
         case Kind::Equals: return "Relational Equality Operator";
@@ -30,76 +31,84 @@ namespace linc
         case Kind::GreaterEqual: return "Relational Greater-or-Equal Operator";
         case Kind::LessEqual: return "Relational Less-or-Equal Operator";
         case Kind::Assignment: return "Assignment Operator";
+        case Kind::AdditionAssignment: return "Addition Assignment Operator";
+        case Kind::SubtractionAssignment: return "Subtraction Assignment Operator";
+        case Kind::MultiplicationAssignment: return "Multiplication Assignment Operator";
+        case Kind::DivisionAssignment: return "Division Assignment Operator";
+        case Kind::ModuloAssignment: return "Modulo Assignment Operator";
+        case Kind::BitwiseAnd: return "Bitwise AND Operator";
+        case Kind::BitwiseOr: return "Bitwise OR Operator";
+        case Kind::BitwiseXor: return "Bitwise XOR Operator";
+        case Kind::BitwiseShiftLeft: return "Left-Shift Operator";
+        case Kind::BitwiseShiftRight: return "Right-Shift Operator";
         default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(BoundBinaryOperator::Kind);
         }
     }
 
     Types::type BoundBinaryOperator::getReturnType(Kind kind, Types::type left_type, Types::type right_type)
     {
-        if(left_type.isArray != right_type.isArray)
+        if(left_type.kind != right_type.kind)
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("Cannot call operator '$' on primitive-array operand pair. ('$' and '$')",
+                .message = Logger::format("Cannot call operator '$' on incompatible operand pair. ('$' and '$')",
                     kindToString(kind), Types::toString(left_type), Types::toString(right_type))
             });
             return Types::invalidType;
         }
-        else if(left_type.isArray)
+        else if(kind == Kind::Equals || kind == Kind::NotEquals)
+            return Types::fromKind(Types::Kind::_bool);
+        else if(kind == Kind::Assignment)
+            return left_type.isMutable && left_type.isAssignableTo(right_type)? left_type: Types::invalidType;
+        else if(left_type.kind == Types::type::Kind::Array)
         {
             switch (kind)
             {
             case Kind::Addition:
                 if(left_type.kind == right_type.kind)
-                {
-                    if(left_type.arraySize && right_type.arraySize)
-                        return Types::type{
-                            .kind = left_type.kind,
-                            .isArray = true,
-                            .arraySize = left_type.arraySize.value() + right_type.arraySize.value()
-                        };
-                    else return Types::type{
-                            .kind = left_type.kind,
-                            .isArray = true,
-                        };
-                }
+                    return Types::type(Types::type::Array{
+                        .base_type = std::make_unique<const Types::type>(*left_type.array.base_type),
+                        .count = left_type.array.count && right_type.array.count? std::make_optional(*left_type.array.count + *right_type.array.count): std::nullopt
+                    });
                 else return Types::invalidType;
+            case Kind::AdditionAssignment:
+                if(left_type.isAssignableTo(right_type) && left_type.isMutable)
+                    return Types::type(Types::type::Array{
+                        .base_type = std::make_unique<const Types::type>(*left_type.array.base_type),
+                        .count = left_type.array.count && right_type.array.count? std::make_optional(*left_type.array.count + *right_type.array.count): std::nullopt
+                    });
             default: return Types::invalidType;
             }
         }
+        else if(left_type.kind == Types::type::Kind::Structure)
+            return Types::invalidType;
 
         switch(kind)
         {
         case Kind::Addition:
-            if((left_type.kind == Types::Kind::_char && right_type.kind == Types::Kind::_char)
-            || (left_type.kind == Types::Kind::string && right_type.kind == Types::Kind::string)
-            || (left_type.kind == Types::Kind::_char && right_type.kind == Types::Kind::string)
-            || (left_type.kind == Types::Kind::string && right_type.kind == Types::Kind::_char))
+            if((left_type.primitive == Types::Kind::_char || left_type.primitive == Types::Kind::string)
+            && (right_type.primitive == Types::Kind::_char || right_type.primitive == Types::Kind::string))
                 return Types::fromKind(Types::Kind::string);
-            else if(Types::isNumeric(left_type.kind) && left_type.kind == right_type.kind)
+            else if(Types::isNumeric(left_type.primitive) && left_type.primitive == right_type.primitive)
                 return right_type;
             else return Types::invalidType;
         case Kind::Subtraction:
         case Kind::Multiplication:
         case Kind::Division:
-            if(Types::isNumeric(left_type.kind) && left_type.kind == right_type.kind)
+        case Kind::Modulo:
+            if(Types::isNumeric(left_type.primitive) && left_type.primitive == right_type.primitive)
                 return right_type;
             else return Types::invalidType;
         case Kind::LogicalAnd:
         case Kind::LogicalOr:
-            if(left_type.kind == Types::Kind::_bool && right_type.kind == Types::Kind::_bool)
-                return Types::fromKind(Types::Kind::_bool);
-            else return Types::invalidType;
-        case Kind::Equals:
-        case Kind::NotEquals:
-            if(left_type.kind == right_type.kind)
+            if(left_type.primitive == Types::Kind::_bool && right_type.primitive == Types::Kind::_bool)
                 return Types::fromKind(Types::Kind::_bool);
             else return Types::invalidType;
         case Kind::Greater:
         case Kind::GreaterEqual:
         case Kind::Less:
         case Kind::LessEqual:
-            if(Types::isNumeric(left_type.kind) && left_type.kind == right_type.kind)
+            if(Types::isNumeric(left_type.primitive) && left_type.primitive == right_type.primitive)
                 return Types::fromKind(Types::Kind::_bool);
             else return Types::invalidType;
         case Kind::Assignment:
@@ -111,9 +120,44 @@ namespace linc
                 });
                 return Types::invalidType;
             }
-            else if(left_type.kind == right_type.kind)
+            else if(left_type.primitive == right_type.primitive)
                 return left_type;
             else return Types::invalidType;
+        case Kind::AdditionAssignment:
+            if((left_type.primitive == Types::Kind::_char || left_type.primitive == Types::Kind::string)
+            && (right_type.primitive == Types::Kind::_char || right_type.primitive == Types::Kind::string) && left_type.isMutable)
+                return Types::fromKind(Types::Kind::string);
+        case Kind::SubtractionAssignment:
+        case Kind::MultiplicationAssignment:
+        case Kind::DivisionAssignment:
+        case Kind::ModuloAssignment:
+            if(!left_type.isMutable)
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
+                    .message = "Cannot use arithmetic assignment operator on non-mutable operand."
+                });
+                return Types::invalidType;
+            }
+
+            if(!Types::isNumeric(left_type.primitive) || left_type.primitive != right_type.primitive)
+                return Types::invalidType;
+            else return left_type;
+        case Kind::BitwiseAnd:
+        case Kind::BitwiseOr:
+        case Kind::BitwiseXor:
+            if(left_type.primitive == Types::Kind::_bool && right_type.primitive == Types::Kind::_bool)
+                return Types::fromKind(Types::Kind::_bool);
+            
+            else if(Types::isIntegral(left_type.primitive) && left_type.primitive == right_type.primitive)
+                return Types::fromKind(left_type.primitive);
+
+            else return Types::invalidType;
+        case Kind::BitwiseShiftLeft:
+        case Kind::BitwiseShiftRight:
+            if(Types::isIntegral(left_type.primitive) && Types::isIntegral(right_type.primitive))
+                return Types::fromKind(left_type.primitive);
+            else Types::invalidType;
         default: return Types::invalidType;
         }
     }
@@ -123,13 +167,14 @@ namespace linc
         :BoundExpression(_operator->getReturnType()), m_operator(std::move(_operator)), m_left(std::move(left)), m_right(std::move(right))
     {}
 
-    std::unique_ptr<const BoundExpression> BoundBinaryExpression::cloneConst() const
+    std::unique_ptr<const BoundExpression> BoundBinaryExpression::clone() const
     {
-        return std::make_unique<const BoundBinaryExpression>(m_operator->cloneConst(), m_left->cloneConst(), m_right->cloneConst());
+        return std::make_unique<const BoundBinaryExpression>(m_operator->clone(), m_left->clone(), m_right->clone());
     }
 
     std::string BoundBinaryExpression::toStringInner() const
     {
-        return linc::Logger::format("Bound Binary Expression (@'$')", BoundBinaryOperator::kindToString(m_operator->getKind()));
+        return linc::Logger::format("Binary Expression (@$:$:$)", Colors::toANSI(Colors::Color::Green),
+            BoundBinaryOperator::kindToString(m_operator->getKind()), Colors::toANSI(Colors::getCurrentColor()));
     }
 }

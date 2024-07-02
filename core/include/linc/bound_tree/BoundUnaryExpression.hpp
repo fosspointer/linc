@@ -8,7 +8,7 @@ namespace linc
     public:
         enum class Kind: char
         {
-            Invalid, UnaryPlus, UnaryMinus, LogicalNot, Stringify, Increment, Decrement, Typeof
+            Invalid, UnaryPlus, UnaryMinus, LogicalNot, Stringify, Increment, Decrement, Typeof, BitwiseNot
         };
 
         BoundUnaryOperator(Kind kind, Types::type operand_type);
@@ -18,7 +18,7 @@ namespace linc
         [[nodiscard]] inline Types::type getOperandType() const { return m_operandType; }
         [[nodiscard]] inline Types::type getReturnType() const { return m_returnType; }
 
-        std::unique_ptr<const BoundUnaryOperator> cloneConst() const;
+        std::unique_ptr<const BoundUnaryOperator> clone() const;
         static std::string kindToString(Kind kind);
     private:
         static Types::type getReturnType(Kind operator_kind, Types::type operand_type);
@@ -35,7 +35,12 @@ namespace linc
         [[nodiscard]] inline const BoundUnaryOperator* const getOperator() const { return m_operator.get(); }
         [[nodiscard]] inline const BoundExpression* const getOperand() const { return m_operand.get(); }
 
-        virtual std::unique_ptr<const BoundExpression> cloneConst() const final override;
+        virtual std::unique_ptr<const BoundExpression> clone() const final override;
+        
+        inline virtual std::vector<const BoundNode*> getChildren() const final override 
+        {
+            return {m_operand.get()};
+        }
     private:
         virtual std::string toStringInner() const final override;
         

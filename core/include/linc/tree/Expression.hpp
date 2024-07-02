@@ -10,7 +10,11 @@ namespace linc
             :Node(info)
         {}
 
+        Expression(const Token::Info& token_info)
+            :Node(token_info)
+        {}
+
         virtual ~Expression() = default;
-        virtual std::unique_ptr<const Expression> cloneConst() const = 0;
+        virtual std::unique_ptr<const Expression> clone() const = 0;
     };
 }

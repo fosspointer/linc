@@ -7,14 +7,14 @@ namespace linc
         :BoundDeclaration(Types::voidType), m_actualType(type), m_name(name), m_defaultValue(std::move(default_value))
     {}
 
-    std::unique_ptr<const BoundDeclaration> BoundVariableDeclaration::cloneConst() const
+    std::unique_ptr<const BoundDeclaration> BoundVariableDeclaration::clone() const
     {
         return std::make_unique<const BoundVariableDeclaration>(m_actualType, m_name, 
-            m_defaultValue.has_value()? std::make_optional(m_defaultValue.value()->cloneConst()): std::nullopt);
+            m_defaultValue.has_value()? std::make_optional(m_defaultValue.value()->clone()): std::nullopt);
     }
     
     std::string BoundVariableDeclaration::toStringInner() const
     {
-        return "Bound Variable Declaration";
+        return Logger::format("Variable Declaration (=$) (::$)", PrimitiveValue(m_name), PrimitiveValue(m_actualType));
     }
 }

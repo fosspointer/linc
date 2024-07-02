@@ -27,12 +27,7 @@ namespace linc
             }
         }
 
-        virtual std::vector<const Node*> getChildren() const final override
-        {
-            return {};
-        }
-
-        virtual std::unique_ptr<const Expression> cloneConst() const final override
+        virtual std::unique_ptr<const Expression> clone() const final override
         {
             return std::make_unique<const IdentifierExpression>(m_identifierToken); 
         }

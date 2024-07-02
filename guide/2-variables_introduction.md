@@ -1,0 +1,9 @@
+# Linc Guide (#2): Introduction to Variables and Data Types
+
+If you've already programmed in a statically-typed language before, or don't want to read about technical details just yet, you can skip to [variables in linc](./2.1-variables.md). However, reading this might still give helpful insight to the language, or even programming in general.
+
+Having learnt how to print a message to the console, it's time for something more substantial: variables. Variables are types of "storage" in your computer's memory that hold certain amounts of data. The data type of a variable determines what kind of data it holds, in terms of size, usage and properties. In languages such as Python and Javascript, data types of all variables are **dynamic**, meaning that they are determined automatically, while also being mutable (e.g. a variable holding an integer can be mutated so as to hold a boolean, etc...). In most languages including Linc, however, data types are **static**, meaning that they cannot be mutated (meaning when a variable defined to be able to hold an integer can only hold values of that data type).
+
+Each data type has a name that acts as an identifier, so that it can be used or mutated when needed (otherwise what's the point in storing it?). All identifiers (including variable names) are sequences of alphanumeric characters (i.e. decimal digits and letters), plus the underscore character (`_`). However, the first character of an identifier **cannot** be a digit, as that would render numbers and identifiers ambiguous (numbers can also have letters in them, describing their data type; for example: the number `5i32` describes a 32-bit integer with the value 5). Practically, `foo`, `bar`, `hello_123` and `_foobar` are all valid identifiers whereas `123hello`, `5_foo` and `0_foobar` aren't. 
+
+Next: [Declaring Variables in Linc](./2.1-declaring_variables.md)

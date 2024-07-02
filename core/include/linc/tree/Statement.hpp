@@ -10,7 +10,11 @@ namespace linc
             :Node(info)
         {}
 
+        Statement(const Token::Info& token_info)
+            :Node(token_info)
+        {}
+
         virtual ~Statement() = default;
-        virtual std::unique_ptr<const Statement> cloneConst() const = 0;
+        virtual std::unique_ptr<const Statement> clone() const = 0;
     };
 }

@@ -11,14 +11,9 @@ namespace linc
             :Statement(expression->getInfo()), m_expression(std::move(expression))
         {}
 
-        virtual std::vector<const Node*> getChildren() const final override
+        virtual std::unique_ptr<const Statement> clone() const final override
         {
-            return {m_expression.get()};
-        }
-
-        virtual std::unique_ptr<const Statement> cloneConst() const final override
-        {
-            return std::make_unique<const ExpressionStatement>(std::move(m_expression->cloneConst()));
+            return std::make_unique<const ExpressionStatement>(std::move(m_expression->clone()));
         }
 
         inline const Expression* getExpression() const { return m_expression.get(); }

@@ -1,28 +1,38 @@
 #pragma once
 #include <linc/system/Value.hpp>
+#include <linc/system/Types.hpp>
 #include <linc/Include.hpp>
-
 
 namespace linc
 {
+    template <typename T>
+    concept HasStringMethod = requires(const T& member){
+        member.toString();
+    };
+
+    template <typename T>
+    concept CanStringCast = std::convertible_to<T, std::string>;
+
     class Printable final
     {
     public:
         enum class Type
         {
-            String, SignedIntegral, UnsignedIntegral, Floating, Nullptr, Boolean, Character, PrimitiveValue, ArrayValue, Value
+            String, SignedIntegral, UnsignedIntegral, Floating, Nullptr, Boolean, Character
         };
 
-        Printable(const Value& value)
-            :m_value(value), m_type(Type::Value)
+        template <HasStringMethod T>
+        Printable(const T& value)
+            :m_string(value.toString()), m_type(Type::String)
         {}
 
-        Printable(const PrimitiveValue& value)
-            :m_primitiveValue(value), m_type(Type::PrimitiveValue)
+        template <CanStringCast T>
+        Printable(const T& value)
+            :m_string((std::string)value), m_type(Type::String)
         {}
 
-        Printable(const ArrayValue& value)
-            :m_arrayValue(value), m_type(Type::ArrayValue)
+        Printable(const Types::type& type)
+            :m_string(PrimitiveValue(type).toString()), m_type(Type::String)
         {}
 
         Printable(const std::string& str)
@@ -101,7 +111,6 @@ namespace linc
             case Type::Nullptr: m_nullptr = other.m_nullptr; break;
             case Type::Boolean: m_boolean = other.m_boolean; break;
             case Type::Character: m_character = other.m_character; break;
-            case Type::Value: m_value = other.m_value; break;
             }
         }
 
@@ -112,34 +121,54 @@ namespace linc
             
             switch(m_type)
             {
-            case Type::String: new (&m_string) std::string{std::move(other.m_string)}; other.m_nullptr = nullptr; break;
+            case Type::String: new (&m_string) std::string{std::move(other.m_string)}; break;
             case Type::SignedIntegral: m_signed = other.m_signed; break;
             case Type::UnsignedIntegral: m_unsigned = other.m_unsigned; break;
             case Type::Floating: m_floating = other.m_floating; break;
             case Type::Nullptr: m_nullptr = other.m_nullptr; break;
             case Type::Boolean: m_boolean = other.m_boolean; break;
             case Type::Character: m_character = other.m_character; break;
-            case Type::Value: m_value = other.m_value; break;
             }
+
+            other.m_nullptr = nullptr;
         }
 
-        Printable operator=(const Printable& printable)
+        Printable& operator=(const Printable& other)
         {
-            m_type = printable.m_type;
+            m_type = other.m_type;
             
             switch(m_type)
             {
-            case Type::String: new (&m_string) std::string{printable.m_string}; break;
-            case Type::SignedIntegral: m_signed = printable.m_signed; break;
-            case Type::UnsignedIntegral: m_unsigned = printable.m_unsigned; break;
-            case Type::Floating: m_floating = printable.m_floating; break;
-            case Type::Nullptr: m_nullptr = printable.m_nullptr; break;
-            case Type::Boolean: m_boolean = printable.m_boolean; break;
-            case Type::Character: m_character = printable.m_character; break;
-            case Type::Value: m_value = printable.m_value; break;
+            case Type::String: new (&m_string) std::string{other.m_string}; break;
+            case Type::SignedIntegral: m_signed = other.m_signed; break;
+            case Type::UnsignedIntegral: m_unsigned = other.m_unsigned; break;
+            case Type::Floating: m_floating = other.m_floating; break;
+            case Type::Nullptr: m_nullptr = other.m_nullptr; break;
+            case Type::Boolean: m_boolean = other.m_boolean; break;
+            case Type::Character: m_character = other.m_character; break;
             }
 
-            return this;
+            return *this;
+        }
+
+        Printable& operator=(Printable&& other)
+        {
+            m_type = other.m_type;
+            other.m_type = Type::Nullptr;
+
+            switch(m_type)
+            {
+            case Type::String: new (&m_string) std::string{std::move(other.m_string)}; break;
+            case Type::SignedIntegral: m_signed = other.m_signed; break;
+            case Type::UnsignedIntegral: m_unsigned = other.m_unsigned; break;
+            case Type::Floating: m_floating = other.m_floating; break;
+            case Type::Nullptr: m_nullptr = other.m_nullptr; break;
+            case Type::Boolean: m_boolean = other.m_boolean; break;
+            case Type::Character: m_character = other.m_character; break;
+            }
+            
+            other.m_nullptr = nullptr;
+            return *this;
         }
 
         ~Printable()
@@ -180,21 +209,6 @@ namespace linc
                 return m_boolean? "1": "0";
         }
 
-        std::string valueToString() const
-        {
-            return m_value.toString();
-        }
-
-        std::string primitiveValueToString() const
-        {
-            return m_primitiveValue.toString();
-        }
-
-        std::string arrayValueToString() const
-        {
-            return m_arrayValue.toString();
-        }
-
         std::string characterToString() const
         {
             return std::string{m_character};
@@ -217,7 +231,6 @@ namespace linc
             std::string m_string;
             bool m_boolean;
             char m_character;
-            Value m_value;
             PrimitiveValue m_primitiveValue;
             ArrayValue m_arrayValue;
         };

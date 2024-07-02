@@ -3,37 +3,49 @@
 
 namespace linc
 {
-    class FunctionCallExpression final : public Expression
+    class CallExpression final : public Expression
     {
     public:
-        FunctionCallExpression(const Token& identifier_token, const Token& left_parenthesis_token, const Token& right_parenthesis_token,
-            std::vector<std::unique_ptr<const Expression>> arguments)
-            :m_identifierToken(identifier_token), m_leftParenthesisToken(left_parenthesis_token), m_rightParenthesisToken(right_parenthesis_token),
-            m_arguments(std::move(arguments))
-        {}
-
-        virtual std::vector<const Node*> getChildren() const final override 
+        struct Argument final
         {
-            return {};
+            const std::optional<Token> separator;
+            std::unique_ptr<const Expression> expression;
+        };
+
+        CallExpression(const Token& identifier, const Token& left_parenthesis, const Token& right_parenthesis,
+            std::vector<Argument> arguments, bool is_external)
+            :Expression(identifier.info), m_identifier(identifier), m_leftParenthesis(left_parenthesis),
+            m_rightParenthesis(right_parenthesis), m_arguments(std::move(arguments)), m_isExternal(is_external)
+        {
+            addTokens(std::vector<Token>{m_identifier, m_leftParenthesis});
+            for(const auto& argument: m_arguments)
+            {
+                addTokens(argument.expression->getTokens());
+                if(argument.separator)
+                    addToken(*argument.separator);
+            }
+            addToken(m_rightParenthesis);
         }
 
-        virtual std::unique_ptr<const Expression> cloneConst() const final override
+        virtual std::unique_ptr<const Expression> clone() const final override
         {
-            std::vector<std::unique_ptr<const Expression>> arguments;
+            std::vector<Argument> arguments;
 
             for(const auto& argument: m_arguments)
-                arguments.push_back(std::move(argument->cloneConst()));
+                arguments.push_back(Argument{argument.separator, std::move(argument.expression->clone())});
 
-            return std::make_unique<const FunctionCallExpression>(m_identifierToken, m_leftParenthesisToken, m_rightParenthesisToken,
-                std::move(arguments));
+            return std::make_unique<const CallExpression>(m_identifier, m_leftParenthesis, m_rightParenthesis,
+                std::move(arguments), m_isExternal);
         }
 
-        const Token& getIdentifierToken() const { return m_identifierToken; }
-        const Token& getLeftParenthesis() const { return m_leftParenthesisToken; }
-        const Token& getRightParenthesis() const { return m_rightParenthesisToken; }
-        const std::vector<std::unique_ptr<const Expression>>& getArguments() const { return m_arguments; }
+        const Token& getIdentifier() const { return m_identifier; }
+        const Token& getLeftParenthesis() const { return m_leftParenthesis; }
+        const Token& getRightParenthesis() const { return m_rightParenthesis; }
+        const std::vector<Argument>& getArguments() const { return m_arguments; }
+        bool isExternal() const { return m_isExternal; }
     private:
-        const Token m_identifierToken, m_leftParenthesisToken, m_rightParenthesisToken;
-        const std::vector<std::unique_ptr<const Expression>> m_arguments;
+        const Token m_identifier, m_leftParenthesis, m_rightParenthesis;
+        const std::vector<Argument> m_arguments;
+        const bool m_isExternal;
     };
 }

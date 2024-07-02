@@ -1,0 +1,8 @@
+#guard
+fn println(str: string): void {
+    puts(str + '\n')
+}
+
+fn print(str: string): void {
+    puts(str)
+}

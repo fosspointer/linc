@@ -2,265 +2,333 @@
 #include <linc/system/Files.hpp>
 #include <linc/system/Reporting.hpp>
 #include <linc/system/Code.hpp>
+#include <linc/lexer/Lexer.hpp>
+#include <linc/lexer/Token.hpp>
 #include <linc/Include.hpp>
-
-#define LINC_PREPROCESSOR_DIRECTIVE_SPECIFIER ';'
 
 namespace linc
 {
     class Preprocessor final 
     {
     public:
-        Preprocessor(const std::string& raw_source_code, const std::string& filepath = "")
-            :m_sourceCode(Code::toSource(raw_source_code, filepath)), m_filepath(filepath)
-        {}
-
-        Preprocessor(const Code::Source& source_code, const std::string& filepath = "")
-            :m_sourceCode(source_code), m_filepath(filepath)
-        {}
+        using TokenList = std::vector<Token>;
+        using TokenSize = std::vector<Token>::size_type;
         
-        Code::Source operator()() const
+        Preprocessor(TokenList tokens, std::string_view filepath)
+            :m_tokens(std::move(tokens)), m_filepath(filepath)
+        {}
+
+        static void reset()
         {
-            Code::Source output{Code::Line{
-                .text = "",
-                .file = m_filepath,
-                .line = m_lineIndex + 1
-            }};
+            s_guardedFiles.clear();
+        }
+        
+        std::vector<Token> operator()() const
+        {
+            std::vector<Token> output;
+            m_index = {};
 
-            output.reserve(m_sourceCode.size());
-
-            while(peek().has_value())
+            if(m_tokens.size() >= 2ul && m_tokens[0ul].type == Token::Type::PreprocessorSpecifier && m_tokens[1ul].isIdentifier()
+            && m_tokens[1ul].value && *m_tokens[1ul].value == "guard")
             {
-                if(peek().value() == LINC_PREPROCESSOR_DIRECTIVE_SPECIFIER)
+                auto _specifier = consume();
+                auto _directive = consume();
+
+                s_guardedFiles.insert(Files::toAbsolute(m_filepath));
+            }
+
+            while(peek())
+            {
+                if(peek()->isIdentifier())
                 {
-                    consume();
-                    auto directive_name = readWord();
+                    auto identifier = consume();
 
-                    if(directive_name == "include")
+                    if(!identifier.value)
                     {
-                        auto relative_filepath = readStringLiteral();
-                        auto filepath = filepathToDirectory(m_filepath) + "/" + relative_filepath;
-
-                        std::string raw_source = Files::read(filepath);
-                        Code::Source source = Code::toSource(raw_source, filepath);
-
-                        Preprocessor preprocessor(std::move(source), filepath);
-                        auto new_source = preprocessor();
-                        
-                        Code::append(output, std::move(new_source));
+                        output.push_back(identifier);
+                        continue;
                     }
-                    else if(directive_name == "instance")
-                    {
-                        auto replace_from = readArgument();
-                        auto replace_to = readArgument();
 
-                        if(replace_from.empty())
-                            Reporting::push(Reporting::Report{
-                                .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                                .message = "Preprocessor instance directive cannot have empty argument"});
+                    bool found{false};
 
-                        else m_macros.push_back(Macro{.to = std::move(replace_to), .from = std::move(replace_from), .strict = true});
-                    }
-                    else if(directive_name == "define")
-                    {
-                        auto replace_from = readWord();
-                        
-                        if(replace_from.empty())
-                            Reporting::push(Reporting::Report{
-                                .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                                .message = "Preprocessor definition directive cannot have empty argument"
-                            });
-
-                        else if(!peek().has_value() || peek().value() != LINC_PREPROCESSOR_DIRECTIVE_SPECIFIER)
-                            Reporting::push(Reporting::Report{
-                                .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                                .message = Logger::format("Preprocessor definition directive argument must end in '$'", 
-                                    LINC_PREPROCESSOR_DIRECTIVE_SPECIFIER)});
-
-                        else 
+                    for(const auto& definition: m_definitions)
+                        if(definition.name == *identifier.value)
                         {
-                            consume();
-                            auto replace_to = readArgument();
-                            m_macros.push_back(Macro{.to = std::move(replace_to), .from = std::move(replace_from), .strict = false});
-                        }    
-                    }
-                    else if(directive_name.empty())
-                        Reporting::push(Reporting::Report{
-                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                            .message = "Preprocessor directive cannot be empty"
-                        });
-                    else
-                        Reporting::push(Reporting::Report{
-                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                            .message = Logger::format("Invalid preprocessor directive '$'", directive_name)
-                        });
+                            output.insert(output.end(), definition.body.begin(), definition.body.end());
+                            found = true;
+                            break;
+                        }
+
+                    if(found) continue;
+
+                    for(const auto& macro: m_macros)
+                        if(macro.name == *identifier.value)
+                        {
+                            std::vector<TokenList> arguments{TokenList{}};
+                            match(Token::Type::ParenthesisLeft);
+                            
+                            while(peek() && peek()->type != Token::Type::PreprocessorSpecifier)
+                            {
+                                arguments.back().push_back(consume());
+                                
+                                if(peek() && peek()->type == Token::Type::PreprocessorSpecifier)
+                                {
+                                    consume();
+                                    if(peek() && peek()->type == Token::Type::ParenthesisRight)
+                                    {
+                                        match(Token::Type::ParenthesisRight);  
+                                        break;
+                                    }
+                                    else arguments.push_back(TokenList{});
+                                }
+                            }                           
+                            std::vector<Token> body = embedMacroArguments(macro, arguments);
+
+                            output.insert(output.end(), body.begin(), body.end());
+                            found = true;
+                            break;
+                        }
+
+                    if(!found) output.push_back(identifier);
+                    continue;
                 }
-                else if(peek().value() == '\n')
+
+                else if(peek()->type != Token::Type::PreprocessorSpecifier)
                 {
-                    consume();
-                    output.push_back(Code::Line{
-                        .text = "",
-                        .file = m_filepath,
-                        .line = m_lineIndex + 1
-                    });
+                    output.push_back(consume());
+                    continue;
                 }
-                else
-                    output.back().text.push_back(consume());
+
+                auto specifier = consume();
+                auto directive = match(Token::Type::Identifier, "Expected identifier in preprocessor directive.");
+                if(*directive.value == "include")
+                {
+                    auto literal = match(Token::Type::StringLiteral);
+                    auto filepath = (*literal.value)[0ul] == '/'? *literal.value: filepathToDirectory(m_filepath) + "/" + *literal.value;
+
+                    if(!Files::exists(filepath))
+                    {
+                        Reporting::push(Reporting::Report{
+                            .type = Reporting::Type::Warning, .stage = Reporting::Stage::Preprocessor,
+                            .message = Logger::format("$::$ Include directive target path '$' does not exist (`$`).",
+                                literal.info.file, literal.info.line, *literal.value, filepath)
+                        });
+                        break;
+                    }
+
+                    if(s_guardedFiles.contains(Files::toAbsolute(filepath)))
+                        continue;
+
+                    auto raw_source = Files::read(filepath);
+                    auto source = Code::toSource(raw_source, filepath);
+                    Lexer lexer(source);
+                    Preprocessor preprocessor(lexer(), filepath);
+                    auto tokens = preprocessor();
+
+                    output.insert(output.end(), tokens.begin(), tokens.end() - 1ul);
+                    continue;
+                }
+                else if(*directive.value == "define")
+                {
+                    auto identifier = match(Token::Type::Identifier);
+                    std::vector<Token> body;
+
+                    while(peek() && peek()->type != Token::Type::PreprocessorSpecifier)
+                        body.push_back(consume());
+
+                    consume();
+                    m_definitions.push_back(Definition{.name = *identifier.value, .body = std::move(body)});
+                    continue;
+                }
+                else if(*directive.value == "macro")
+                {
+                    auto identifier = match(Token::Type::Identifier);
+                    std::vector<std::string> arguments;
+                    std::vector<Token> body;
+                    match(Token::Type::ParenthesisLeft);
+
+                    while(peek() && peek()->type == Token::Type::Identifier)
+                    {
+                        bool end_parenthesis{false};
+
+                        auto argument = consume();
+                        auto delimeter = peek() && peek()->type == Token::Type::ParenthesisRight? (end_parenthesis = true, consume()): match(Token::Type::Comma);
+                        arguments.push_back(*argument.value);
+                        
+                        if(end_parenthesis)
+                            break;
+                    }
+
+                    while(peek() && peek()->type != Token::Type::PreprocessorSpecifier)
+                            body.push_back(consume());
+
+                    match(Token::Type::PreprocessorSpecifier);
+                    m_macros.push_back(Macro{.name = *identifier.value, .arguments = arguments, .body = std::move(body)});
+                    continue;
+                }
+                else if(*directive.value == "guard")
+                {
+                    Reporting::push(Reporting::Report{
+                        .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
+                        .message = Logger::format("$::$ Include guard must be at the beginning of the file.",
+                            directive.info.file, directive.info.line)
+                    });
+                    continue;
+                }
+
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
+                    .message = Logger::format("$::$ Invalid preprocessor directive '$'.",
+                        directive.info.file, directive.info.line, *directive.value)
+                });
             }
 
-            for(const auto& macro: m_macros)
-            {
-                if(macro.strict)
-                    strictReplace(output, macro.to, macro.from);
-                else wordReplace(output, macro.to, macro.from);
-            }
+            for(std::size_t index{0ul}; index + 1ul < output.size(); ++index)
+                if(output[index].type == Token::Type::Identifier && output[index + 1ul].type == Token::Type::GlueSpecifier)
+                {
+                    auto identifier = output[index];
+                    auto glue_specifier = output[index + 1ul];
+                    index += 2ul;
 
-            m_characterIndex = m_lineIndex = {};
+                    auto glued_identifier = index < output.size() && output[index].type == Token::Type::Identifier? output[index]:
+                        Token{.type = Token::Type::Identifier};
+                    
+                    if(!glued_identifier.value)
+                    {
+                        Reporting::push(Reporting::Report{
+                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
+                            .message = Logger::format("$::$ Cannot glue invalid identifier.", identifier.info.file, identifier.info.line)
+                        });
+                        continue;
+                    }
+
+                    *output[index -2ul].value = *identifier.value + *glued_identifier.value;
+                    output.erase(output.begin() + index - 1ul, output.begin() + index + 1ul);
+                    index -= 2ul;
+                    continue;
+                }
+            
             return output;
         }
     private:
         static std::string filepathToDirectory(const std::string& path)
         {
-            return path.substr(0ull, path.find_last_of('/'));
+        #ifdef LINC_WINDOWS
+            return path.substr(0ul, path.find_last_of('\\'));
+        #else
+            return path.substr(0ul, path.find_last_of('/'));
+        #endif
         }
+
+        struct Definition
+        {
+            std::string name;
+            std::vector<Token> body;
+        };
 
         struct Macro
         {
-            std::string to, from;
-            bool strict;
+            std::string name;
+            std::vector<std::string> arguments;
+            std::vector<Token> body;
         };
 
-        inline static void strictReplace(Code::Source& output, std::string_view to, std::string_view from)
+        static inline std::vector<Token> embedMacroArguments(const Macro& macro, const std::vector<TokenList>& arguments)
         {
-            std::string::size_type index{};
-            
-            for(auto& line : output)
-                while (std::string::npos != (index = line.text.find(from, index)))
-                {
-                    line.text.replace(index, from.size(), to);
-                    index += to.size();
-                }
-        }
+            std::vector<Token> result;
+            result.reserve(std::max(macro.body.size() * 2ul, macro.body.size()));
 
-        inline static void wordReplace(Code::Source& output, std::string_view to, std::string_view from)
-        {
-            std::string::size_type index{};
-            
-            for(auto& line : output)
-                while (std::string::npos != (index = line.text.find(from, index)))
-                {
-                    auto next_index = index + from.size();
-
-                    if((index != 0 && isWordCharacter(line.text.at(index - 1))) || (next_index < line.text.size() && isWordCharacter(line.text.at(next_index))))
-                    {
-                        index = next_index;
-                        continue;
-                    }
-
-                    line.text.replace(index, from.size(), to);
-                    index += to.size();
-                }
-        }
-
-        inline std::string readWord() const
-        {
-            ignoreSpace();
-            std::string str{};
-
-            while(peek().has_value() && isWordCharacter(peek().value()))
-                str.push_back(consume());
-        
-            return std::move(str);
-        }
-
-        inline std::string readStringLiteral() const
-        {
-            ignoreSpace();
-            std::string result{};
-
-            if(peek().value() == '"')
+            for(const auto& token: macro.body)
             {
-                consume();
-                do
+                if(token.type == Token::Type::Identifier)
                 {
-                    if(peek() == '\n' || peek() == '\0')
-                    {
-                        Reporting::push(Reporting::Report{
-                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                            .message = "Unmatched double-quote in preprocessor directive"});
-                        
-                        break;
-                    }
-                    else if(peek(1).has_value() && peek(2).has_value()
-                        && peek().value() != '\\' && peek(1).value() == '\\' && peek(2).value() == '"')
-                    {
-                        result.push_back(consume()); // Push the first character (non-escape)
-                        consume(); // Consume the '\' character (do not push)
-                        result.push_back(consume()); // Push the quote
-                        continue;
-                    }
-
-                    result.push_back(consume());
-                } while (peek().has_value() && peek().value() != '"');
-
-                consume(); // Consume ending quote
+                    bool find{false};
+                    for(TokenSize i{0ul}; i < arguments.size(); ++i)
+                        if(token.value == macro.arguments[i])
+                        {
+                            result.insert(result.end(), arguments[i].begin(), arguments[i].end());
+                            find = true;
+                            break;
+                        }
+                    
+                    if(!find)
+                        result.push_back(token);
+                } else result.push_back(token);
             }
-            return result;
-        }
-
-        inline std::string readUntilSpace() const 
-        {
-            ignoreSpace();
-            std::string result{};
-
-            while(peek().has_value() && !std::isspace(peek().value()))
-                result.push_back(consume());
 
             return result;
         }
 
-        inline std::string readArgument() const 
+        [[nodiscard]] inline std::optional<Token> peek(TokenSize offset) const
         {
-            ignoreSpace();
-            std::string result{};
+            if(m_index + offset > m_tokens.size() - 1ul)
+                return std::nullopt; 
+            return m_tokens[m_index + offset];
+        }
 
-            while(peek().has_value() && peek().value() != LINC_PREPROCESSOR_DIRECTIVE_SPECIFIER)
-                result.push_back(consume());
+        [[nodiscard]] inline std::optional<Token> peek() const
+        {
+            if(m_index > m_tokens.size() - 1ul)
+                return std::nullopt; 
+            return m_tokens[m_index];
+        }
 
-            if(!peek().has_value())
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                    .message = Logger::format("Preprocessor directive argument must end in '$'", LINC_PREPROCESSOR_DIRECTIVE_SPECIFIER)});
+        inline bool nameExists(std::string_view name) const
+        {
+            for(const auto& macro: m_macros)
+                if(name == macro.name)
+                    return true;
+
+            for(const auto& definition: m_definitions)
+                if(name == definition.name)
+                    return true;
+
+            return false;
+        }
+
+        inline Token consume() const
+        {
+            Token::Info info = getLastAvailableInfo();
+
+            if(m_index + 1ul >= m_tokens.size())
+                return (++m_index, Token{.type = Token::Type::EndOfFile, .info = info});
+            return m_tokens[m_index++];
+        }
+
+        inline Token match(Token::Type type, const std::string& error_message = "") const
+        {
+            Token::Info info = getLastAvailableInfo();
+
+            if(peek() && peek()->type == type)
+                return consume();
+
+            auto complete_message = error_message.empty()? Logger::format("Expected token of type '$', got '$'.",
+                Token::typeToString(type), Token::typeToString(peek()->type)):
+                error_message;
+
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
+                .message = Logger::format("$::$ $", info.file, info.line, complete_message)
+            }, !m_matchFailed);
+            m_matchFailed = true;
             
-            else consume();
-
-            return result;
+            return Token{.type = type, .info = info};
         }
 
-        inline void ignoreSpace() const
+        [[nodiscard]] inline Token::Info getLastAvailableInfo() const
         {
-            while(peek().has_value() && std::isspace(peek().value()))
-                consume();
+            return m_index < m_tokens.size()? m_tokens[m_index].info: m_tokens.back().info;
         }
 
-        [[nodiscard]] inline std::optional<char> peek(std::string::size_type offset = 0ull) const
-        {
-            return Code::peek(m_sourceCode, m_characterIndex, m_lineIndex, offset);
-        }
-
-        inline char consume() const
-        {
-            return Code::consume(m_sourceCode, m_characterIndex, m_lineIndex);
-        }
-
-        [[nodiscard]] inline static bool isWordCharacter(char character)
-        {
-            return std::isalnum(character) || character == '_';
-        }
-
-        const Code::Source m_sourceCode;
+        const TokenList m_tokens;
         const std::string m_filepath;
-        mutable std::string::size_type m_characterIndex{}, m_lineIndex{};
+        mutable std::vector<std::string> m_includeDirectories{"/usr/include/", "/usr/local/include/", LINC_INSTALL_PATH "/include/"};
+        mutable std::vector<Definition> m_definitions;
         mutable std::vector<Macro> m_macros;
+        mutable TokenSize m_index{0ul};
+        mutable bool m_matchFailed{false};
+        static std::unordered_set<std::string> s_guardedFiles;
     };
+
+    std::unordered_set<std::string> Preprocessor::s_guardedFiles;
 }

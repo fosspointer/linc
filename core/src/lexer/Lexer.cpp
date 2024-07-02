@@ -5,14 +5,19 @@
 #include <linc/lexer/Escape.hpp>
 #include <linc/lexer/Lexer.hpp>
 
-#define LINC_LEXER_STRING_LITERAL_SYMBOL '"'
-#define LINC_LEXER_CHARACTER_LITERAL_SYMBOL '\''
+#define LINC_LEXER_STRING_LITERAL_QUOTE '"'
+#define LINC_LEXER_PATH_LITERAL_QUOTE '`'
+#define LINC_LEXER_CHARACTER_LITERAL_QUOTE '\''
+#define LINC_LEXER_SLASH_SYMBOL '/'
+#define LINC_LEXER_HEXADECIMAL_SPECIFIER "0x"
 
 namespace linc
 {
     Lexer::Lexer(const Code::Source& source_code)
         :m_sourceCode(source_code)
-    {}
+    {
+        Reporting::setSource(m_sourceCode);
+    }
 
     auto Lexer::operator()() const -> std::vector<Token>
     {
@@ -31,38 +36,48 @@ namespace linc
             else tokenizeOperators(tokens, value_buffer);
         }
 
-        tokens.push_back(Token{.type = Token::Type::EndOfFile, .info = Token::Info{.file = tokens.empty()? "": tokens.back().info.file, .line = m_lineIndex}});
+        tokens.push_back(Token{.type = Token::Type::EndOfFile, .info = Token::Info{.file = m_sourceCode.back().file, .line = m_lineIndex, .characterIndex = {}}});
 
         m_lineIndex = m_characterIndex = {};
         return tokens;
     }
 
-    static bool isSymbol(char c)
+    static std::optional<Token::NumberBase> getNumberBase(char c)
     {
-        // TODO: maybe do this differently in the future?
-        return std::string("!@#$%^&*-=+~`|<>:/").contains(c);
+        switch(c)
+        {
+        case 'd': return Token::NumberBase::Decimal;
+        case 'x': return Token::NumberBase::Hexadecimal;
+        case 'b': return Token::NumberBase::Binary;
+        default: return std::nullopt;
+        }
     }
 
-    static bool digitHandle(char c, size_t* decimal_count)
+    bool Lexer::isSymbol(char c)
+    {
+        return std::string("!@#$%^&*-=+~`|<>:/.,;`").contains(c);
+    }
+
+    bool Lexer::digitHandle(char c, size_t* decimal_count, Token::NumberBase base)
     {
         if(c == '.')
             return ++(*decimal_count);
         
-        else return std::isdigit(c);
+        else return isDigit(c, base);
     }
 
-    static bool digitPeek(char c)
+    bool Lexer::digitPeek(char c, Token::NumberBase base)
     {
-        return std::isdigit(c) || c == '.';
+        return isDigit(c, base) || c == '.';
     }
 
-    static bool hasDigit(std::string_view str)
+    bool Lexer::hasDigit(std::string_view str, Token::NumberBase base)
     {
-        bool digit{false};
         for(const auto& c: str)
-            digit = std::isdigit(c)? true: digit;
+            if(isDigit(c, base))
+                return true;
         
-        return digit;
+        return false;
     }
 
     bool Lexer::tokenizeSpace() const
@@ -80,48 +95,57 @@ namespace linc
 
     bool Lexer::tokenizeComments() const
     {
-        if(peek().value() == '#')
-        {
-            m_characterIndex = {};
-            ++m_lineIndex;
-            return true;
-        }
+        if(peek(1ul) && peek(1ul).value() == LINC_LEXER_SLASH_SYMBOL && peek().value() == peek(1ul).value())
+            return (m_characterIndex = {}, ++m_lineIndex, true);
+
         return false;
     }
 
     bool Lexer::tokenizeLiterals(std::vector<Token>& tokens, std::string& value_buffer) const
     {
-        if(tokenizeLiteralNumber(tokens, value_buffer))
-            return true;
-        else if(tokenizeLiteralString(tokens, value_buffer))
-            return true;
-        else if(tokenizeLiteralCharacter(tokens, value_buffer))
-            return true;
-        return false;
+        if(tokenizeLiteralNumber(tokens, value_buffer));
+        else if(tokenizeLiteralString(tokens, value_buffer));
+        else if(tokenizeLiteralIncludePath(tokens, value_buffer));
+        else if(tokenizeLiteralCharacter(tokens, value_buffer));
+        else return false;
+        
+        return true;
     }
 
     bool Lexer::tokenizeLiteralNumber(std::vector<Token>& tokens, std::string& value_buffer) const
     {
+        auto character_index = m_characterIndex, line_index = m_lineIndex;
         std::string type_string;
         size_t decimal_count{};
-        if(digitHandle(peek().value(), &decimal_count) 
-            || (peek().value() == '-' && peek(1).has_value() && digitPeek(peek(1).value())))
+        Token::NumberBase base{Token::NumberBase::Decimal};
+
+        if(peek().has_value() && peek(1ul).has_value() && peek().value() == '0')
         {
-            Token::Info info{};
+            auto base_opt = getNumberBase(peek(1ul).value());
+            if(base_opt) { consume(); consume(); base = base_opt.value(); }
+        }
+
+        if(digitHandle(peek().value(), &decimal_count, base) 
+            || (peek().value() == '-' && peek(1ul).has_value() && digitPeek(peek(1ul).value(), base)))
+        {
+            Token::Info info = peek()? peek()->getInfo(): Token::Info{.file = {}, .line = {}, .characterIndex = {}};
 
             do
             {
-                info = peek()->getInfo();
                 value_buffer.push_back(consume());
-            } while(peek().has_value() && digitHandle(peek().value(), &decimal_count));
+            } while(peek() && peek()->getInfo().line == info.line && digitHandle(peek().value(), &decimal_count, base));
 
-            while(peek().has_value() && isalnum(peek().value()))
-            {
-                info = peek()->getInfo();
+            while(peek() && peek()->getInfo().line == info.line && isalnum(peek().value()))
                 type_string.push_back(consume());
+
+            if(value_buffer.size() == 1ul && value_buffer[0ul] == '.')
+            {
+                m_characterIndex = character_index;
+                m_lineIndex = line_index;
+                return false;
             }
 
-            if(!hasDigit(value_buffer))
+            if(!hasDigit(value_buffer, base))
             {
                 tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer, .info = info});
                 return true;
@@ -130,32 +154,37 @@ namespace linc
             if(type_string.empty())
             {
                 if(decimal_count == 0)
-                    tokens.push_back(Token{.type = Token::Type::I32Literal, .value = value_buffer, .info = info});
-                else if(decimal_count == 1)
-                    tokens.push_back(Token{.type = Token::Type::F32Literal, .value = value_buffer, .info = info});
+                    tokens.push_back(Token{.type = Token::Type::I32Literal, .value = value_buffer, .numberBase = base, .info = info});
+                else if(decimal_count == 1 && base != Token::NumberBase::Decimal)
+                    tokens.push_back(Token{.type = Token::Type::F32Literal, .value = value_buffer, .numberBase = base, .info = info});
                 else
-                    tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer, .info = info});
+                    tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer, .numberBase = base, .info = info});
                 return true;
             }
 
             auto type = Types::kindFromUserStringSuffix(type_string);
+            if(Types::isFloating(type) && base != Token::NumberBase::Decimal)
+            {
+                tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer, .numberBase = base, .info = info});
+                return true;
+            }
 
             switch(type)
             {
-            case Types::Kind::i8: tokens.push_back(Token{.type = Token::Type::I8Literal, .value = value_buffer, .info = info}); break;
-            case Types::Kind::i16: tokens.push_back(Token{.type = Token::Type::I16Literal, .value = value_buffer, .info = info}); break;
-            case Types::Kind::i32: tokens.push_back(Token{.type = Token::Type::I32Literal, .value = value_buffer, .info = info}); break;
-            case Types::Kind::i64: tokens.push_back(Token{.type = Token::Type::I64Literal, .value = value_buffer, .info = info}); break;
-            case Types::Kind::u8: tokens.push_back(Token{.type = Token::Type::U8Literal, .value = value_buffer, .info = info}); break;
-            case Types::Kind::u16: tokens.push_back(Token{.type = Token::Type::U16Literal, .value = value_buffer, .info = info}); break;
-            case Types::Kind::u32: tokens.push_back(Token{.type = Token::Type::U32Literal, .value = value_buffer, .info = info}); break;
-            case Types::Kind::u64: tokens.push_back(Token{.type = Token::Type::U64Literal, .value = value_buffer, .info = info}); break;
-            case Types::Kind::f32: tokens.push_back(Token{.type = Token::Type::F32Literal, .value = value_buffer, .info = info}); break;
-            case Types::Kind::f64: tokens.push_back(Token{.type = Token::Type::F64Literal, .value = value_buffer, .info = info}); break;
+            case Types::Kind::i8: tokens.push_back(Token{.type = Token::Type::I8Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::i16: tokens.push_back(Token{.type = Token::Type::I16Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::i32: tokens.push_back(Token{.type = Token::Type::I32Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::i64: tokens.push_back(Token{.type = Token::Type::I64Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::u8: tokens.push_back(Token{.type = Token::Type::U8Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::u16: tokens.push_back(Token{.type = Token::Type::U16Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::u32: tokens.push_back(Token{.type = Token::Type::U32Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::u64: tokens.push_back(Token{.type = Token::Type::U64Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::f32: tokens.push_back(Token{.type = Token::Type::F32Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::f64: tokens.push_back(Token{.type = Token::Type::F64Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
             case Types::Kind::_bool: tokens.push_back(Token{.type = Types::parseBoolean(value_buffer)? Token::Type::KeywordTrue: Token::Type::KeywordFalse,
-                .value = value_buffer, .info = info}); break;
-            case Types::Kind::_char: tokens.push_back(Token{.type = Token::Type::CharacterLiteral, .value = value_buffer, .info = info}); break;
-            default: tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer + type_string, .info = info}); break;
+                .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::_char: tokens.push_back(Token{.type = Token::Type::CharacterLiteral, .value = value_buffer, .numberBase = base, .info = info}); break;
+            default: tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer + type_string, .numberBase = base, .info = info}); break;
             }
             return true;
         }
@@ -164,23 +193,24 @@ namespace linc
 
     bool Lexer::tokenizeLiteralString(std::vector<Token>& tokens, std::string& value_buffer) const
     {
-        if(peek().value() == LINC_LEXER_STRING_LITERAL_SYMBOL)
+        if(peek().value() == LINC_LEXER_STRING_LITERAL_QUOTE)
         {
             Token::Info info = consume().getInfo();
-            while (peek().has_value() && peek().value() != LINC_LEXER_STRING_LITERAL_SYMBOL)
+            while (peek()->getInfo().line == info.line && peek().has_value()
+                && peek().value() != LINC_LEXER_STRING_LITERAL_QUOTE)
             {
-                if(m_characterIndex + 1ull >= m_sourceCode[m_lineIndex].text.size())
+                if(m_characterIndex + 1ul >= m_sourceCode[m_lineIndex].text.size())
                 {
                     tokens.push_back(linc::Token{.type = linc::Token::Type::InvalidToken, .value = value_buffer, .info = info});
                     
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                        .span = TextSpan{.text = m_sourceCode[m_lineIndex].text, .spanStart = m_characterIndex, .spanEnd = m_characterIndex + 1ull},
-                        .message = "Unmatched double-quote."});
+                        .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = info.characterIndex, .spanEnd = m_characterIndex},
+                        .message = Logger::format("$::$ Unmatched double-quote.", info.file, info.line)});
                     
                     return true;
                 }
-                else if(peek().value() == '\\' && peek(1ull).has_value())
+                else if(peek().value() == '\\' && peek(1ul).has_value())
                 {
                     consume(); // Consume the '\' character (do not push)
                     value_buffer.push_back(Escape::get(consume()).value_or('\0')); // Push the quote
@@ -195,25 +225,79 @@ namespace linc
         else return false;
     }
 
-    bool Lexer::tokenizeLiteralCharacter(std::vector<Token>& tokens, std::string& value_buffer) const
+    bool Lexer::tokenizeLiteralIncludePath(std::vector<Token>& tokens, std::string& value_buffer) const
     {
-        if(peek().value() == LINC_LEXER_CHARACTER_LITERAL_SYMBOL)
+        if(peek().value() == LINC_LEXER_PATH_LITERAL_QUOTE)
         {
+            auto start_index = m_characterIndex;
             Token::Info info = consume().getInfo();
-            while (peek().has_value() && peek().value() != LINC_LEXER_CHARACTER_LITERAL_SYMBOL)
+            while (peek()->getInfo().line == info.line && peek().has_value()
+                && peek().value() != LINC_LEXER_PATH_LITERAL_QUOTE)
             {
-                if(m_characterIndex + 1ull >= m_sourceCode[m_lineIndex].text.size())
+                if(m_characterIndex + 1ul >= m_sourceCode[m_lineIndex].text.size())
                 {
                     tokens.push_back(linc::Token{.type = linc::Token::Type::InvalidToken, .value = value_buffer, .info = info});
                     
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                        .span = TextSpan{.text = m_sourceCode[m_lineIndex].text, .spanStart = m_characterIndex, .spanEnd = m_characterIndex + 1ull},
-                        .message = "Unmatched single-quote."});
+                        .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = m_characterIndex - 1ul, .spanEnd = m_characterIndex},
+                        .message = Logger::format("$::$ Unmatched include-directory literal.", info.file, info.line)});
                     
                     return true;
                 }
-                else if(peek().value() == '\\' && peek(1ull).has_value())
+                else if(peek().value() == '\\' && peek(1ul).has_value())
+                {
+                    consume(); // Consume the '\' character (do not push)
+                    value_buffer.push_back(Escape::get(consume()).value_or('\0')); // Push the quote
+                }
+                else value_buffer.push_back(consume());
+            }
+
+            std::string filepath{};
+            for(const auto& include_directory: m_includeDirectories)
+                if(auto path = include_directory + '/' + value_buffer; Files::exists(path))
+                {
+                    filepath = path;
+                    break;
+                }
+
+            consume(); // Consume ending quote
+            
+            if(!filepath.empty())
+                tokens.push_back(Token{.type = Token::Type::StringLiteral, .value = filepath, .info = info});
+            else
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
+                    .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = start_index, .spanEnd = m_characterIndex},
+                    .message = Logger::format("$::$ Include path does not exist.", info.file, info.line, value_buffer)
+                });
+                tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer, .info = info});
+            }
+            return true;
+        }
+        else return false;
+    }
+
+    bool Lexer::tokenizeLiteralCharacter(std::vector<Token>& tokens, std::string& value_buffer) const
+    {
+        if(peek().value() == LINC_LEXER_CHARACTER_LITERAL_QUOTE)
+        {
+            Token::Info info = consume().getInfo();
+            while(peek().has_value() && peek().value() != LINC_LEXER_CHARACTER_LITERAL_QUOTE)
+            {
+                if(m_characterIndex + 1ul >= m_sourceCode[m_lineIndex].text.size())
+                {
+                    tokens.push_back(linc::Token{.type = linc::Token::Type::InvalidToken, .value = value_buffer, .info = info});
+                    
+                    Reporting::push(Reporting::Report{
+                        .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
+                        .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = info.characterIndex, .spanEnd = m_characterIndex},
+                        .message = Logger::format("$::$ Unmatched single-quote.", info.file, info.line)});
+                    
+                    return true;
+                }
+                else if(peek().value() == '\\' && peek(1ul).has_value())
                 {
                     consume(); // Consume the '\' character (do not push)
                     value_buffer.push_back(Escape::get(consume()).value_or('\0')); // Push the quote
@@ -227,20 +311,20 @@ namespace linc
             {
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                    .span = TextSpan{.text = m_sourceCode[m_lineIndex].text, .spanStart = m_characterIndex, .spanEnd = m_characterIndex + 1ull},
-                    .message = "Character literal cannot be empty."
+                    .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = m_characterIndex - 2ul, .spanEnd = m_characterIndex},
+                    .message = Logger::format("$::$ Character literal cannot be empty.", info.file, info.line)
                 });
                 tokens.push_back(Token{.type = Token::Type::CharacterLiteral, .value = "\0", .info = info});
                 return true;
             }
-            else if(value_buffer.size() > 1ull)
+            else if(value_buffer.size() > 1ul)
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                    .span = TextSpan{.text = m_sourceCode[m_lineIndex].text, .spanStart = m_characterIndex, .spanEnd = m_characterIndex + 1ull},
-                    .message = "More than one character in character literal."
+                    .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = info.characterIndex + 1ul, .spanEnd = m_characterIndex - 1ul},
+                    .message = Logger::format("$::$ More than one character in character literal.", info.file, info.line)
                 });
 
-            tokens.push_back(Token{.type = Token::Type::CharacterLiteral, .value = std::string(1ull, value_buffer[0ull]), .info = info});
+            tokens.push_back(Token{.type = Token::Type::CharacterLiteral, .value = std::to_string(value_buffer[0ul]), .info = info});
             return true;
         }
         else return false;
@@ -255,7 +339,7 @@ namespace linc
             do
             {
                 value_buffer.push_back(consume());
-            } while (peek().has_value() && (std::isalnum(peek().value()) || peek().value() == '_'));
+            } while (peek() && peek()->getInfo().line == info.line && (std::isalnum(peek().value()) || peek().value() == '_'));
 
             auto token_type = Keywords::get(value_buffer);
             
@@ -288,17 +372,20 @@ namespace linc
         std::string symbol;
         Token::Info info;
 
-        while (peek().has_value() && isSymbol(peek().value()))
+        while(peek() && isSymbol(peek().value()))
         {
             info = peek()->getInfo();
             symbol.push_back(consume());
         }
 
         if(!symbol.empty())
-            tokens.push_back(Token{.type = Operators::get(symbol), .info = info});
+        {
+            auto token_type = Operators::get(symbol);
+            tokens.push_back(Token{.type = token_type, .value = token_type == Token::Type::InvalidToken? std::make_optional(symbol): std::nullopt, .info = info});
+        }
         else 
         {
-            tokens.push_back(Token{.type = Token::Type::InvalidToken, .info = peek()->getInfo()});
+            tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = symbol, .info = peek()->getInfo()});
             consume();
         }
     }

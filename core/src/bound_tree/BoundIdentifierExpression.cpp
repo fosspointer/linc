@@ -6,7 +6,7 @@ namespace linc
         :BoundExpression(type), m_value(value)
     {}
 
-    std::unique_ptr<const BoundExpression> BoundIdentifierExpression::cloneConst() const
+    std::unique_ptr<const BoundExpression> BoundIdentifierExpression::clone() const
     {
         return std::make_unique<const BoundIdentifierExpression>(m_value, getType());
     }
@@ -15,7 +15,7 @@ namespace linc
     
     std::string BoundIdentifierExpression::toStringInner() const
     {
-        return Logger::format("Bound Identifier Expression (='$')", m_value);
+        return Logger::format("Identifier Expression (=$)", PrimitiveValue(m_value));
     }
     
     const std::string m_value;
