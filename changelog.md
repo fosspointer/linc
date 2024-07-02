@@ -28,7 +28,7 @@
 - ANSI Colors now work on a stack and are pushed/popped accordingly.
 - Linc can now be installed and managed using the provided CMake installer (the standard headers are also installed).
 - Added compilation and install scripts that ease the building process (assuming ninja/makefile present, ninja used by default).
-- Added custom include directory suport (e.g `include <path/relative/to/include.linc>`). 
+- Added custom include directory support (e.g ```#include `path/relative/to/include.linc\`.```). 
 - Added command line arguments to the linc environment (-i to specify custom include directories and -e to evaluate a given expression).
 - Made include-relative filepaths work on a token basis (which evaluate to their corresponding string literal).
 - Added preprocessor macros (not to be confused with definitions; these take arguments and behave similar to 'function-like' macros in C/C++).
