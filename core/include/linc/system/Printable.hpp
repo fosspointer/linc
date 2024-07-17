@@ -41,6 +41,12 @@ namespace linc
             new (&m_string) std::string{str};
         }
 
+        Printable(std::string_view str)
+            :m_type(Type::String)
+        {
+            new (&m_string) std::string{str};
+        }
+
         Printable(const char* str)
             :m_type(Type::String)
         {

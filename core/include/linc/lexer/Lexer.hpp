@@ -31,7 +31,7 @@ namespace linc
             switch(base)
             {
             case Token::NumberBase::Decimal: return std::isdigit(c);
-            case Token::NumberBase::Hexadecimal: return std::string("01234567890abcdef").contains(c);
+            case Token::NumberBase::Hexadecimal: return std::string("01234567890ABCDEF").contains(c);
             case Token::NumberBase::Binary: return c == '0' || c == '1';
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Token::NumberBase);
             }

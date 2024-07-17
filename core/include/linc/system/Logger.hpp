@@ -26,14 +26,14 @@ namespace linc
         /// @param str The string to be formatted.
         /// @param args The list of arguments to format with.
         /// @return The resulting string.
-        static std::string format(const std::string& str, const std::vector<Printable>& _args);
+        static std::string format(std::string_view str, const std::vector<Printable>& _args);
 
         /// @brief String formatting utility method, similar to std::format.
         /// @param str The string to be formatted.
         /// @param ...args The variadic argument list to format with.
         /// @return The resulting string.
         template <typename... Args>
-        static inline std::string format(const std::string& str, Args... args)
+        static inline std::string format(std::string_view str, Args... args)
         {
             return format(str, std::vector<Printable>{args...});
         }
@@ -45,14 +45,14 @@ namespace linc
         /// @param str The string to be formatted.
         /// @param ...args The variadic argument list to format with.
         template <typename... Args>
-        inline static void print(const std::string& str, Args... args)
+        inline static void print(std::string_view str, Args... args)
         {
-            fputs(format(Colors::toANSI(Colors::getCurrentColor()) + str, args...).c_str(), stdout);
+            fputs(format(Colors::toANSI(Colors::getCurrentColor()) + std::string{str}, args...).c_str(), stdout);
         }
 
         /// @brief Read string from stdin until return key entered.
         /// @return The resulting string, as read from stdin.
-        static std::string read(const std::string& prompt = "");
+        static std::string read(std::string_view prompt = "");
 
         /// @brief Format a string and append it to the output string. 
         /// @param output_string The output string.

@@ -20,10 +20,16 @@ namespace linc
             static std::vector<Internal> internals{
                 Internal{"puts", Types::voidType, std::vector<Types::type>{Types::fromKind(Types::Kind::string)}}, 
                 Internal{"putc", Types::voidType, std::vector<Types::type>{Types::fromKind(Types::Kind::_char)}}, 
+                Internal{"i32_length", Types::fromKind(Types::Kind::u64), std::vector<Types::type>{Types::fromKind(Types::Kind::i32)}},
+                Internal{"i32_to_string", Types::fromKind(Types::Kind::string), std::vector<Types::type>{Types::fromKind(Types::Kind::i32)}},
+                Internal{"u64_to_string", Types::fromKind(Types::Kind::string), std::vector<Types::type>{Types::fromKind(Types::Kind::u64)}},
+                Internal{"__puts_literal", Types::voidType, std::vector<Types::type>{Types::fromKind(Types::Kind::string), Types::fromKind(Types::Kind::u64)}},
+                Internal{"memory_alloc", Types::fromKind(Types::Kind::u64), std::vector<Types::type>{Types::fromKind(Types::Kind::u64)}},
                 Internal{"readraw", Types::fromKind(Types::Kind::string), std::vector<Types::type>{}},
                 Internal{"readchar", Types::fromKind(Types::Kind::_char), std::vector<Types::type>{}},
                 Internal{"readln", Types::fromKind(Types::Kind::string), std::vector<Types::type>{Types::fromKind(Types::Kind::string)}},
-                Internal{"system", Types::fromKind(Types::Kind::string), std::vector<Types::type>{Types::fromKind(Types::Kind::string)}}
+                Internal{"system", Types::fromKind(Types::Kind::string), std::vector<Types::type>{Types::fromKind(Types::Kind::string)}},
+                Internal{"exit", Types::voidType, std::vector<Types::type>{Types::fromKind(Types::Kind::i32)}}
             };
             return internals;
         }

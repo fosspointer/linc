@@ -5,9 +5,9 @@
 #include <termios.h>
 #endif
 
-static void reprint_line(const std::string& line, const std::string& prompt, std::size_t position)
+static void reprint_line(const std::string& line, std::string_view prompt, std::size_t position)
 {
-    std::fputs(std::string('\r' + prompt + "\x1B[0K" + line).c_str(), stdout);
+    std::fputs(std::string('\r' + std::string{prompt} + "\x1B[0K" + line).c_str(), stdout);
     
     if(position < line.length())
         std::fputs(std::string("\x1B[" + std::to_string(line.length() - position) + 'D').c_str(), stdout);
@@ -36,7 +36,7 @@ namespace linc
         std::fputc('\n', stdout);
     }
 
-    std::string Logger::read(const std::string& prompt)
+    std::string Logger::read(std::string_view prompt)
     {
         std::fputs(std::string(prompt).c_str(), stdout);
 
@@ -131,16 +131,16 @@ namespace linc
         return result;
     }
 
-    std::string Logger::format(const std::string& str, const std::vector<Printable>& _args)
+    std::string Logger::format(std::string_view str, const std::vector<Printable>& _args)
     {
         std::vector<Printable> args{_args};
 
         std::string output{};
 
         bool lexical_bool{true};
-        size_t precision{6};
+        size_t precision{6ul};
 
-        for(std::string::size_type i = 0ul; i < str.size(); ++i)
+        for(std::string::size_type i{0ul}; i < str.size(); ++i)
         {
             if(str[i] == '$')
             {

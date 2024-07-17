@@ -19,7 +19,7 @@ static std::optional<T> parseString(const std::string& str, std::optional<linc::
         for(std::size_t i{negative? 1ul: 0ul}; i < str.size(); ++i)
             if(linc::Lexer::isDigit(str[i], base.value()))
             {
-                auto displacement = std::isdigit(str[i])? 0: 39;
+                auto displacement = std::isdigit(str[i])? 0: 'A' - '9' - 1;
                 result = result * static_cast<T>(linc::Token::baseToInt(base.value())) + (str[i] - '0' - displacement);
             }
             else

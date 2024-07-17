@@ -74,7 +74,7 @@ public:
         linc::Logger::println("$ [Usage]\n--help (-h): Display this menu.", m_program);
             
         for(const auto& option: m_options)
-            linc::Logger::println("$ ($): $", findOptionFullName(option.first), option.first, option.second.description);
+            linc::Logger::println("$ (-$): $", findOptionFullName(option.first), option.first, option.second.description);
     }
 
     inline std::vector<std::string> get(char short_name) const

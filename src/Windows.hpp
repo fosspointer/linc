@@ -16,3 +16,36 @@ extern "C"
     DWORD WINAPI GetConsoleMode(HANDLE hConsoleHandle, LPDWORD lpMode);
     BOOL WINAPI SetConsoleMode(HANDLE hConsoleHandle, DWORD dwMode);
 }
+
+namespace linc
+{
+    class Windows
+    {
+    public:
+        Windows() = delete;
+        
+        static void enableAnsi()
+        {
+            HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+            if(console == INVALID_HANDLE_VALUE)
+            {
+                linc::Logger::log(linc::Logger::Type::Error, "Failed to get console handle.");
+                return LINC_EXIT_COMPILATION_FAILURE;
+            }
+
+            DWORD mode;
+            if(!GetConsoleMode(console, &mode))
+            {
+                linc::Logger::log(linc::Logger::Type::Error, "Failed to get console mode.");
+                return LINC_EXIT_COMPILATION_FAILURE;
+            }
+            mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+
+            if(!SetConsoleMode(console, mode))
+            {
+                linc::Logger::log(linc::Logger::Type::Error, "Failed to set console handle.");
+                return LINC_EXIT_COMPILATION_FAILURE;
+            }
+        }
+    };
+}

@@ -40,6 +40,18 @@ namespace linc
 
                 else return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(if_body), if_expression->getType());
             }
+            else if(auto while_expression = dynamic_cast<const BoundWhileExpression*>(expression))
+            {
+                auto test = optimizeExpression(while_expression->getTestExpression());
+                auto while_body = optimizeStatement(while_expression->getWhileBodyStatement());
+                auto finally_body = while_expression->getFinallyBodyStatement()
+                    ? std::make_optional(optimizeStatement(*while_expression->getFinallyBodyStatement())): std::nullopt;
+                auto else_body = while_expression->getElseBodyStatement()
+                    ? std::make_optional(optimizeStatement(*while_expression->getElseBodyStatement())): std::nullopt;
+
+                return std::make_unique<const BoundWhileExpression>(while_expression->getType(), std::move(test), std::move(while_body),
+                    std::move(finally_body), std::move(else_body));
+            }
             else if(auto unary_expression = dynamic_cast<const BoundUnaryExpression*>(expression))
             {
                 auto operand = optimizeExpression(unary_expression->getOperand());
@@ -88,6 +100,14 @@ namespace linc
                 
                 else return std::make_unique<const BoundBinaryExpression>(binary_expression->getOperator()->clone(), std::move(left), std::move(right));
             }
+            else if(auto block_expression = dynamic_cast<const BoundBlockExpression*>(expression))
+            {
+                std::vector<std::unique_ptr<const BoundStatement>> statements;
+                for(const auto& statement: block_expression->getStatements())
+                    statements.push_back(optimizeStatement(statement.get()));
+
+                return std::make_unique<const BoundBlockExpression>(std::move(statements));
+            }
 
             return expression->clone();
         }
@@ -112,17 +132,32 @@ namespace linc
 
                 return std::make_unique<const BoundVariableDeclaration>(variable_declaration->getActualType(), variable_declaration->getName(), std::move(value));
             }
+            else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
+            {
+                auto body = optimizeStatement(function_declaration->getBody());
+                std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments;
+                arguments.reserve(function_declaration->getArguments().size());
+
+                for(const auto& argument: function_declaration->getArguments())
+                {
+                    auto optimized_argument = Types::unique_cast<const BoundVariableDeclaration>(optimizeDeclaration(argument.get()));
+                    arguments.push_back(std::move(optimized_argument));
+                }
+
+                return std::make_unique<const BoundFunctionDeclaration>(function_declaration->getReturnType(), function_declaration->getName(),
+                    std::move(arguments), std::move(body));
+            }
             return declaration->clone();
         }
 
-        static std::unique_ptr<const BoundProgram> optimizeProgram(const BoundProgram* program)
+        static BoundProgram optimizeProgram(BoundProgram& program)
         {
             std::vector<std::unique_ptr<const BoundDeclaration>> declarations;
             
-            for(const auto& declaration: program->declarations)
+            for(const auto& declaration: program.declarations)
                 declarations.push_back(optimizeDeclaration(declaration.get()));
 
-            return std::make_unique<const BoundProgram>(std::move(declarations));
+            return BoundProgram{.declarations = std::move(declarations)};
         }
     private:
         static PrimitiveValue optimizeConstantUnaryExpression(BoundUnaryOperator::Kind kind, const PrimitiveValue& operand, const Types::type& type)
@@ -134,6 +169,7 @@ namespace linc
             case BoundUnaryOperator::Kind::LogicalNot: return !operand.getBool();
             case BoundUnaryOperator::Kind::UnaryPlus: return +operand;
             case BoundUnaryOperator::Kind::UnaryMinus: return -operand;
+            case BoundUnaryOperator::Kind::BitwiseNot: return ~operand;
             default: return PrimitiveValue::invalidValue;
             }
         }

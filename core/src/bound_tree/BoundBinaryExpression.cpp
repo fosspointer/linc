@@ -90,14 +90,14 @@ namespace linc
             && (right_type.primitive == Types::Kind::_char || right_type.primitive == Types::Kind::string))
                 return Types::fromKind(Types::Kind::string);
             else if(Types::isNumeric(left_type.primitive) && left_type.primitive == right_type.primitive)
-                return right_type;
+                return Types::fromKind(right_type.primitive);
             else return Types::invalidType;
         case Kind::Subtraction:
         case Kind::Multiplication:
         case Kind::Division:
         case Kind::Modulo:
             if(Types::isNumeric(left_type.primitive) && left_type.primitive == right_type.primitive)
-                return right_type;
+                return Types::fromKind(right_type.primitive);
             else return Types::invalidType;
         case Kind::LogicalAnd:
         case Kind::LogicalOr:
@@ -126,7 +126,7 @@ namespace linc
         case Kind::AdditionAssignment:
             if((left_type.primitive == Types::Kind::_char || left_type.primitive == Types::Kind::string)
             && (right_type.primitive == Types::Kind::_char || right_type.primitive == Types::Kind::string) && left_type.isMutable)
-                return Types::fromKind(Types::Kind::string);
+                return Types::type(Types::Kind::string, true);
         case Kind::SubtractionAssignment:
         case Kind::MultiplicationAssignment:
         case Kind::DivisionAssignment:
@@ -142,7 +142,7 @@ namespace linc
 
             if(!Types::isNumeric(left_type.primitive) || left_type.primitive != right_type.primitive)
                 return Types::invalidType;
-            else return left_type;
+            else return Types::type(left_type.primitive, true);
         case Kind::BitwiseAnd:
         case Kind::BitwiseOr:
         case Kind::BitwiseXor:

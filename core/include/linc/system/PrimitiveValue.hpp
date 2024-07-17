@@ -93,7 +93,8 @@ return_type operator op() const_keyword \
         case Kind::Signed: return op m_value_signed; \
         case Kind::Float: return op m_value_float; \
         case Kind::Double: return op m_value_double; \
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind); \
+        case Kind::Character: return op m_value_char; \
+        default: default_case: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind); \
         } \
     }
 

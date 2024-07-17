@@ -36,6 +36,12 @@
 - Removed the old `#instance` directives, since preprocessing happens after tokenization now.
 - Removed `grammar.md`, as it is not useful and requires maintance.
 
+## Changelog for linc version 0.6.1
+
+- Added Linux AMD64 experimental partial codegen support.
+- Changed hexadecimal literals to only allow for uppercase letters (so as to potentially allow floating point literals in the future; do keep in mind that `f32` and `f64` both contain the character `f`, which would have otherwise been interpreted as a digit).
+- Minor changes.
+
 ## Future plans (in order of priority)
 
 - Implement arrays of structures.

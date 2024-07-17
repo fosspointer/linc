@@ -7,7 +7,6 @@
 #include <linc/Binder.hpp>
 #include <linc/Generator.hpp>
 #include "Arguments.hpp"
-
 #ifdef LINC_WINDOWS
 #include "Windows.hpp"
 #endif
@@ -82,26 +81,7 @@ int main(int argument_count, const char** arguments)
 try
 {
 #ifdef LINC_WINDOWS
-    HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-    if(console == INVALID_HANDLE_VALUE)
-    {
-        linc::Logger::log(linc::Logger::Type::Error, "Failed to get console handle.");
-        return LINC_EXIT_COMPILATION_FAILURE;
-    }
-
-    DWORD mode;
-    if(!GetConsoleMode(console, &mode))
-    {
-        linc::Logger::log(linc::Logger::Type::Error, "Failed to get console mode.");
-        return LINC_EXIT_COMPILATION_FAILURE;
-    }
-    mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-
-    if(!SetConsoleMode(console, mode))
-    {
-        linc::Logger::log(linc::Logger::Type::Error, "Failed to set console handle.");
-        return LINC_EXIT_COMPILATION_FAILURE;
-    }
+    linc::Windows::enableAnsi();
 #endif
     const static auto option_include = 'i', option_eval = 'e', option_version = 'v';
     
@@ -179,9 +159,9 @@ try
         parser.set(tokens, shell_name);
         auto tree = parser();
         auto program = binder.bind(&tree);
-        auto optimized_program = linc::Optimizer::optimizeProgram(&program);
+        auto optimized_program = linc::Optimizer::optimizeProgram(program);
 
-        for(const auto& declaration: optimized_program->declarations)
+        for(const auto& declaration: optimized_program.declarations)
             interpreter.evaluateDeclaration(declaration.get());
     };
 
@@ -396,7 +376,6 @@ try
 catch(const linc::Exception& e)
 {
     linc::Logger::log(linc::Logger::Type::Error, "[LINC EXCEPTION] $ " LINC_EXCEPTION_WARNING, e.info());
-
     return LINC_EXIT_FAILURE_LINC_EXCEPTION;
 }
 catch(const std::exception& e)

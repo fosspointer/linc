@@ -463,6 +463,8 @@ namespace linc
                         result = PrimitiveValue(static_cast<Types::u64>(operand.getPrimitive().getString().size()));
                     else if(operand.getPrimitive().getKind() == PrimitiveValue::Kind::Character)
                         result = PrimitiveValue(+operand.getPrimitive().getChar());
+                    else if(operand.getPrimitive().getKind() == PrimitiveValue::Kind::Boolean)
+                        result = PrimitiveValue(static_cast<Types::i32>(operand.getPrimitive().getBool()));
                     else result = operand;
                     break;
                 case BoundUnaryOperator::Kind::UnaryMinus:
