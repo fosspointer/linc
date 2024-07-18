@@ -110,11 +110,22 @@ namespace linc
             auto operand_size = getRegisterOperandSize(expression->getConversion()->getReturnType().primitive);
 
             generateExpression(expression->getExpression());
+            m_emitter.pop(Registers::getPrimary());
+
             if(initial_type == Types::Kind::f32 && Types::isIntegral(return_type))
+            {
+                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimaryFloating(), Registers::getPrimary(Registers::Size::DoubleWord),
+                    Emitter::InstructionKind::Float);
                 m_emitter.binary(Emitter::BinaryInstruction::ConvertF32ToI32, Registers::getPrimary(operand_size), Registers::getPrimaryFloating());
+            }
 
             else if(initial_type == Types::Kind::f64 && Types::isIntegral(return_type))
-                m_emitter.binary(Emitter::BinaryInstruction::ConvertF64ToI32, Registers::getPrimary(operand_size), Registers::getPrimaryFloating());
+            {
+                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimaryFloating(), Registers::getPrimary(), Emitter::InstructionKind::Double);
+                m_emitter.binary(Emitter::BinaryInstruction::ConvertF64ToI32, Registers::getPrimary(operand_size), Registers::getPrimaryFloating());   
+            }
+
+            m_emitter.push(Registers::getPrimary());
         }
 
         void generateFunctionCallExpression(const BoundFunctionCallExpression* expression)
@@ -284,8 +295,8 @@ namespace linc
             }
             case Types::Kind::f64:
             {
-                Types::f32 value = expression->getValue().getF32();
-                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(), std::to_string(reinterpret_cast<Types::i32&>(value)));
+                Types::f64 value = expression->getValue().getF64();
+                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(), std::to_string(reinterpret_cast<Types::i64&>(value)));
                 m_emitter.push(Registers::getPrimary());
                 break;
             }
@@ -359,8 +370,8 @@ namespace linc
             else if(is_primitive && expression->getLeft()->getType().primitive == Types::Kind::f64)
             {
                 kind = Emitter::InstructionKind::Double;
-                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimaryFloating(), Registers::getPrimary(Registers::Size::DoubleWord), kind);
-                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getSecondaryFloating(), Registers::getSecondary(Registers::Size::DoubleWord), kind);
+                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimaryFloating(), Registers::getPrimary(Registers::Size::QuadWord), kind);
+                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getSecondaryFloating(), Registers::getSecondary(Registers::Size::QuadWord), kind);
             }
             bool is_sse = kind != Emitter::InstructionKind::General, is_signed = Types::isSigned(expression->getLeft()->getType().primitive);
 
