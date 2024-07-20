@@ -116,13 +116,24 @@ namespace linc
             {
                 m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimaryFloating(), Registers::getPrimary(Registers::Size::DoubleWord),
                     Emitter::InstructionKind::Float);
-                m_emitter.binary(Emitter::BinaryInstruction::ConvertF32ToI32, Registers::getPrimary(operand_size), Registers::getPrimaryFloating());
+                m_emitter.binary(Emitter::BinaryInstruction::ConvertFloatToInt, Registers::getPrimary(operand_size), Registers::getPrimaryFloating());
             }
-
             else if(initial_type == Types::Kind::f64 && Types::isIntegral(return_type))
             {
                 m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimaryFloating(), Registers::getPrimary(), Emitter::InstructionKind::Double);
-                m_emitter.binary(Emitter::BinaryInstruction::ConvertF64ToI32, Registers::getPrimary(operand_size), Registers::getPrimaryFloating());   
+                m_emitter.binary(Emitter::BinaryInstruction::ConvertDoubleToInt, Registers::getPrimary(operand_size), Registers::getPrimaryFloating());   
+            }
+            else if(Types::isIntegral(initial_type) && return_type == Types::Kind::f32)
+            {
+                m_emitter.binary(Emitter::BinaryInstruction::ConvertIntToFloat, Registers::getPrimaryFloating(), Registers::getPrimary(operand_size));
+                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(Registers::Size::DoubleWord), Registers::getPrimaryFloating(),
+                    Emitter::InstructionKind::Float);
+            }
+            else if(Types::isIntegral(initial_type) && return_type == Types::Kind::f64)
+            {
+                m_emitter.binary(Emitter::BinaryInstruction::ConvertIntToDouble, Registers::getPrimaryFloating(), Registers::getPrimary(operand_size));
+                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(Registers::Size::QuadWord), Registers::getPrimaryFloating(),
+                    Emitter::InstructionKind::Double);
             }
 
             m_emitter.push(Registers::getPrimary());
@@ -436,7 +447,7 @@ namespace linc
                 break;
             case BoundBinaryOperator::Kind::Modulo:
             case BoundBinaryOperator::Kind::ModuloAssignment:
-                if(is_sse) throw LINC_EXCEPTION_INVALID_INPUT("Floating point modulo operations are currently not supported.");
+                if(is_sse) throw LINC_EXCEPTION_INVALID_INPUT("Floating point modulo operations are currently not supported");
                 m_emitter.unary(Emitter::UnaryInstruction::UnsignedDivide, Registers::getSecondary(operand_size), kind);
                 m_emitter.push(Registers::getRemainder());
                 break;
