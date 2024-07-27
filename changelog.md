@@ -41,6 +41,14 @@
 - Added Linux AMD64 experimental partial codegen support.
 - Changed hexadecimal literals to only allow for uppercase letters (so as to potentially allow floating point literals in the future; do keep in mind that `f32` and `f64` both contain the character `f`, which would have otherwise been interpreted as a digit).
 - Minor changes.
+- Changed the 'stdinternal.s' assembly filename to 'lincinternal.s'.
+- Added more internal utilies (e.g. stringification, syscalls). 
+- Emitter improvements (plus identifier additions).
+- Added return statements.
+- Implemented type expressions (plus type-of operations).
+- Hugely improved stringification operations.
+- Fixed literal expression signedness.
+- Fixed block expression stack adjustion (for scoping).
 
 ## Future plans (in order of priority)
 

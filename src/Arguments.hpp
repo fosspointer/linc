@@ -57,7 +57,7 @@ public:
             else if(i >= argument_count - 1)
             {
                 linc::Reporting::push(linc::Reporting::Report{
-                    .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Preprocessor,
+                    .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Environment,
                     .message = linc::Logger::format("Specified option `$` but didn't provide a value.", full_argument)
                 });
                 break;

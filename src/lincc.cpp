@@ -68,7 +68,7 @@ try
     linc::Windows::enableAnsi();
 #endif
     const static auto option_include = 'i', option_output = 'o', option_version = 'v', option_optimization = 'O';
-    const static auto internal_source{LINC_INSTALL_PATH "/include/stdinternal"};
+    const static auto internal_source{LINC_INSTALL_PATH "/include/lincinternal"};
 
     Arguments argument_handler(argument_count, arguments, std::unordered_map<char, Arguments::Option>{
         std::pair(option_include, Arguments::Option{.description = "Specify a custom include path."}),

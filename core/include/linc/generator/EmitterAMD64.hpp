@@ -22,7 +22,7 @@ namespace linc
 
         enum class BinaryInstruction: unsigned char
         {
-            Move, MoveExtend, And, Or, Xor, Add, Subtract, Multiply, Divide, Compare, Test, ConvertFloatToInt, ConvertDoubleToInt, ConvertIntToFloat, ConvertIntToDouble
+            Move, MoveExtend, MoveIfZero, And, Or, Xor, Add, Subtract, Multiply, Divide, Compare, Test, ConvertFloatToInt, ConvertDoubleToInt, ConvertIntToFloat, ConvertIntToDouble
         };
 
         enum class InstructionKind: unsigned char
@@ -32,36 +32,42 @@ namespace linc
 
         [[nodiscard]] inline const std::string& getDataSegment() const { return m_dataSegment; }
         [[nodiscard]] inline const std::string& getCodeSegment() const { return m_codeSegment; }
-        [[nodiscard]] inline std::string get() const { return Logger::format("$segment .data\n$segment .text\n$", m_externalSymbols, m_dataSegment, m_codeSegment); }
+        [[nodiscard]] inline std::string get() const { return Logger::format("segment .data\n$\nsegment .text\n$:$\n$",
+            m_dataSegment, m_externalSymbols, m_globalSymbols, m_codeSegment); }
         [[nodiscard]] inline std::size_t getStackPosition() const { return m_stackPosition; } 
 
         inline void reset() { m_dataSegment = m_codeSegment = std::string{}; }
         inline void emit(const std::string& line, bool has_indent = true)
         {
-            Logger::append(m_codeSegment, "$:$\n", has_indent? s_indent: std::string{}, line);
+            m_codeSegment.append((has_indent? s_indent: std::string{}) + line + '\n');
         }
 
         inline void emitData(const std::string& line, bool has_indent = true)
         {
-            Logger::append(m_dataSegment, "$:$\n", has_indent? s_indent: std::string{}, line);
+            m_dataSegment.append((has_indent? s_indent: std::string{}) + line + '\n');
         }
 
         std::string reserveLabel() { return Logger::format("L$", m_labelCounter++); }
 
-        std::string label(std::string name = std::string{})
+        std::string label(std::string_view name = std::string{})
         {
-            auto label_name = name.empty()? Logger::format("L$", m_labelCounter++): name;
+            std::string label_name = name.empty()? Logger::format("L$", m_labelCounter++): std::string{name};
             emit(label_name + ':', false);
-            return label_name;
+            return std::move(label_name);
+        }
+
+        inline std::string identifier(std::string_view name, std::string_view data)
+        {
+            std::string label_name = name.empty()? Logger::format("L$", m_labelCounter++): std::string{name};
+            emitData(std::string{label_name} + ": " + std::string{data}, false);
+            return std::move(label_name);
         }
 
         inline void push(std::string_view register_name) { unary(UnaryInstruction::Push, register_name); ++m_stackPosition; }
         inline void pop(std::string_view register_name) { unary(UnaryInstruction::Pop, register_name); --m_stackPosition; }
         inline void test(std::string_view register_name) { binary(BinaryInstruction::Test, register_name, register_name); }
-        
-        inline void external(std::string_view symbol_name) { Logger::append(m_externalSymbols, "extern $\n", symbol_name); }
-        inline void global(std::string_view symbol_name) { Logger::append(m_externalSymbols, "global $\n", symbol_name); }
-
+        inline void external(std::string_view symbol_name) { Logger::append(m_externalSymbols, "$extern $\n", s_indent, symbol_name); }
+        inline void global(std::string_view symbol_name) { Logger::append(m_globalSymbols, "$global $\n", s_indent, symbol_name); }
         inline void prologue() { push(Registers::getBase()); binary(BinaryInstruction::Move, Registers::getBase(), Registers::getStack()); }
         inline void epilogue() { nullary(NullaryInstruction::Leave); nullary(NullaryInstruction::Return); }
 
@@ -72,14 +78,16 @@ namespace linc
                 signed_offset > 0l? Logger::format(" + $]", signed_offset): Logger::format(" - $]", -signed_offset));
         }
 
-        std::string stringLiteral(std::string_view contents)
+        std::string defineStringLiteral(std::string_view contents, std::string_view label_name = "")
         {
-            auto find = m_literalMap.find(contents);
+            if(contents.empty())
+                return identifier(label_name, "db 0"); 
+
+            auto find = m_literalMap.find(std::string{contents});
             
             if(find != m_literalMap.end())
                 return find->second;
 
-            auto label_name = Logger::format("L$", m_labelCounter++);
             std::string literal{'"'};
             literal.reserve(contents.size() * 2ul);
 
@@ -107,24 +115,39 @@ namespace linc
                 }
             }
 
-            m_literalMap[contents] = label_name;
-            Logger::append(m_dataSegment, "$:$ db $0\n", s_indent, label_name, literal);
-            return label_name;
+            auto result = identifier(label_name, Logger::format("db $0", literal));
+            m_literalMap[std::string{contents}] = result;
+            return std::move(result);
+        }
+
+        std::string defineNumeral(Types::u64 numeral, Registers::Size size, std::string_view label_name)
+        {
+            std::string define_directive{'d'};
+
+            switch(size)
+            {
+            case Registers::Size::Byte: define_directive.push_back('b');
+            case Registers::Size::Word: define_directive.push_back('w');
+            case Registers::Size::DoubleWord: define_directive.push_back('d');
+            case Registers::Size::QuadWord: define_directive.push_back('q');
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Registers::Size::QuadWord);
+            }
+            return identifier(label_name, Logger::format("$ $0", define_directive, numeral));
         }
 
         inline void binary(BinaryInstruction instruction, std::string_view destination, std::string_view source, InstructionKind kind = InstructionKind::General)
         {
-            emit(Logger::format("$ $, $", binaryInstructionToString(instruction, kind), destination, source));
+            emit(binaryInstructionToString(instruction, kind) + ' ' + std::string{destination} + ", " + std::string{source});
         }
 
         inline void unary(UnaryInstruction instruction, std::string_view operand, InstructionKind kind = InstructionKind::General)
         {
-            emit(Logger::format("$ $", unaryInstructionToString(instruction, kind), operand));
+            emit(unaryInstructionToString(instruction, kind) + ' ' + std::string{operand});
         }
 
         inline void nullary(NullaryInstruction instruction)
         {
-            emit(Logger::format("$", nullaryInstructionToString(instruction)));
+            emit(nullaryInstructionToString(instruction));
         }
     private:
         static std::string unaryInstructionToString(UnaryInstruction instruction, InstructionKind kind)
@@ -194,6 +217,7 @@ namespace linc
                 {
                 case BinaryInstruction::Move: return "mov";
                 case BinaryInstruction::MoveExtend: return "movzx";
+                case BinaryInstruction::MoveIfZero: return "cmovz";
                 case BinaryInstruction::And: return "and";
                 case BinaryInstruction::Or: return "or";
                 case BinaryInstruction::Xor: return "xor";
@@ -257,12 +281,12 @@ namespace linc
                 value /= 16;
             }
 
-            return result;
+            return std::move(result);
         }
 
-        std::string m_dataSegment, m_codeSegment, m_externalSymbols;
+        std::string m_dataSegment, m_codeSegment, m_externalSymbols, m_globalSymbols;
         std::size_t m_labelCounter{0ul}, m_stackPosition{0ul};
-        std::unordered_map<std::string_view, std::string> m_literalMap;
+        std::unordered_map<std::string, std::string> m_literalMap;
         static constexpr const char* s_indent{LINC_EMITTER_LITERAL_INDENT};
     };
 }

@@ -136,6 +136,7 @@ namespace linc
         std::vector<Printable> args{_args};
 
         std::string output{};
+        output.reserve(2ul * str.size());
 
         bool lexical_bool{true};
         size_t precision{6ul};

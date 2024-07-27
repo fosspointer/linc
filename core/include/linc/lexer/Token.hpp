@@ -15,6 +15,8 @@ namespace linc
         {
             std::string file;
             std::size_t line, characterIndex;
+
+            bool operator==(const Info& other) const = default;
         };
 
         /// @brief The type of a Token

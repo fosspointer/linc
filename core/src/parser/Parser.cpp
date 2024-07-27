@@ -213,6 +213,7 @@ namespace linc
 
             while(peek()->type != Token::Type::SquareRight)
             {
+                auto token = peek();
                 auto expression = parseExpression();
                 auto separator = peek()->type != Token::Type::SquareRight? std::make_optional(match(Token::Type::Comma)): std::nullopt;
 
@@ -220,12 +221,15 @@ namespace linc
                     .separator = separator,
                     .value = std::move(expression)
                 });
+
+                if(!token || !peek() || token->info == peek()->info)
+                    break;
             }
             auto right_bracket = match(Token::Type::SquareRight);
 
             return std::make_unique<const ArrayInitializerExpression>(left_bracket, right_bracket, std::move(values));
         }
-        if(peek()->type == Token::Type::BraceLeft)
+        else if(peek()->type == Token::Type::BraceLeft)
         {
             auto left_brace = consume();
             std::vector<std::unique_ptr<const Statement>> statements;
@@ -233,7 +237,13 @@ namespace linc
             beginScope();
 
             while(!peek()->isEndOfFile() && peek()->type != Token::Type::BraceRight)
+            {
+                auto token = peek();
                 statements.push_back(std::move(parseStatement()));
+
+                if(!peek() || !token || peek()->info == token->info)
+                    break;
+            }
             
             endScope();
 
@@ -373,9 +383,13 @@ namespace linc
 
                 while(peek() && peek()->type != Token::Type::ParenthesisRight)
                 {
+                    auto token = peek();
                     auto expression = parseExpression();
                     auto separator = peek()->type != Token::Type::ParenthesisRight? std::make_optional(match(Token::Type::Comma)): std::nullopt;
                     arguments.push_back(CallExpression::Argument{separator, std::move(expression)});
+                    
+                    if(!token || !peek() || token->info == peek()->info)
+                        break;
                 }
 
                 auto right_parenthesis = match(Token::Type::ParenthesisRight);
@@ -384,6 +398,8 @@ namespace linc
                 if(!definition)
                     return (Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                        .span = TextSpan{.lineIndex = identifier.info.line -1ul, .spanStart = identifier.info.characterIndex,
+                            .spanEnd = identifier.info.characterIndex + identifier.value->size()},
                         .message = Logger::format("$::$ Call to undeclared function `$`.",
                             identifier.info.file, identifier.info.line, identifier.value.value_or(""))
                     }), nullptr);
@@ -391,6 +407,8 @@ namespace linc
                 else if(definition != Definition::Kind::Function && definition != Definition::Kind::External)
                     return (Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                        .span = TextSpan{.lineIndex = identifier.info.line -1ul, .spanStart = identifier.info.characterIndex,
+                            .spanEnd = identifier.info.characterIndex + identifier.value->size()},
                         .message = Logger::format("$::$ Call to non-callable symbol `$`.",
                             identifier.info.file, identifier.info.line, identifier.value.value_or(""))
                     }), nullptr);
@@ -502,7 +520,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
                 .message = Logger::format("$::$ Invalid identifier expression in function declaration (function name).",
-                    type_specifier.info.file, type_specifier.info.line)
+                    function_keyword.info.file, function_keyword.info.line)
             });
             return nullptr;
         }
@@ -512,7 +530,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
                 .message = Logger::format("$::$ Invalid type expression in function declaration (return type).",
-                    type_specifier.info.file, type_specifier.info.line)
+                    function_keyword.info.file, function_keyword.info.line)
             });
             return nullptr;
         }
@@ -522,7 +540,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
                 .message = Logger::format("$::$ Invalid body statement in function declaration.",
-                    type_specifier.info.file, type_specifier.info.line)
+                    function_keyword.info.file, function_keyword.info.line)
             });
             return nullptr;
         }
@@ -555,8 +573,9 @@ namespace linc
 
         std::vector<std::unique_ptr<const TypeExpression>> arguments;
 
-        while(peek()->type != Token::Type::ParenthesisRight)
+        while(peek() && peek()->type != Token::Type::ParenthesisRight)
         {
+            auto token = peek();
             auto argument = parseTypeExpression();
 
             if(!argument)
@@ -569,6 +588,8 @@ namespace linc
             }
 
             arguments.push_back(std::move(argument));
+            if(!token || !peek() || token->info == peek()->info)
+                break;
         }
 
         auto right_parenthesis = match(Token::Type::ParenthesisRight);

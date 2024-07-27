@@ -30,7 +30,7 @@ static int evaluate_file(std::string filepath, int argc, const char** argv, Argu
     if(!linc::Files::exists(filepath))
     {
         linc::Reporting::push(linc::Reporting::Report{
-            .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Preprocessor,
+            .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Environment,
             .message = linc::Logger::format("Specified filepath '$' does not exist!", filepath)
         });
         return LINC_EXIT_COMPILATION_FAILURE;

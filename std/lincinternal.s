@@ -1,0 +1,471 @@
+%define SYS_READ 0
+%define SYS_WRITE 1
+%define SYS_OPEN 2
+%define SYS_CLOSE 3
+%define SYS_MMAP 9
+%define SYS_EXIT 60
+%define STR_BUFFER_SIZE 1024
+
+%define STDOUT 1
+%define STDIN 0
+
+section .bss
+    string_buffer: resb STR_BUFFER_SIZE
+section .text
+    global __memory_copy
+    global __memory_alloc
+    global __string_length
+    global __string_concat
+    global __i64_to_string
+    global __i32_to_string
+    global __i16_to_string
+    global __i8_to_string
+    global __u64_to_string
+    global __u32_to_string
+    global __u16_to_string
+    global __u8_to_string
+    global putc
+    global puts
+    global readc
+    global readraw
+
+    global sys_read
+    global sys_write
+    global sys_open
+    global sys_close
+    global sys_exit
+
+__memory_copy:
+    test rdx, rdx
+    jz .done
+    mov rcx, rdx
+    rep movsb
+.done:
+    ret
+
+__memory_alloc:
+    mov rcx, rdi
+    xor rdi, rdi
+    mov rsi, rcx
+    mov rdx, 3
+    mov r10, 0x22
+    mov r8, -1
+    mov r9, 0
+    mov rax, SYS_MMAP
+    syscall
+    ret
+
+__string_length:
+    xor rax, rax
+.loop:
+    mov cl, byte [rdi + rax]
+    inc rax
+    test cl, cl
+    jnz .loop
+    dec rax
+    ret
+
+__string_concat:
+    push rbx ; caller saved registers that are in use
+    push r12
+    push r13
+    push r14
+    call __string_length ; length of the first string (arg 0)
+    mov rbx, rdi ; rbx = arg 0
+    mov rdi, rsi ; dest = arg 1
+    mov r13, rsi ; r13 = arg 1
+    mov r14, rax ; r11 = strlen(arg 0)
+    call __string_length ; length of the second string (arg 1)
+    mov r12, rax ; r12 = strlen(arg 1)
+    add rax, r14 ; rax = strlen(arg 1) + strlen(arg 2)
+    inc rax ; rax = strlen(arg 1) + strlen(arg 2) + 1
+    mov rdi, rax ; dest = rax (memory to allocate)
+    call __memory_alloc ; allocate the memory
+    push rax
+    mov rdi, rax ; dest = the new address
+    mov rsi, rbx ; source = arg 0
+    mov rdx, r14 ; count = strlen(arg 0)
+    call __memory_copy ; first copy
+    ; add rdi, r11
+    mov byte [rdi], 'a'
+    mov rsi, r13 ; source = arg 1
+    mov rdx, r12 ; count = strlen(arg 1)
+    call __memory_copy ; second copy
+    ; mov byte [rdi + r12], 0 ; 
+    pop rax
+    pop r14
+    pop r13 ; restore caller saved registers
+    pop r12
+    pop rbx
+    ret
+
+__i64_to_string:
+    mov rdx, rdi
+    push rdx
+    mov rdi, 21
+    call __memory_alloc
+    pop rdx
+    mov rsi, 10
+    lea rcx, [rax + 21]
+    mov byte [rcx], 0
+    dec rcx
+    mov rax, rdx
+    xor bl, bl
+    test rax, rax
+    jz .zero
+    jns .loop
+    neg rax
+    inc bl
+.loop:
+    test rax, rax
+    jz .exit
+    dec rcx
+    xor rdx, rdx
+    div rsi
+    add dl, '0'
+    mov byte [rcx], dl
+    jmp .loop
+.exit:
+    test bl, bl
+    jz .non_negative
+    dec rcx
+    mov byte [rcx], '-'
+.non_negative:
+    mov rax, rcx
+    ret
+.zero:
+    mov byte [rcx], '0'
+    mov rax, rcx
+    ret
+
+__i32_to_string:
+    mov edx, edi
+    push rdx
+    mov rdi, 12
+    call __memory_alloc
+    pop rdx
+    mov esi, 10
+    lea rcx, [rax + 12]
+    mov byte [rcx], 0
+    dec rcx
+    mov eax, edx
+    xor bl, bl
+    test eax, eax
+    jz .zero
+    jns .loop
+    neg eax
+    inc bl
+.loop:
+    test rax, rax
+    jz .exit
+    dec rcx
+    xor rdx, rdx
+    div esi
+    add dl, '0'
+    mov byte [rcx], dl
+    jmp .loop
+.exit:
+    test bl, bl
+    jz .non_negative
+    dec rcx
+    mov byte [rcx], '-'
+.non_negative:
+    mov rax, rcx
+    ret
+.zero:
+    mov byte [rcx], '0'
+    mov rax, rcx
+    ret
+
+__i16_to_string:
+    mov dx, di
+    push rdx
+    mov rdi, 7
+    call __memory_alloc
+    pop rdx
+    mov si, 10
+    lea rcx, [rax + 7]
+    mov byte [rcx], 0
+    dec rcx
+    mov eax, edx
+    xor bl, bl
+    test ax, ax
+    jz .zero
+    jns .loop
+    neg ax
+    inc bl
+.loop:
+    test rax, rax
+    jz .exit
+    dec rcx
+    xor rdx, rdx
+    div si
+    add dl, '0'
+    mov byte [rcx], dl
+    jmp .loop
+.exit:
+    test bl, bl
+    jz .non_negative
+    dec rcx
+    mov byte [rcx], '-'
+.non_negative:
+    mov rax, rcx
+    ret
+.zero:
+    mov byte [rcx], '0'
+    mov rax, rcx
+    ret
+
+__i8_to_string:
+    mov dl, dil
+    push rdx
+    mov rdi, 5
+    call __memory_alloc
+    pop rdx
+    mov sil, 10
+    lea rcx, [rax + 5]
+    mov byte [rcx], 0
+    dec rcx
+    mov eax, edx
+    xor bl, bl
+    test al, al
+    jz .zero
+    jns .loop
+    neg al
+    inc bl
+.loop:
+    test rax, rax
+    jz .exit
+    dec rcx
+    xor rdx, rdx
+    div si
+    add dl, '0'
+    mov byte [rcx], dl
+    jmp .loop
+.exit:
+    test bl, bl
+    jz .non_negative
+    dec rcx
+    mov byte [rcx], '-'
+.non_negative:
+    mov rax, rcx
+    ret
+.zero:
+    mov byte [rcx], '0'
+    mov rax, rcx
+    ret
+
+__u64_to_string:
+    mov rdx, rdi
+    mov rdi, 21
+    push rdx
+    call __memory_alloc
+    pop rdx
+    mov rsi, 10
+    lea rcx, [rax + 21]
+    mov byte [rcx], 0
+    dec rcx
+    mov rax, rdx
+    xor bl, bl
+    test rax, rax
+    jnz .loop
+    mov byte [rcx], '0'
+    mov rax, rcx
+    ret
+.loop:
+    test rax, rax
+    jz .exit
+    dec rcx
+    xor rdx, rdx
+    div rsi
+    add dl, '0'
+    mov byte [rcx], dl
+    jmp .loop
+.exit:
+    mov rax, rcx
+    ret
+
+__u32_to_string:
+    mov edx, edi
+    mov rdi, 11
+    push rdx
+    call __memory_alloc
+    pop rdx
+    mov esi, 10
+    lea rcx, [rax + 11]
+    mov byte [rcx], 0
+    dec rcx
+    mov eax, edx
+    xor bl, bl
+    test eax, eax
+    jnz .loop
+    mov byte [rcx], '0'
+    mov rax, rcx
+    ret
+.loop:
+    test rax, rax
+    jz .exit
+    dec rcx
+    xor rdx, rdx
+    div esi
+    add dl, '0'
+    mov byte [rcx], dl
+    jmp .loop
+.exit:
+    mov rax, rcx
+    ret
+
+__u16_to_string:
+    mov dx, di
+    mov rdi, 6
+    push rdx
+    call __memory_alloc
+    pop rdx
+    mov si, 10
+    lea rcx, [rax + 6]
+    mov byte [rcx], 0
+    dec rcx
+    mov eax, edx
+    xor bl, bl
+    test ax, ax
+    jnz .loop
+    mov byte [rcx], '0'
+    mov rax, rcx
+    ret
+.loop:
+    test rax, rax
+    jz .exit
+    dec rcx
+    xor rdx, rdx
+    div si
+    add dl, '0'
+    mov byte [rcx], dl
+    jmp .loop
+.exit:
+    mov rax, rcx
+    ret
+
+__u8_to_string:
+    mov dl, dil
+    mov rdi, 4
+    push rdx
+    call __memory_alloc
+    pop rdx
+    mov sil, 10
+    lea rcx, [rax + 4]
+    mov byte [rcx], 0
+    dec rcx
+    mov eax, edx
+    xor bl, bl
+    test ax, ax
+    jnz .loop
+    mov byte [rcx], '0'
+    mov rax, rcx
+    ret
+.loop:
+    test rax, rax
+    jz .exit
+    dec rcx
+    xor rdx, rdx
+    div si
+    add dl, '0'
+    mov byte [rcx], dl
+    jmp .loop
+.exit:
+    mov rax, rcx
+    ret
+
+; putc(char): void
+putc:
+    push rdi
+    mov rax, SYS_WRITE
+    mov rdi, STDOUT
+    lea rsi, [rsp] 
+    mov rdx, 1
+    syscall
+    pop rdi
+    ret
+
+; puts(string): void
+puts:
+    push rbp
+    mov rbp, rsp
+    xor rdx, rdx
+.loop:
+    inc rdx
+    mov cl, [rdi + rdx]
+    cmp cl, 0
+    jnz .loop
+    mov rsi, rdi
+    mov rax, SYS_WRITE
+    mov rdi, STDOUT
+    syscall
+    leave
+    ret
+
+; readc(): char
+readc:
+    mov rdx, 1
+    mov rsi, string_buffer
+    mov rax, SYS_READ
+    mov rdi, STDIN
+    mov rax, [string_buffer]
+    syscall
+    ret
+
+; readraw(): string
+readraw:
+    push r11
+    mov rdx, STR_BUFFER_SIZE
+    mov rsi, string_buffer
+    mov rax, SYS_READ
+    mov rdi, STDIN
+    syscall
+    mov rax, string_buffer
+    mov rsi, string_buffer
+.find_newline:
+    cmp byte [rsi], 0xa
+    je .found
+    inc rsi
+    jmp .find_newline
+.found:
+    mov byte [rsi], 0
+    sub rsi, rax
+    mov rdi, rsi
+    mov r11, rsi
+    call __memory_alloc
+    mov rdx, r11
+    mov rdi, rax
+    mov rsi, string_buffer
+    call __memory_copy
+    pop r11
+    ret
+
+; sys_read(u32, string, u64): void
+sys_read:
+    mov rax, SYS_READ
+    syscall
+    ret
+
+; sys_write(u32, string, u64): void
+sys_write:
+    mov rax, SYS_WRITE
+    syscall
+    ret
+
+; sys_open(string, i32, i32): u32
+sys_open:
+    mov rax, SYS_OPEN
+    syscall
+    ret
+
+; sys_close(u32): void
+sys_close:
+    mov rax, SYS_CLOSE
+    syscall
+    ret
+
+; exit(i32): void
+sys_exit:
+    mov rax, SYS_EXIT
+    syscall
