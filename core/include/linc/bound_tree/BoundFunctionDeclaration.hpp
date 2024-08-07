@@ -38,7 +38,7 @@ namespace linc
                 nodes.push_back(argument.get());
             
             nodes.push_back(m_body.get());
-            return std::move(nodes);
+            return nodes;
         }
     private:
         virtual std::string toStringInner() const final override;

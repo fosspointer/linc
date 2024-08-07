@@ -5,6 +5,7 @@
 
 namespace linc
 {
+    /// @brief Base AST node.
     class Node
     {
     public:

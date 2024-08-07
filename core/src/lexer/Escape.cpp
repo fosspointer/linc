@@ -8,7 +8,7 @@ namespace linc
     std::unordered_map<char, char> Escape::s_escapeCharacterMap = {
         LINC_ESCAPE_CHARACTER_MAP_PAIR('a', '\a'),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('b', '\b'),
-        LINC_ESCAPE_CHARACTER_MAP_PAIR('e', '\e'),
+        LINC_ESCAPE_CHARACTER_MAP_PAIR('e', '\x1B'),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('f', '\f'),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('n', '\n'),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('r', '\r'),

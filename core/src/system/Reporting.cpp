@@ -6,7 +6,7 @@ namespace linc
     Code::Source Reporting::s_source = {};
 
     std::string Reporting::stageToString(Stage stage){
-        const static auto format_string = "\e[4;90m$\e[0m";
+        const static auto format_string = "\x1B[4;90m$\x1B[0m";
         switch(stage)
         {
         case Stage::Environment:  return Logger::format(format_string, "ENVIRONMENT");

@@ -35,7 +35,7 @@ namespace linc
         std::ostringstream stream;
         stream << file->rdbuf();
         file->close();
-        return std::move(stream.str());
+        return stream.str();
     }
 
     bool Files::exists(const std::string& filepath_string)

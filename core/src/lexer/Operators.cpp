@@ -5,21 +5,6 @@
 #define LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(first, second) std::pair<linc::Token::Type, linc::Operators::Associativity>(first, second)
 #define LINC_OPERATOR_PRECEDENCE_MAP_PAIR(first, second) std::pair<linc::Token::Type, std::uint16_t>(first, second)
 
-struct UnaryOperator
-{
-    linc::Token::Type operatorToken;
-    linc::Types::Kind operandType;
-    linc::Types::Kind returnType;
-};
-
-struct BinaryOperator
-{
-    linc::Token::Type operatorToken;
-    linc::Types::Kind leftType;
-    linc::Types::Kind rightType;
-    linc::Types::Kind returnType;
-};
-
 namespace linc
 {
     const Operators::OperatorPrecedenceMap Operators::s_binaryOperatorPrecedenceMap = {

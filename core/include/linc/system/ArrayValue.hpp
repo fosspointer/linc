@@ -418,7 +418,7 @@ namespace linc
 
             switch(m_kind)
             {
-            case Types::Kind::_void: for(const auto& value: m_array__void) result.push_back(PrimitiveValue::voidValue); break;
+            case Types::Kind::_void: for(std::size_t i{0ul}; i < m_array__void.size(); ++i) result.push_back(PrimitiveValue::voidValue); break;
             case Types::Kind::_bool: for(const auto& value: m_array__bool) result.push_back(PrimitiveValue(value)); break;
             case Types::Kind::_char: for(const auto& value: m_array__char) result.push_back(PrimitiveValue(value)); break;
             case Types::Kind::u8: for(const auto& value: m_array_u8) result.push_back(PrimitiveValue(value)); break;

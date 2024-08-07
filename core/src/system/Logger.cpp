@@ -19,7 +19,7 @@ namespace linc
     
     std::string Logger::logTypeToString(Type type)
     {
-        static const auto log_type_format{"\e[1;$m$\e[0m"};
+        static const auto log_type_format{"\x1B[1;$m$\x1B[0m"};
         switch(type)
         {
         case Type::Debug:   return Logger::format(log_type_format, 36, "DEBUG");
@@ -106,12 +106,14 @@ namespace linc
                     break;
                 case '3': // Delete key
                     if (std::getchar() == '~') // Delete key
+                    {
                         if(index < result.length())
                         {
                             result.erase(index, 1ul);
                             reprint_line(result, prompt, index);
                         }
                         else std::fputc('\a', stdout);
+                    }
                     break;
                 }
                 continue;

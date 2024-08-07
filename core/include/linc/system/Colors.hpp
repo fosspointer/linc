@@ -41,15 +41,15 @@ namespace linc
         /// @return The resulting ANSI color-sequence.
         [[nodiscard]] static std::string toANSI(Color color)
         {
-            static const std::string black  = "\e[0;30m";
-            static const std::string red    = "\e[0;31m";
-            static const std::string green  = "\e[0;32m";
-            static const std::string yellow = "\e[0;33m";
-            static const std::string blue   = "\e[0;34m";
-            static const std::string purple = "\e[0;35m";
-            static const std::string cyan   = "\e[0;36m";
-            static const std::string white  = "\e[0;37m";
-            static const std::string _default  = "\e[0m";
+            static const std::string black  = "\x1B[0;30m";
+            static const std::string red    = "\x1B[0;31m";
+            static const std::string green  = "\x1B[0;32m";
+            static const std::string yellow = "\x1B[0;33m";
+            static const std::string blue   = "\x1B[0;34m";
+            static const std::string purple = "\x1B[0;35m";
+            static const std::string cyan   = "\x1B[0;36m";
+            static const std::string white  = "\x1B[0;37m";
+            static const std::string _default  = "\x1B[0m";
 
             switch(color)
             {

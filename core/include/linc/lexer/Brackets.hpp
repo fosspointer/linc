@@ -4,6 +4,7 @@
 
 namespace linc
 {
+    /// @brief Lexer-token representation of bracket-pairs. 
     class Brackets final
     {
     public:

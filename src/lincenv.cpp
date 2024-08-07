@@ -61,9 +61,9 @@ static int evaluate_file(std::string filepath, int argc, const char** argv, Argu
     {
         linc::Interpreter interpreter;
         std::vector<linc::ArrayInitializerExpression::Argument> arguments;
-        for(std::size_t i = 0ul; i < argc; ++i)
+        for(int i{0}; i < argc; ++i)
             arguments.push_back(linc::ArrayInitializerExpression::Argument{
-                .separator = i == argc - 1ul? std::nullopt: std::make_optional(linc::Token{.type = linc::Token::Type::Comma}),
+                .separator = i == argc - 1? std::nullopt: std::make_optional(linc::Token{.type = linc::Token::Type::Comma}),
                 .value = std::make_unique<const linc::LiteralExpression>(linc::Token{
                     .type = linc::Token::Type::StringLiteral,
                     .value = argv[i]
@@ -296,7 +296,7 @@ try
         else if(buffer == "q" || buffer == "/q")
             return LINC_EXIT_SUCCESS;
 
-        else if(bool curly = buffer.ends_with('{'))
+        else if(buffer.ends_with('{'))
         {
             std::size_t depth{1ul};
             std::string sub_buffer{};

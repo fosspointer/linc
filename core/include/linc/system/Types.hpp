@@ -67,7 +67,7 @@ namespace linc
             }
 
             type(const type& other)
-                :isMutable(other.isMutable), kind(other.kind)
+                :kind(other.kind), isMutable(other.isMutable)
             {
                 switch(kind)
                 {
@@ -79,7 +79,7 @@ namespace linc
             }
 
             type(type&& other)
-                :isMutable(other.isMutable), kind(other.kind)
+                :kind(other.kind), isMutable(other.isMutable)
             {
                 switch(kind)
                 {
@@ -195,14 +195,14 @@ namespace linc
                 return isAssignableTo(other) || other.isAssignableTo(*this);
             }
 
-            bool isMutable;
+            Kind kind;
             union
             {
                 Primitive primitive;
                 Array array;
                 Structure structure;
             };
-            Kind kind;
+            bool isMutable;
 
             static Structure cloneStructure(const Structure* structure, bool is_mutable)
             {
@@ -215,7 +215,7 @@ namespace linc
                     result.push_back(std::pair(type.first, std::move(clone)));
                 }
 
-                return std::move(result);
+                return result;
             }
         };
        

@@ -4,7 +4,7 @@
 namespace linc
 {
     Exception::Exception(std::string_view file, int line, std::string_view function, std::string_view message) noexcept
-        :m_function(function), m_file(file), m_line(line), m_message(message)
+        :m_file(file), m_function(function), m_message(message), m_line(line)
     {}
 
     std::string Exception::info() const noexcept

@@ -5,6 +5,7 @@
 
 namespace linc
 {
+    /// @brief Lexer-token representation of keywords.
     class Keywords final
     {
     public:

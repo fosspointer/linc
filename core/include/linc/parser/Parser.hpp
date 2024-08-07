@@ -7,9 +7,11 @@
 
 namespace linc
 {
+    /// @brief Class responsible for the parsing stage of compilation. Parses a list of tokens into AST nodes.
     class Parser final 
     {
     public:
+        /// @brief A symbol generic definition representation.
         struct Definition
         {
             enum class Kind: Types::u8
@@ -22,6 +24,7 @@ namespace linc
         using TokenList = std::vector<Token>;
         using TokenSize = TokenList::size_type;
 
+        /// @brief Constructor: begin a scope and append all internal symbols as valid definitions.
         inline Parser()
         {
             beginScope();
@@ -31,35 +34,65 @@ namespace linc
                 m_definitions.top().push_back(Definition{Definition::Kind::External, internal.name});
         }
         
+        /// @brief Parse the current list of tokens as a program.
+        /// @return The resulting program.
         Program operator()() const;
+
+        /// @brief Set the current list of tokens, as well as their corresponding filepath.
         void set(std::vector<Token> tokens, std::string_view filepath);
 
+        /// @brief Parse the following tokens as an AST statement.
         std::unique_ptr<const Statement> parseStatement() const;
+
+        /// @brief Parse the following tokens as an AST declaration.
         std::unique_ptr<const Declaration> parseDeclaration() const;
+        
+        /// @brief Parse the following tokens as an AST variable declaration.
         std::unique_ptr<const VariableDeclaration> parseVariableDeclaration() const;
+        
+        /// @brief Parse the following tokens as an AST function declaration.
         std::unique_ptr<const FunctionDeclaration> parseFunctionDeclaration() const;
+        
+        /// @brief Parse the following tokens as an AST external declaration.
         std::unique_ptr<const ExternalDeclaration> parseExternalDeclaration() const;
+        
+        /// @brief Parse the following tokens as an AST structure declaration.
         std::unique_ptr<const StructureDeclaration> parseStructureDeclaration() const;
 
+        /// @brief Parse the following tokens as an AST modifier expression.
         std::unique_ptr<const Expression> parseModifierExpression() const;
+        
+        /// @brief Parse the following tokens as an AST expression.
         std::unique_ptr<const Expression> parseExpression(uint16_t parent_precedence = 0) const;
+        
+        /// @brief Parse the following tokens as an AST primary expression.
         std::unique_ptr<const Expression> parsePrimaryExpression() const;
+        
+        /// @brief Parse the following tokens as an AST literal expression.
         std::unique_ptr<const LiteralExpression> parseLiteralExpression() const;
+        
+        /// @brief Parse the following tokens as an AST identifier expression.
         std::unique_ptr<const IdentifierExpression> parseIdentifierExpression() const;
+        
+        /// @brief Parse the following tokens as an AST type expression.
         std::unique_ptr<const TypeExpression> parseTypeExpression() const;
 
+        /// @brief Require the next token to be an EOF token (used when appropriate).
         inline auto parseEndOfFile() const { return match(Token::Type::EndOfFile); }
     private:
+        /// @brief Begin a new scope for all definitions.
         void beginScope() const
         {
             m_definitions.push(m_definitions.empty()? std::vector<Definition>{}: m_definitions.top());
         }
         
+        /// @brief End the current scope for all definitions.
         void endScope() const
         {
             m_definitions.pop();
         }
 
+        /// @brief Check whether a token is a valid identifier that corresponds to a type. 
         [[nodiscard]] bool isTypeIdentifier(const Token& token) const
         {
             if(token.type != Token::Type::Identifier || !token.value)
@@ -73,6 +106,7 @@ namespace linc
             return isValidStructure(*token.value);
         }
 
+        /// @brief Check whether a given identifier has been defined as a valid structure.
         [[nodiscard]] inline bool isValidStructure(const std::string& name) const
         {
             for(const auto& definition: m_definitions.top())
@@ -82,6 +116,7 @@ namespace linc
             return false;
         }
 
+        /// @brief Find an optional definition from an identifier.
         [[nodiscard]] std::optional<Definition::Kind> findDefinition(const std::string& name) const
         {
             for(const auto& definition: m_definitions.top())
@@ -91,6 +126,8 @@ namespace linc
             return std::nullopt;
         }
 
+        /// @brief Peek the token at a specified offset.
+        /// @return The token at the specified offset, if it exists. Otherwise, nullopt.
         [[nodiscard]] inline std::optional<Token> peek(TokenSize offset) const
         {
             if(m_index + offset > m_tokens.size() - 1ul)
@@ -98,6 +135,8 @@ namespace linc
             return m_tokens[m_index + offset];
         }
 
+        /// @brief Peek the next token.
+        /// @return The token, if it exists. Otherwise, nullopt.
         [[nodiscard]] inline std::optional<Token> peek() const
         {
             if(m_index > m_tokens.size() - 1ul)
@@ -105,6 +144,8 @@ namespace linc
             return m_tokens[m_index];
         }
 
+        /// @brief Consume and return the next token.
+        /// @return The consumed token, if it exists. Otherwise, an EOF.
         [[nodiscard]] inline Token consume() const
         {
             Token::Info info = getLastAvailableInfo();
@@ -114,6 +155,8 @@ namespace linc
             return m_tokens[m_index++];
         }
 
+        /// @brief Require that the next token be of the specified token-type. If it's not, report an error.
+        /// @return The following token, if it matches the given token-type. Otherwise, a dummy token that satisfies the type.
         [[nodiscard]] inline Token match(Token::Type type) const
         {
             Token::Info info = getLastAvailableInfo();
@@ -135,6 +178,7 @@ namespace linc
             return Token{.type = type, .info = info};
         }
         
+        /// @brief Get most appropriate/last available token information (character index, file, line).
         [[nodiscard]] inline Token::Info getLastAvailableInfo() const
         {
             return m_index < m_tokens.size()? m_tokens[m_index].info: m_tokens.back().info;

@@ -23,14 +23,7 @@
         return nullptr;
 
     auto bound_statement = binder.bindStatement(statement.get());
-    
-    bool errors = {false};
-    
-    for(const auto& report: linc::Reporting::getReports())
-        if(report.type == linc::Reporting::Type::Error)
-            errors = true;
-
-    return std::move(bound_statement);
+    return bound_statement;
 }
 
 

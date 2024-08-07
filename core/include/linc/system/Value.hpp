@@ -126,6 +126,7 @@ namespace linc
             case Kind::Primitive: m_primitive.~PrimitiveValue(); break;
             case Kind::Array: m_array.~ArrayValue(); break;
             case Kind::Structure: m_structure.~vector(); break;
+            default: break;
             }
         }
 

@@ -3,6 +3,7 @@
 
 namespace linc
 {
+    /// @brief Base AST statement node.
     class Statement : public Node
     {
     public:

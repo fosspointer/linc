@@ -77,7 +77,7 @@
     { \
         switch(m_kind) \
         { \
-        case Kind::Boolean: return op m_value_bool; \
+        case Kind::Boolean: return static_cast<bool>(op +m_value_bool); \
         case Kind::Unsigned: return op m_value_unsigned; \
         case Kind::Signed: return op m_value_signed; \
         default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind); \
@@ -94,7 +94,7 @@ return_type operator op() const_keyword \
         case Kind::Float: return op m_value_float; \
         case Kind::Double: return op m_value_double; \
         case Kind::Character: return op m_value_char; \
-        default: default_case: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind); \
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind); \
         } \
     }
 
@@ -518,11 +518,11 @@ namespace linc
         static const PrimitiveValue invalidValue, voidValue;
     private:
         PrimitiveValue(Types::_invalid_type value)
-            :m_value_invalid(value), m_kind(Kind::Invalid)
+            :m_kind(Kind::Invalid), m_value_invalid(value)
         {}
 
         PrimitiveValue(Types::_void_type value)
-            :m_value_void(value), m_kind(Kind::Void)
+            :m_kind(Kind::Void), m_value_void(value)
         {}
 
         Colors::Color getColorString() const 
@@ -545,6 +545,7 @@ namespace linc
             }
         }
 
+        Kind m_kind;
         union
         {
             Types::_invalid_type m_value_invalid;
@@ -558,7 +559,6 @@ namespace linc
             Types::string m_value_string;
             Types::type m_value_type;
         };
-        Kind m_kind;
 
         inline static std::string printableString(std::string_view str)
         {
@@ -568,7 +568,7 @@ namespace linc
             for(char character: str)
                 result.append(printableChar<'"'>(character));
 
-            return std::move(result);
+            return result;
         }
 
         template <char QUOTE>

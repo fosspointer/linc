@@ -157,7 +157,7 @@ namespace linc
         case Kind::BitwiseShiftRight:
             if(Types::isIntegral(left_type.primitive) && Types::isIntegral(right_type.primitive))
                 return Types::fromKind(left_type.primitive);
-            else Types::invalidType;
+            else return Types::invalidType;
         default: return Types::invalidType;
         }
     }

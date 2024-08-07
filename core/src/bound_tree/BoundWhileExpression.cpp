@@ -5,8 +5,8 @@ namespace linc
     BoundWhileExpression::BoundWhileExpression(Types::type type, std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundStatement> body_while_statement, 
         std::optional<std::unique_ptr<const BoundStatement>> body_finally_statement, std::optional<std::unique_ptr<const BoundStatement>> body_else_statement)
         :BoundExpression(type), m_testExpression(std::move(test_expression)), m_bodyWhileStatement(std::move(body_while_statement)),
-        m_bodyElseStatement(body_else_statement? std::make_optional(std::move(body_else_statement.value())): std::nullopt),
-        m_bodyFinallyStatement(body_finally_statement? std::make_optional(std::move(body_finally_statement.value())): std::nullopt)
+        m_bodyFinallyStatement(body_finally_statement? std::make_optional(std::move(body_finally_statement.value())): std::nullopt),
+        m_bodyElseStatement(body_else_statement? std::make_optional(std::move(body_else_statement.value())): std::nullopt)
     {
         if(!m_testExpression->getType().isCompatible(Types::fromKind(Types::Kind::_bool)))
             Reporting::push(Reporting::Report{
