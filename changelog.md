@@ -49,6 +49,7 @@
 - Hugely improved stringification operations.
 - Fixed literal expression signedness.
 - Fixed block expression stack adjustion (for scoping).
+- Updated linc icon.
 
 ## Future plans (in order of priority)
 
