@@ -10,30 +10,39 @@
 %define STDIN 0
 
 section .bss
-    string_buffer: resb STR_BUFFER_SIZE
+    __std_string_buffer: resb STR_BUFFER_SIZE
+section .data
+    __std_true_literal db "true", 0
+    __std_false_literal db "false", 0
 section .text
-    global __memory_copy
-    global __memory_alloc
-    global __string_length
-    global __string_concat
-    global __i64_to_string
-    global __i32_to_string
-    global __i16_to_string
-    global __i8_to_string
-    global __u64_to_string
-    global __u32_to_string
-    global __u16_to_string
-    global __u8_to_string
-    global putc
-    global puts
-    global readc
-    global readraw
+    global __memory_copy:function
+    global __memory_alloc:function
+    global __string_length:function
+    global __string_equals:function
+    global __string_concat:function
+    global __string_char_concat:function
+    global __char_string_concat:function
+    global __char_concat:function
+    global __i64_to_string:function
+    global __i32_to_string:function
+    global __i16_to_string:function
+    global __i8_to_string:function
+    global __u64_to_string:function
+    global __u32_to_string:function
+    global __u16_to_string:function
+    global __u8_to_string:function
+    global __char_to_string:function
+    global __bool_to_string:function
+    global putc:function
+    global puts:function
+    global readc:function
+    global readraw:function
 
-    global sys_read
-    global sys_write
-    global sys_open
-    global sys_close
-    global sys_exit
+    global sys_read:function
+    global sys_write:function
+    global sys_open:function
+    global sys_close:function
+    global sys_exit:function
 
 __memory_copy:
     test rdx, rdx
@@ -65,6 +74,27 @@ __string_length:
     dec rax
     ret
 
+__string_equals:
+    cmp byte [rdi], 0
+    je .end_string
+    cmp byte [rsi], 0
+    je .end_string
+    mov al, byte [rdi]
+    cmp al, byte [rsi]
+    jne .false
+    inc rdi
+    inc rsi
+    jmp __string_equals
+.end_string:
+    mov al, byte [rsi]
+    cmp al, byte [rdi]
+    sete al
+    movzx rax, al
+    ret
+.false:
+    mov rax, 0
+    ret
+
 __string_concat:
     push rbx ; caller saved registers that are in use
     push r12
@@ -86,18 +116,64 @@ __string_concat:
     mov rsi, rbx ; source = arg 0
     mov rdx, r14 ; count = strlen(arg 0)
     call __memory_copy ; first copy
-    ; add rdi, r11
     mov byte [rdi], 'a'
     mov rsi, r13 ; source = arg 1
     mov rdx, r12 ; count = strlen(arg 1)
     call __memory_copy ; second copy
-    ; mov byte [rdi + r12], 0 ; 
     pop rax
     pop r14
     pop r13 ; restore caller saved registers
     pop r12
     pop rbx
     ret
+
+__string_char_concat:
+    call __string_length
+    push rax
+    push rdi
+    push rsi
+    mov rdi, rax
+    inc rdi
+    call __memory_alloc
+    pop r8
+    pop rsi
+    pop rdx
+    mov rdi, rax
+    call __memory_copy
+    mov byte [rdi], r8b
+    ret
+
+__char_string_concat:
+    mov rdx, rdi
+    mov rdi, rsi
+    call __string_length
+    mov rsi, rdx
+    push rax
+    push rdi
+    push rsi
+    mov rdi, rax
+    inc rdi
+    call __memory_alloc
+    pop rcx
+    mov byte [rax], cl
+    inc rax
+    pop rsi
+    pop rdx
+    mov rdi, rax
+    call __memory_copy
+    dec rax
+    ret
+
+__char_concat:
+    push rdi
+    push rsi
+    mov rdi, 3
+    call __memory_alloc
+    pop rsi
+    pop rdi
+    mov byte [rax], dil
+    mov byte [rax + 1], sil
+    ret 
 
 __i64_to_string:
     mov rdx, rdi
@@ -375,6 +451,21 @@ __u8_to_string:
     mov rax, rcx
     ret
 
+__char_to_string:
+    push rdi
+    mov rdi, 2
+    call __memory_alloc
+    pop rdi
+    mov qword [rax], rdi
+    ret
+
+__bool_to_string:
+    lea rax, [rel __std_true_literal]
+    lea rdx, [rel __std_false_literal]
+    test di, di
+    cmovz rax, rdx
+    ret
+
 ; putc(char): void
 putc:
     push rdi
@@ -406,10 +497,10 @@ puts:
 ; readc(): char
 readc:
     mov rdx, 1
-    mov rsi, string_buffer
+    lea rsi, [rel __std_string_buffer]
     mov rax, SYS_READ
     mov rdi, STDIN
-    mov rax, [string_buffer]
+    mov rax, [rel __std_string_buffer]
     syscall
     ret
 
@@ -417,12 +508,12 @@ readc:
 readraw:
     push r11
     mov rdx, STR_BUFFER_SIZE
-    mov rsi, string_buffer
+    lea rsi, [rel __std_string_buffer]
     mov rax, SYS_READ
     mov rdi, STDIN
     syscall
-    mov rax, string_buffer
-    mov rsi, string_buffer
+    lea rax, [rel __std_string_buffer]
+    lea rsi, [rel __std_string_buffer]
 .find_newline:
     cmp byte [rsi], 0xa
     je .found
@@ -436,7 +527,7 @@ readraw:
     call __memory_alloc
     mov rdx, r11
     mov rdi, rax
-    mov rsi, string_buffer
+    lea rsi, [rel __std_string_buffer]
     call __memory_copy
     pop r11
     ret

@@ -45,7 +45,8 @@ namespace linc
             }
 
             addTokens(std::vector<Token>{m_rightParenthesis, m_typeSpecifier});
-            addTokens(m_returnType->getTokens());
+            if(m_returnType)
+                addTokens(m_returnType->getTokens());
             addTokens(m_body->getTokens());
         }
 
@@ -64,7 +65,7 @@ namespace linc
             }
 
             auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
-            auto type = Types::unique_cast<const TypeExpression>(m_returnType->clone());
+            auto type = m_returnType? Types::unique_cast<const TypeExpression>(m_returnType->clone()): nullptr;
 
             return std::make_unique<const FunctionDeclaration>(
                 m_functionSpecifier, m_typeSpecifier, m_leftParenthesis, m_rightParenthesis,

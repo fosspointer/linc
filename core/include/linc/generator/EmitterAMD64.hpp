@@ -32,9 +32,28 @@ namespace linc
 
         [[nodiscard]] inline const std::string& getDataSegment() const { return m_dataSegment; }
         [[nodiscard]] inline const std::string& getCodeSegment() const { return m_codeSegment; }
-        [[nodiscard]] inline std::string get() const { return Logger::format("segment .data\n$\nsegment .text\n$:$\n$",
-            m_dataSegment, m_externalSymbols, m_globalSymbols, m_codeSegment); }
+        [[nodiscard]] inline std::string get() const
+        {
+            std::string directives;
+            for(const auto& global: m_globalSymbols)
+                directives.append(std::string{s_indent} + "global " + global + '\n');
+            
+            for(const auto& external: m_externalSymbols)
+                directives.append(std::string{s_indent} + "extern " + external + '\n');
+
+            return Logger::format("segment .data\n$\nsegment .text\n$\n$", m_dataSegment, directives, m_codeSegment);
+        }
         [[nodiscard]] inline std::size_t getStackPosition() const { return m_stackPosition; } 
+
+        [[nodiscard]] inline std::string unaryAddress(std::string_view register_name, Registers::Size size)
+        {
+            return registerSizeToAddressString(size) + " [" + std::string{register_name} + ']';
+        }
+
+        [[nodiscard]] inline std::string binaryAddress(std::string_view first_register, std::string_view second_register, Registers::Size size)
+        {
+            return registerSizeToAddressString(size) + " [" + std::string{first_register} + " + " + std::string{second_register} + ']';
+        }
 
         inline void reset() { m_dataSegment = m_codeSegment = std::string{}; }
         inline void emit(const std::string& line, bool has_indent = true)
@@ -53,22 +72,35 @@ namespace linc
         {
             std::string label_name = name.empty()? Logger::format("L$", m_labelCounter++): std::string{name};
             emit(label_name + ':', false);
-            return std::move(label_name);
+            return label_name;
+        }
+
+        inline std::string getLocalLabel(std::size_t label_identifier_index) const { return m_localLabelMap.at(label_identifier_index); }
+        std::string localLabel(std::size_t label_identifier_index)
+        {
+            auto find = m_localLabelMap.find(label_identifier_index);
+            if(find != m_localLabelMap.end())
+                return find->second;
+
+            std::string label_name = std::string{".L"} + std::to_string(m_localLabelCounter++);
+            emit(label_name + ':');
+            m_localLabelMap.insert(std::pair<std::size_t, std::string>(label_identifier_index, label_name));
+            return label_name;
         }
 
         inline std::string identifier(std::string_view name, std::string_view data)
         {
             std::string label_name = name.empty()? Logger::format("L$", m_labelCounter++): std::string{name};
             emitData(std::string{label_name} + ": " + std::string{data}, false);
-            return std::move(label_name);
+            return label_name;
         }
 
         inline void push(std::string_view register_name) { unary(UnaryInstruction::Push, register_name); ++m_stackPosition; }
         inline void pop(std::string_view register_name) { unary(UnaryInstruction::Pop, register_name); --m_stackPosition; }
         inline void test(std::string_view register_name) { binary(BinaryInstruction::Test, register_name, register_name); }
-        inline void external(std::string_view symbol_name) { Logger::append(m_externalSymbols, "$extern $\n", s_indent, symbol_name); }
-        inline void global(std::string_view symbol_name) { Logger::append(m_globalSymbols, "$global $\n", s_indent, symbol_name); }
-        inline void prologue() { push(Registers::getBase()); binary(BinaryInstruction::Move, Registers::getBase(), Registers::getStack()); }
+        inline void external(std::string_view symbol_name) { m_externalSymbols.insert(std::string{symbol_name}); }
+        inline void global(std::string_view symbol_name) { m_globalSymbols.insert(std::string{symbol_name}); }
+        inline void prologue() { push(Registers::getBase()); binary(BinaryInstruction::Move, Registers::getBase(), Registers::getStack()); m_localLabelCounter = {}; }
         inline void epilogue() { nullary(NullaryInstruction::Leave); nullary(NullaryInstruction::Return); }
 
         std::string getStackOffset(std::size_t offset)
@@ -117,20 +149,20 @@ namespace linc
 
             auto result = identifier(label_name, Logger::format("db $0", literal));
             m_literalMap[std::string{contents}] = result;
-            return std::move(result);
+            return result;
         }
 
-        std::string defineNumeral(Types::u64 numeral, Registers::Size size, std::string_view label_name)
+        std::string defineNumeral(Types::u64 numeral, Registers::Size size, std::string_view label_name = "")
         {
             std::string define_directive{'d'};
 
             switch(size)
             {
-            case Registers::Size::Byte: define_directive.push_back('b');
-            case Registers::Size::Word: define_directive.push_back('w');
-            case Registers::Size::DoubleWord: define_directive.push_back('d');
-            case Registers::Size::QuadWord: define_directive.push_back('q');
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Registers::Size::QuadWord);
+            case Registers::Size::Byte: define_directive.push_back('b'); break;
+            case Registers::Size::Word: define_directive.push_back('w'); break;
+            case Registers::Size::DoubleWord: define_directive.push_back('d'); break;
+            case Registers::Size::QuadWord: define_directive.push_back('q'); break;
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Registers::Size);
             }
             return identifier(label_name, Logger::format("$ $0", define_directive, numeral));
         }
@@ -150,6 +182,17 @@ namespace linc
             emit(nullaryInstructionToString(instruction));
         }
     private:
+        static std::string registerSizeToAddressString(Registers::Size size)
+        {
+            switch(size)
+            {
+            case Registers::Size::Byte: return "byte";
+            case Registers::Size::Word: return "word";
+            case Registers::Size::DoubleWord: return "dword";
+            case Registers::Size::QuadWord: return "qword";
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Registers::Size);
+            }
+        }
         static std::string unaryInstructionToString(UnaryInstruction instruction, InstructionKind kind)
         {
             switch(kind)
@@ -281,12 +324,14 @@ namespace linc
                 value /= 16;
             }
 
-            return std::move(result);
+            return result;
         }
 
-        std::string m_dataSegment, m_codeSegment, m_externalSymbols, m_globalSymbols;
-        std::size_t m_labelCounter{0ul}, m_stackPosition{0ul};
+        std::string m_dataSegment, m_codeSegment;
+        std::size_t m_labelCounter{0ul}, m_localLabelCounter{0ul}, m_stackPosition{0ul};
         std::unordered_map<std::string, std::string> m_literalMap;
+        std::unordered_map<std::size_t, std::string> m_localLabelMap;
+        std::unordered_set<std::string> m_externalSymbols, m_globalSymbols;
         static constexpr const char* s_indent{LINC_EMITTER_LITERAL_INDENT};
     };
 }

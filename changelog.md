@@ -50,6 +50,12 @@
 - Fixed literal expression signedness.
 - Fixed block expression stack adjustion (for scoping).
 - Updated linc icon.
+- Linc internal shared library (building + linking).
+- Codegen: Added scoped symbols (fixing differently scoped 'name collisions', which shouldn't exist).
+- Codegen: Added basic statically-stored variables (public variables).
+- Functions can now implicitly determine their return type (emitting it does not assume void).
+- Codegen: while expressions now support else and finally clauses.
+- Codegen: added and improved string operations (plus string indexing). 
 
 ## Future plans (in order of priority)
 

@@ -72,7 +72,7 @@ namespace linc
         for(const auto& declaration: program->declarations)
             bound_program.declarations.push_back(bindDeclaration(declaration.get()));
 
-        return std::move(bound_program);
+        return bound_program;
     }
 
     std::unique_ptr<const BoundNode> Binder::bindNode(const Node* node)
@@ -200,17 +200,27 @@ namespace linc
         const Token::Info& info)
     {
         Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$::$ Undefined binary operator '$' for operands `$` and `$`.",
-                info.file, info.line, BoundBinaryOperator::kindToString(operator_kind), left_type, right_type)});
+            .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+            .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = info.characterIndex, .spanEnd = info.characterIndex + 1ul},
+            .message = linc::Logger::format("$::$ Invalid binary operator '$' for operands `$` and `$`.",
+            info.file, info.line, BoundBinaryOperator::kindToString(operator_kind), left_type, right_type)});
+
+        if(left_type.kind == Types::type::Kind::Primitive && right_type.kind == Types::type::Kind::Primitive
+        && Types::isNumeric(left_type.primitive) && Types::isNumeric(right_type.primitive) && left_type.primitive != right_type.primitive){
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
+                .message = linc::Logger::format("$::$ Note that Linc does not allow for implicit type conversions between numeric types. "
+                    "Did you forget to do a type-cast?", info.file, info.line, BoundBinaryOperator::kindToString(operator_kind), left_type, right_type)});
+        }
     }
 
     void Binder::reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::type operand_type, const Token::Info& info)
     {
         Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$::$ Undefined unary operator '$' for operand of type `$`.",
-                info.file, info.line, BoundUnaryOperator::kindToString(operator_kind), operand_type)});
+            .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+            .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = info.characterIndex, .spanEnd = info.characterIndex + 1ul},
+            .message = linc::Logger::format("$::$ Invalid unary operator '$' for operand of type `$`.",
+            info.file, info.line, BoundUnaryOperator::kindToString(operator_kind), operand_type)});
     }
 
     const std::unique_ptr<const BoundDeclarationStatement> Binder::bindDeclarationStatement(const DeclarationStatement* statement)
@@ -254,7 +264,8 @@ namespace linc
                 .message = Logger::format("$ Cannot define label '$' outside of scope statement.", 
                    statement->getInfoString(), statement->getIdentifier()->getValue())
             });
-            return std::make_unique<const BoundLabelStatement>(name, bindStatement(statement->getNext()), m_blockIndex);
+            return std::make_unique<const BoundLabelStatement>(name, bindStatement(statement->getNext()), m_blockIndex,
+                ++m_labelIdentifierIndex);
         }
         
         bool is_loop = false;
@@ -269,7 +280,7 @@ namespace linc
             });
 
         auto next = bindStatement(statement->getNext());
-        return std::make_unique<const BoundLabelStatement>(name, std::move(next), m_blockIndex);
+        return std::make_unique<const BoundLabelStatement>(name, std::move(next), m_blockIndex, ++m_labelIdentifierIndex);
     }
     
     const std::unique_ptr<const BoundJumpStatement> Binder::bindJumpStatement(const JumpStatement* statement)
@@ -283,10 +294,10 @@ namespace linc
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("Cannot jump to undefined label '$'.", name)
             });
-            return std::make_unique<const BoundJumpStatement>(-1ul, m_boundDeclarations.getScope());
+            return std::make_unique<const BoundJumpStatement>(-1ul, m_boundDeclarations.getScope(), m_labelIdentifierIndex);
         }
         
-        return std::make_unique<const BoundJumpStatement>(find->second.blockIndex, find->second.scope);
+        return std::make_unique<const BoundJumpStatement>(find->second.blockIndex, find->second.scope, m_labelIdentifierIndex);
     }
 
     const std::unique_ptr<const BoundReturnStatement> Binder::bindReturnStatement(const ReturnStatement* statement)
@@ -297,6 +308,13 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Return statement used outside of function scope.",
+                    statement->getInfoString())
+            });
+
+        else if(m_currentFunctionType == Types::invalidType)
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Cannot use return statements in functions with implicit return types.",
                     statement->getInfoString())
             });
 
@@ -395,14 +413,14 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = linc::Logger::format("$ Cannot redeclare symbol '$' as variable of type `$`.", 
-                    declaration->getInfoString(), name, variable->getDefaultValue().value()->getType())});
+                    declaration->getInfoString(), name, variable->getActualType())});
 
-        return std::move(variable);
+        return variable;
     }
 
     const std::unique_ptr<const BoundFunctionDeclaration> Binder::bindFunctionDeclaration(const FunctionDeclaration* declaration)
     {
-        auto return_type = bindTypeExpression(declaration->getReturnType())->getActualType();
+        auto return_type = declaration->getReturnType()? bindTypeExpression(declaration->getReturnType())->getActualType(): Types::invalidType;
         auto name = declaration->getIdentifier()->getValue();
 
         std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments;
@@ -441,6 +459,7 @@ namespace linc
         m_inFunction = true;
         m_currentFunctionType = return_type;
         auto body = bindStatement(declaration->getBody());
+        if(return_type == Types::invalidType) return_type = body->getType();
         m_currentFunctionType = Types::voidType;
         m_inFunction = false;
 
@@ -460,7 +479,7 @@ namespace linc
                 .message = Logger::format("$ Redefinition of symbol '$' as function declaration.",
                     declaration->getInfoString(), name)});
 
-        return std::move(function);
+        return function;
     }
 
     const std::unique_ptr<const BoundExternalDeclaration> Binder::bindExternalDeclaration(const ExternalDeclaration* declaration)
@@ -483,7 +502,7 @@ namespace linc
                 .message = Logger::format("$ Cannot redeclare symbol '$' as external function declaration.", declaration->getInfoString(), name)
             });
 
-        return std::move(external_function);
+        return external_function;
     }
 
     const std::unique_ptr<const BoundStructureDeclaration> Binder::bindStructureDeclaration(const StructureDeclaration* declaration)
@@ -512,7 +531,7 @@ namespace linc
                     declaration->getInfoString(), name)
             });
 
-        return std::move(structure);
+        return structure;
     }
  
     const std::unique_ptr<const BoundIdentifierExpression> Binder::bindIdentifierExpression(const IdentifierExpression* expression)
@@ -1038,7 +1057,6 @@ namespace linc
     const std::unique_ptr<const BoundAccessExpression> Binder::bindAccessExpression(const AccessExpression* expression)
     {
         auto name = expression->getIdentifier()->getValue();
-        auto find = m_boundDeclarations.find(name);
         auto base = bindExpression(expression->getBase());
 
         if(base->getType().kind != Types::type::Kind::Structure)

@@ -1,4 +1,5 @@
 #pragma once
+#include <linc/system/ScopeStack.hpp>
 #include <linc/system/Value.hpp>
 #include <linc/system/PrimitiveValue.hpp>
 #include <linc/system/ArrayValue.hpp>

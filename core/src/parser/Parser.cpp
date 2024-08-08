@@ -12,7 +12,7 @@ namespace linc
         auto end_of_file_token = match(Token::Type::EndOfFile);
         m_index = {};
         
-        return std::move(program);
+        return program;
     }
 
     void Parser::set(std::vector<Token> tokens, std::string_view filepath)
@@ -200,7 +200,7 @@ namespace linc
 
                 base = std::make_unique<const AccessExpression>(dot, std::move(base), std::move(identifier));
             }
-            else return std::move(base);
+            else return base;
         }
     }
 
@@ -508,12 +508,20 @@ namespace linc
 
         auto right_parenthesis = match(Token::Type::ParenthesisRight);
 
-        auto type_specifier = peek()->type == Token::Type::BraceLeft? Token{Token::Type::Colon}: match(Token::Type::Colon);
-        auto return_type = peek()->type == Token::Type::BraceLeft
-            ?std::make_unique<const TypeExpression>(Token{.type = Token::Type::Identifier, .value = "void"}, std::nullopt)
-            :parseTypeExpression();
+        auto has_type_specifier = peek()->type == Token::Type::Colon;
+        auto type_specifier = has_type_specifier? consume(): Token{Token::Type::Colon};
 
-        auto body = parseStatement();
+        std::unique_ptr<const Statement> body{nullptr};
+        std::unique_ptr<const TypeExpression> return_type{nullptr};
+
+        if(!has_type_specifier)
+            body = parseStatement();
+        
+        else
+        {
+            return_type = parseTypeExpression();
+            body = parseStatement();
+        }
 
         if(!function_name)
         {
@@ -525,7 +533,7 @@ namespace linc
             return nullptr;
         }
 
-        if(!return_type)
+        if(has_type_specifier && !return_type)
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,

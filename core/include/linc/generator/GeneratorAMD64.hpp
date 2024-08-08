@@ -5,6 +5,9 @@
 
 #define LINC_EXIT_PROGRAM_FAILURE 5
 #define LINC_EXIT_PROGRAM_SUCCESS 0
+#define LINC_GENERATORAMD64_STRING_LITERAL_TRUE "true"
+#define LINC_GENERATORAMD64_STRING_LITERAL_FALSE "false"
+#define LINC_GENERATORAMD64_STRING_LITERAL_VOID "{}"
 
 namespace linc
 {
@@ -16,16 +19,12 @@ namespace linc
             :m_program(program), m_platform(platform)
         {}
 
-        using Variable = std::size_t;
+        using Variable = std::variant<std::string, std::size_t>;
 
         std::pair<std::string, bool> generateProgram()
         {
             m_hasMain = {};
             m_emitter.reset();
-            m_emitter.external(s_memoryAlloc);
-            m_emitter.external(s_stringLength);
-            m_emitter.external(s_systemExit);
-            m_emitter.external(s_stringConcat);
 
             for(const auto& declaration: m_program->declarations)
                 generateDeclaration(declaration.get());
@@ -52,30 +51,53 @@ namespace linc
             if(auto expression_statement = dynamic_cast<const BoundExpressionStatement*>(statement))
                 generateExpression(expression_statement->getExpression());
 
-            else if(auto declaration_statement = dynamic_cast<const BoundDeclarationStatement*>(statement))
+            else if(auto declaration_statement = dynamic_cast<const BoundDeclarationStatement*>(statement)) {
                 generateDeclaration(declaration_statement->getDeclaration());
-
-            else if(auto return_statement = dynamic_cast<const BoundReturnStatement*>(statement))
-            {
-                if(m_isMain)
-                {
-                    m_emitter.external(s_systemExit);
-                    generateExpression(return_statement->getExpression());
-
-                    if(return_statement->getExpression()->getType().primitive == Types::Kind::_void)
-                        m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(0), std::to_string(0));
-                    else m_emitter.pop(Registers::getArgumentName(0));
-
-                    m_emitter.unary(Emitter::UnaryInstruction::Call, s_systemExit);
-                    return;
-                }
-                generateExpression(return_statement->getExpression());
-                m_emitter.pop(Registers::getReturn());
-                m_emitter.nullary(Emitter::NullaryInstruction::Leave);
-                m_emitter.nullary(Emitter::NullaryInstruction::Return);
+                m_emitter.push(Registers::getReturn());
             }
 
+            else if(auto label_statement = dynamic_cast<const BoundLabelStatement*>(statement))
+                generateLabelStatement(label_statement);
+
+            else if(auto jump_statement = dynamic_cast<const BoundJumpStatement*>(statement))
+                generateJumpStatement(jump_statement);
+
+            else if(auto return_statement = dynamic_cast<const BoundReturnStatement*>(statement))
+                generateReturnStatement(return_statement);
+
             else throw LINC_EXCEPTION("Statement type not yet implemented.");
+        }
+
+        void generateJumpStatement(const BoundJumpStatement* statement)
+        {
+            m_emitter.unary(Emitter::UnaryInstruction::Jump, m_emitter.getLocalLabel(statement->getIdentifierIndex()));
+        }
+
+        void generateLabelStatement(const BoundLabelStatement* statement)
+        {
+            m_emitter.localLabel(statement->getIdentifierIndex());
+            generateStatement(statement->getNext());
+        }
+
+        void generateBlockExpression(const BoundBlockExpression* expression)
+        {
+            auto stack_position = m_emitter.getStackPosition();
+            m_variables.beginScope();
+
+            for(const auto& item: expression->getStatements())
+            {
+                generateStatement(item.get());
+                m_emitter.pop(Registers::getPrimary());
+            }
+
+            m_variables.endScope();
+            auto offset = m_emitter.getStackPosition() - stack_position;
+            if(offset)
+            {
+                auto bytes = static_cast<Types::i64>(8ul * offset);
+                m_emitter.binary(bytes > 0l? Emitter::BinaryInstruction::Add: Emitter::BinaryInstruction::Subtract, Registers::getStack(), std::to_string(std::abs(bytes)));
+            }
+            m_emitter.unary(Emitter::UnaryInstruction::Push, Registers::getPrimary());
         }
 
         void generateExpression(const BoundExpression* expression)
@@ -84,8 +106,11 @@ namespace linc
                 generateLiteralExpression(literal);
             else if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(expression))
             {
-                auto variable = m_variables.at(identifier->getValue());
-                m_emitter.push(m_emitter.getStackOffset(variable));
+                auto variable = m_variables.get(identifier->getValue());
+                
+                if(const auto static_identifier = std::get_if<std::string>(&variable))
+                    m_emitter.push(*static_identifier);
+                else m_emitter.push(m_emitter.getStackOffset(std::get<std::size_t>(variable)));
             }
             else if(auto if_expression = dynamic_cast<const BoundIfExpression*>(expression))
                 generateIfExpression(if_expression);
@@ -100,23 +125,8 @@ namespace linc
                 generateBinaryExpression(binary_expression);
 
             else if(auto block_expression = dynamic_cast<const BoundBlockExpression*>(expression))
-            {
-                auto stack_position = m_emitter.getStackPosition();
-                ++m_scope;
+                generateBlockExpression(block_expression);
 
-                for(const auto& item: block_expression->getStatements())
-                    generateStatement(item.get());
-
-                m_emitter.pop(Registers::getPrimary());
-                --m_scope;
-                auto offset = m_emitter.getStackPosition() - stack_position;
-                if(offset)
-                {
-                    auto bytes = static_cast<Types::i64>(8ul * offset);
-                    m_emitter.binary(bytes > 0l? Emitter::BinaryInstruction::Add: Emitter::BinaryInstruction::Subtract, Registers::getStack(), std::to_string(std::abs(bytes)));
-                }
-                m_emitter.unary(Emitter::UnaryInstruction::Push, Registers::getPrimary());
-            }
             else if(auto external_call = dynamic_cast<const BoundExternalCallExpression*>(expression))
                 generateExternalCallExpression(external_call);
 
@@ -129,7 +139,44 @@ namespace linc
             else if(auto type_expression = dynamic_cast<const BoundTypeExpression*>(expression))
                 generateTypeExpression(type_expression);
 
+            else if(auto index_expression = dynamic_cast<const BoundIndexExpression*>(expression))
+                generateIndexExpression(index_expression);
+
             else throw LINC_EXCEPTION("Expression type not yet implemented.");
+        }
+
+        void generateReturnStatement(const BoundReturnStatement* statement)
+        {
+            if(m_isMain)
+            {
+                m_emitter.external(s_systemExit);
+                generateExpression(statement->getExpression());
+
+                if(statement->getExpression()->getType().primitive == Types::Kind::_void)
+                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(0), std::to_string(0));
+                else m_emitter.pop(Registers::getArgumentName(0));
+
+                m_emitter.unary(Emitter::UnaryInstruction::Call, s_systemExit);
+                return;
+            }
+            generateExpression(statement->getExpression());
+            m_emitter.pop(Registers::getReturn());
+            m_emitter.nullary(Emitter::NullaryInstruction::Leave);
+            m_emitter.nullary(Emitter::NullaryInstruction::Return);
+        }
+
+        void generateIndexExpression(const BoundIndexExpression* expression)
+        {
+            if(expression->getType().kind != Types::type::Kind::Primitive)
+                throw LINC_EXCEPTION("Indexing non-primitive expression not implemented");
+
+            generateExpression(expression->getArray());
+            generateExpression(expression->getIndex());
+            m_emitter.pop(Registers::getPrimary());
+            m_emitter.pop(Registers::getSecondary());
+            m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(Registers::Size::Byte),
+                m_emitter.binaryAddress(Registers::getPrimary(), Registers::getSecondary(), Registers::Size::Byte));
+            m_emitter.push(Registers::getPrimary());
         }
 
         void generateTypeExpression(const BoundTypeExpression* expression)
@@ -225,15 +272,16 @@ namespace linc
             m_emitter.pop(Registers::getReturn());
 
             Registers::Size operand_size = getRegisterOperandSize(expression->getOperand()->getType().primitive);
-            auto is_unsigned = Types::isUnsigned(expression->getOperand()->getType().primitive);
-
+            
             switch(expression->getOperator()->getKind())
             {
             case BoundUnaryOperator::Kind::UnaryPlus:
                 if(expression->getOperand()->getType().primitive == Types::Kind::string)
                 {
+                    static constexpr auto string_length_function{"__string_length"};
                     m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(0), Registers::getReturn());
-                    m_emitter.unary(Emitter::UnaryInstruction::Call, s_stringLength);
+                    m_emitter.unary(Emitter::UnaryInstruction::Call, string_length_function);
+                    m_emitter.external(string_length_function);
                 }
                 m_emitter.push(Registers::getReturn());
                 break;
@@ -255,31 +303,12 @@ namespace linc
                 {
                 case Types::Kind::type:
                 case Types::Kind::string: break;
-                case Types::Kind::_bool:
-                {
-                    static const auto true_literal = m_emitter.defineStringLiteral("true", "__literal_true");
-                    static const auto false_literal = m_emitter.defineStringLiteral("false", "__literal_false");
-                    m_emitter.binary(Emitter::BinaryInstruction::Test, Registers::getPrimary(Registers::Size::Byte), 
-                        Registers::getPrimary(Registers::Size::Byte));
-                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(), true_literal);
-                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getSecondary(), false_literal);
-                    m_emitter.binary(Emitter::BinaryInstruction::MoveIfZero, Registers::getPrimary(), Registers::getSecondary());
-                    break;
-                }
                 case Types::Kind::_void:
                 {
-                    static const auto void_literal = m_emitter.defineStringLiteral("{}", "__literal_void");
+                    static const auto void_literal = m_emitter.defineStringLiteral(LINC_GENERATORAMD64_STRING_LITERAL_VOID, "__literal_void");
                     m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(), void_literal);
                     break;
                 }
-                case Types::Kind::_char:
-                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getRemainder(Registers::Size::Byte),
-                        Registers::getPrimary(Registers::Size::Byte));
-                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(0), std::to_string(2ul));
-                    m_emitter.unary(Emitter::UnaryInstruction::Call, s_memoryAlloc);
-                    m_emitter.binary(Emitter::BinaryInstruction::Move, Logger::format("byte [$]", Registers::getPrimary()),
-                        Registers::getRemainder(Registers::Size::Byte));
-                    break;
                 case Types::Kind::u8:
                 case Types::Kind::u16:
                 case Types::Kind::u32:
@@ -288,6 +317,8 @@ namespace linc
                 case Types::Kind::i16:
                 case Types::Kind::i32:
                 case Types::Kind::i64:
+                case Types::Kind::_char:
+                case Types::Kind::_bool:
                 {
                     auto to_string_symbol = Logger::format("__$_to_string", Types::kindToString(expression->getOperand()->getType().primitive));
                     m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(0), Registers::getPrimary());
@@ -306,24 +337,74 @@ namespace linc
             if(expression->getOperator()->getReturnType().isMutable)
             {
                 auto name = dynamic_cast<const BoundIdentifierExpression*>(expression->getOperand())->getValue();
-                auto offset = m_variables.at(name);
-                m_emitter.binary(Emitter::BinaryInstruction::Move, m_emitter.getStackOffset(offset), Registers::getPrimary());
+                auto variable = m_variables.get(name);
+                std::string destination;
+
+                if(auto static_identifier = std::get_if<std::string>(&variable))
+                    destination = *static_identifier;
+                else destination = m_emitter.getStackOffset(std::get<std::size_t>(variable)); 
+                
+                m_emitter.binary(Emitter::BinaryInstruction::Move, destination, Registers::getPrimary());
             }
         }
 
         void generateWhileExpression(const BoundWhileExpression* expression)
         {
+            m_variables.beginScope();
+            auto has_else = expression->getElseBodyStatement().has_value();
+            auto has_finally = expression->getFinallyBodyStatement().has_value();
+
+            if(has_else || has_finally)
+                m_emitter.binary(Emitter::BinaryInstruction::Xor, Registers::getConditional(), Registers::getConditional());
+
             auto test_label = m_emitter.label();
             auto exit_label = m_emitter.reserveLabel();
             auto jump_instruction = generateConditional(expression->getTestExpression());
             m_emitter.unary(jump_instruction, exit_label);
+
             generateStatement(expression->getWhileBodyStatement());
+            m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getConditional(), std::to_string(-1));
+            m_emitter.pop(Registers::getReturn());
+
             m_emitter.unary(Emitter::UnaryInstruction::Jump, test_label);
             m_emitter.label(exit_label);
+            if(has_finally)
+            {
+                m_emitter.binary(Emitter::BinaryInstruction::Test, Registers::getConditional(), Registers::getConditional());
+                auto label_finally = m_emitter.reserveLabel();
+                auto label_else = m_emitter.reserveLabel();
+
+                m_emitter.unary(Emitter::UnaryInstruction::JumpIfZero, label_else);
+                generateStatement(*expression->getFinallyBodyStatement());
+                m_emitter.pop(Registers::getReturn());
+                
+                if(has_else)
+                    m_emitter.unary(Emitter::UnaryInstruction::Jump, label_finally);
+                
+                m_emitter.label(label_else);
+
+                if(has_else)
+                {
+                    generateStatement(expression->getElseBodyStatement().value());
+                    m_emitter.pop(Registers::getReturn());
+                    m_emitter.label(label_finally);
+                }
+            }
+            else if(has_else)
+            {
+                auto label_exit = m_emitter.reserveLabel();
+                m_emitter.binary(Emitter::BinaryInstruction::Test, Registers::getConditional(), Registers::getConditional());
+                m_emitter.unary(Emitter::UnaryInstruction::JumpIfNotZero, label_exit);
+                generateStatement(expression->getElseBodyStatement().value());
+                m_emitter.label(label_exit);
+            }
+            
+            m_variables.endScope();
         }
 
         void generateIfExpression(const BoundIfExpression* expression)
         {
+            m_variables.beginScope();
             auto jump_instruction = generateConditional(expression->getTestExpression());
 
             auto label_true = m_emitter.reserveLabel();
@@ -331,6 +412,7 @@ namespace linc
 
             m_emitter.unary(jump_instruction, label_false);
             generateStatement(expression->getIfBodyStatement());
+            m_emitter.pop(Registers::getReturn());
 
             auto has_else = expression->getElseBodyStatement().has_value();
 
@@ -342,8 +424,10 @@ namespace linc
             if(has_else)
             {
                 generateStatement(expression->getElseBodyStatement().value());
+                m_emitter.pop(Registers::getReturn());
                 m_emitter.label(label_true);
             }
+            m_variables.endScope();
         }
 
         void generateLiteralExpression(const BoundLiteralExpression* expression)
@@ -393,15 +477,15 @@ namespace linc
                 break;
             case Types::Kind::f32:
             {
-                Types::f32 value = expression->getValue().getF32();
-                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(), std::to_string(reinterpret_cast<Types::i32&>(value)));
+                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(), std::to_string(std::bit_cast<Types::i32>(
+                    expression->getValue().getF32())));
                 m_emitter.push(Registers::getPrimary());
                 break;
             }
             case Types::Kind::f64:
             {
-                Types::f64 value = expression->getValue().getF64();
-                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(), std::to_string(reinterpret_cast<Types::i64&>(value)));
+                m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(), std::to_string(std::bit_cast<Types::i64>(
+                    expression->getValue().getF64())));
                 m_emitter.push(Registers::getPrimary());
                 break;
             }
@@ -414,31 +498,37 @@ namespace linc
             const auto& default_value = declaration->getDefaultValue();
             const auto& name = declaration->getName();
 
-            // if(m_scope == 0ul)
-            // {
-            //     if(default_value && dynamic_cast<const BoundLiteralExpression*>(*default_value))
-            //     {
-            //         auto value = static_cast<const BoundLiteralExpression*>(*default_value)->getValue();
-            //         auto size = getRegisterOperandSize(default_value.value()->getType().primitive);
+            if(m_variables.getScopeSize() == 0ul)
+            {
+                auto size = getRegisterOperandSize(declaration->getActualType().primitive);
+                if(auto literal = dynamic_cast<const BoundLiteralExpression*>(*default_value); literal && default_value)
+                {
+                    auto value = static_cast<const BoundLiteralExpression*>(*default_value)->getValue();
+                    std::string label_name;
 
-            //         switch(default_value.value()->getType().primitive)
-            //         {
-            //         case Types::Kind::string: m_emitter.defineStringLiteral(value.getString(), name); break;
-            //         default: m_emitter.defineNumeral(value.getU64(), size, name); break;
-            //         }
-            //     }
-            //     return;
-            // }
+                    switch(default_value.value()->getType().primitive)
+                    {
+                    case Types::Kind::string: label_name = m_emitter.defineStringLiteral(value.getString()); break;
+                    default: label_name = m_emitter.defineNumeral(value.getU64(), size); break;
+                    }
+                    m_variables.append(name, label_name);
+                }
+
+                auto label_name = m_emitter.defineNumeral(0ul, std::move(size));
+                m_variables.append(name, label_name);
+                return;
+            }
 
             if(default_value)
                 generateExpression(*default_value);
             else m_emitter.push(std::to_string(0));
 
-            m_variables.insert(std::pair<std::string, Variable>(name, m_emitter.getStackPosition()));
+            m_variables.append(name, m_emitter.getStackPosition());
         }
 
         void generateFunctionDeclaration(const BoundFunctionDeclaration* declaration)
         {
+            m_variables.beginScope();
             if(declaration->getName() == "main")
             {
                 const static auto entry_point = "_start";
@@ -447,6 +537,7 @@ namespace linc
 
                 m_isMain = true;
                 generateStatement(declaration->getBody());
+                m_emitter.pop(Registers::getReturn());
                 m_isMain = false;
 
                 if(declaration->getReturnType().primitive == Types::Kind::_void)
@@ -454,7 +545,9 @@ namespace linc
                 else m_emitter.pop(Registers::getArgumentName(0));
                 
                 m_emitter.unary(Emitter::UnaryInstruction::Call, s_systemExit);
+                m_emitter.external(s_systemExit);
                 m_hasMain = true;
+                m_variables.endScope();
                 return;
             }
 
@@ -465,21 +558,60 @@ namespace linc
             for(std::size_t i{0ul}; i < declaration->getArguments().size(); ++i)
             {
                 m_emitter.push(Registers::getArgumentName(i));
-                m_variables.insert(std::pair<std::string, Variable>(declaration->getArguments()[i]->getName(), m_emitter.getStackPosition()));
+                m_variables.append(declaration->getArguments()[i]->getName(), m_emitter.getStackPosition());
             }
 
             generateStatement(declaration->getBody());
             m_emitter.pop(Registers::getReturn());
             m_emitter.epilogue();
+            m_variables.endScope();
         }
 
         void generateBinaryExpression(const BoundBinaryExpression* expression)
         {
             generateExpression(expression->getLeft());
             generateExpression(expression->getRight());
-            
-            m_emitter.pop(Registers::getSecondary());
-            m_emitter.pop(Registers::getPrimary());
+
+            if(expression->getOperator()->getReturnType().primitive == Types::Kind::string && expression->getOperator()->getKind() == BoundBinaryOperator::Kind::Addition)
+            {
+                auto left_is_char = expression->getOperator()->getLeftType().primitive == Types::Kind::_char;
+                auto right_is_char = expression->getOperator()->getRightType().primitive == Types::Kind::_char;
+                
+                m_emitter.pop(Registers::getArgumentName(1));
+                m_emitter.pop(Registers::getArgumentName(0));
+
+                if(left_is_char && right_is_char)
+                {
+                    static constexpr auto char_concat_function{"__char_concat"}; 
+                    m_emitter.unary(Emitter::UnaryInstruction::Call, char_concat_function);
+                    m_emitter.external(char_concat_function);
+                }
+                else if(left_is_char)
+                {
+                    static constexpr auto char_string_concat_function{"__char_string_concat"};
+                    m_emitter.unary(Emitter::UnaryInstruction::Call, char_string_concat_function);
+                    m_emitter.external(char_string_concat_function);
+                }
+                else if(expression->getOperator()->getRightType().primitive == Types::Kind::_char)
+                {
+                    static constexpr auto string_char_concat_function{"__string_char_concat"};
+                    m_emitter.unary(Emitter::UnaryInstruction::Call, string_char_concat_function);
+                    m_emitter.external(string_char_concat_function);
+                }
+                else
+                {
+                    static constexpr auto string_concat_function{"__string_concat"};
+                    m_emitter.unary(Emitter::UnaryInstruction::Call, string_concat_function);
+                    m_emitter.external(string_concat_function);
+                }
+                m_emitter.push(Registers::getReturn());
+                return;
+            }
+            else
+            {
+                m_emitter.pop(Registers::getSecondary());
+                m_emitter.pop(Registers::getPrimary());
+            }
 
             std::string instruction;
             auto is_primitive = expression->getOperator()->getReturnType().kind == Types::type::Kind::Primitive;
@@ -505,13 +637,7 @@ namespace linc
             {
             case BoundBinaryOperator::Kind::Addition:
             case BoundBinaryOperator::Kind::AdditionAssignment:
-                if(expression->getLeft()->getType().primitive == Types::Kind::string)
-                {
-                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(0), Registers::getPrimary());
-                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(1), Registers::getSecondary());
-                    m_emitter.unary(Emitter::UnaryInstruction::Call, s_stringConcat);
-                }
-                else if(is_sse)
+                if(is_sse)
                 {
                     m_emitter.binary(Emitter::BinaryInstruction::Add, Registers::getPrimaryFloating(), Registers::getSecondaryFloating(), kind);
                     m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getPrimary(operand_size), Registers::getPrimaryFloating(), kind);
@@ -604,6 +730,16 @@ namespace linc
                 m_emitter.push(Registers::getPrimary());
                 break;
             case BoundBinaryOperator::Kind::Equals:
+                if(expression->getLeft()->getType().primitive == Types::Kind::string)
+                {
+                    static constexpr auto string_equals_function{"__string_equals"};
+                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(0), Registers::getPrimary());
+                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(1), Registers::getSecondary());
+                    m_emitter.unary(Emitter::UnaryInstruction::Call, string_equals_function);
+                    m_emitter.external(string_equals_function);
+                    m_emitter.push(Registers::getReturn());
+                    break;
+                }
                 if(is_sse) m_emitter.binary(Emitter::BinaryInstruction::Compare, Registers::getPrimaryFloating(), Registers::getPrimaryFloating(), kind);
                 else m_emitter.binary(Emitter::BinaryInstruction::Compare, Registers::getPrimary(operand_size), Registers::getSecondary(operand_size), kind); 
                 m_emitter.unary(Emitter::UnaryInstruction::SetIfEqual, Registers::getPrimary(Registers::Size::Byte), kind);
@@ -631,8 +767,12 @@ namespace linc
             if(expression->getOperator()->getReturnType().isMutable)
             {
                 auto name = dynamic_cast<const BoundIdentifierExpression*>(expression->getLeft())->getValue();
-                auto offset = m_variables.at(name);
-                m_emitter.binary(Emitter::BinaryInstruction::Move, m_emitter.getStackOffset(offset), Registers::getPrimary(), Emitter::InstructionKind::General);
+                auto variable = m_variables.get(name);
+                std::string destination;
+                if(auto static_identifier = std::get_if<std::string>(&variable))
+                    destination = *static_identifier;
+                else destination = m_emitter.getStackOffset(std::get<std::size_t>(variable)); 
+                m_emitter.binary(Emitter::BinaryInstruction::Move, destination, Registers::getPrimary(), Emitter::InstructionKind::General);
             }
         }
 
@@ -704,9 +844,8 @@ namespace linc
         const Target::Platform m_platform;
         Emitter m_emitter;
         std::unordered_set<std::string> m_externalDefinitions;
-        std::unordered_map<std::string, Variable> m_variables;
+        ScopeStack<Variable> m_variables;
         bool m_hasMain{false}, m_isMain{false};
-        constexpr static auto s_systemExit{"sys_exit"}, s_memoryAlloc{"__memory_alloc"}, s_stringLength{"__string_length"}, s_stringConcat{"__string_concat"};
-        std::size_t m_scope{0ul};
+        constexpr static auto s_systemExit{"sys_exit"};
     };
 }

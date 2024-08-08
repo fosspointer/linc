@@ -18,11 +18,6 @@
 #define LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION 3
 #define LINC_EXIT_COMPILATION_FAILURE 4
 
-static std::string filepath_to_directory(const std::string& str)
-{
-    return str.substr(0ul, str.find_last_of('/'));
-}
-
 static std::string cut_filename(std::string str)
 {
     auto find = str.find_last_of('/');
@@ -63,12 +58,11 @@ static auto compile_code(const std::string& raw_code, const std::string& filepat
 
 int main(int argument_count, const char** arguments)
 try 
-{
+{    
 #ifdef LINC_WINDOWS
     linc::Windows::enableAnsi();
 #endif
     const static auto option_include = 'i', option_output = 'o', option_version = 'v', option_optimization = 'O';
-    const static auto internal_source{LINC_INSTALL_PATH "/include/lincinternal"};
 
     Arguments argument_handler(argument_count, arguments, std::unordered_map<char, Arguments::Option>{
         std::pair(option_include, Arguments::Option{.description = "Specify a custom include path."}),
@@ -117,9 +111,8 @@ try
     }
 
     std::vector<std::pair<std::string, bool>> code;
-    std::string linker_command{linc::Logger::format("ld $.o ", cut_filename(internal_source))};
+    std::string linker_command{linc::Logger::format("LD_LIBRARY_PATH=$/lib ld ", LINC_INSTALL_PATH)};
 
-    std::system(linc::Logger::format("nasm -felf64 $.s -o $.o", internal_source, cut_filename(internal_source)).c_str());
     for(const auto& file: files)
     {
         if(!linc::Files::exists(file))
@@ -153,8 +146,8 @@ try
         }
 
         auto binary_path = cut_filename(filepath);
-        linc::Files::write(linc::Logger::format("$.s", binary_path), assembly);
-        std::system(linc::Logger::format("nasm -felf64 $:#0.s -o $.o", binary_path).c_str());
+        linc::Files::write(linc::Logger::format("$.asm", binary_path), assembly);
+        std::system(linc::Logger::format("nasm -felf64 $:#0.asm -o $.o", binary_path).c_str());
         linc::Logger::append(linker_command, "$.o ", binary_path);
     }
 
@@ -167,7 +160,7 @@ try
         return LINC_EXIT_SUCCESS;
     }
 
-    linc::Logger::append(linker_command, "-o $", binary_name);
+    linc::Logger::append(linker_command, "-o $ -llinc -dynamic-linker /lib64/ld-linux-x86-64.so.2", binary_name);
     return std::system(linker_command.c_str());
 }
 catch(const linc::Exception& e)

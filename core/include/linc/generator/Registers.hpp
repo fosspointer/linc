@@ -52,8 +52,9 @@ namespace linc
         inline static constexpr std::string getStack(Size size = Size::QuadWord) { return getRegister(LINC_REGISTERS_STACK, size); }
         inline static constexpr std::string getBase(Size size = Size::QuadWord) { return getRegister(LINC_REGISTERS_BASE, size); }
         inline static constexpr std::string getPrimary(Size size = Size::QuadWord) { return getRegister(LINC_REGISTERS_A, size); }
-        inline static constexpr std::string getSecondary(Size size = Size::QuadWord) { return getRegister(LINC_REGISTERS_B, size); }
+        inline static constexpr std::string getSecondary(Size size = Size::QuadWord) { return getRegister(LINC_REGISTERS_C, size); }
         inline static constexpr std::string getRemainder(Size size = Size::QuadWord) { return getRegister(LINC_REGISTERS_D, size); }
+        inline static constexpr std::string getConditional(Size size = Size::QuadWord) { return getRegister(15, size); }
         inline static constexpr std::string getPrimaryFloating() { return "xmm0"; }
         inline static constexpr std::string getSecondaryFloating() { return "xmm1"; }
 

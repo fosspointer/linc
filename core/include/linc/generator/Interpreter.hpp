@@ -3,6 +3,9 @@
 #include <linc/BoundTree.hpp>
 #include <linc/Include.hpp>
 #include <linc/Binder.hpp>
+#ifdef LINC_LINUX
+#include <unistd.h>
+#endif
 
 #define LINC_EXIT_PROGRAM_FAILURE 5
 #define LINC_EXIT_PROGRAM_SUCCESS 0
@@ -149,11 +152,11 @@ namespace linc
 
                 return PrimitiveValue::voidValue;
             }
-            else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
+            else if(dynamic_cast<const BoundFunctionDeclaration*>(declaration))
                 return PrimitiveValue::voidValue;
-            else if(auto external_declaration = dynamic_cast<const BoundExternalDeclaration*>(declaration))
+            else if(dynamic_cast<const BoundExternalDeclaration*>(declaration))
                 return PrimitiveValue::voidValue;
-            else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(declaration))
+            else if(dynamic_cast<const BoundStructureDeclaration*>(declaration))
                 return PrimitiveValue::voidValue;
             else
             {
@@ -543,7 +546,7 @@ namespace linc
                     fputc(evaluateExpression(external_call->getArguments().at(0ul).get()).getPrimitive().getChar(), stdout);
                     return PrimitiveValue::voidValue;
                 }
-                else if(name == "readchar")
+                else if(name == "readc")
                 {
                     return PrimitiveValue(static_cast<char>(std::getchar()));
                 }
@@ -558,6 +561,26 @@ namespace linc
                     auto prompt = evaluateExpression(external_call->getArguments().at(0ul).get()).getPrimitive().getString();
                     return linc::PrimitiveValue(Logger::read(prompt));
                 }
+                else if(name == "sys_write")
+                {
+                #ifdef LINC_LINUX                        
+                    auto file_descriptor = evaluateExpression(external_call->getArguments().at(0ul).get()).getPrimitive();
+                    auto string = evaluateExpression(external_call->getArguments().at(1ul).get()).getPrimitive();
+                    auto size = evaluateExpression(external_call->getArguments().at(2ul).get()).getPrimitive();
+                    return PrimitiveValue(syscall(SYS_write, file_descriptor.getI32(), string.getString().c_str(), size.getU64()));
+                #else
+                    return PrimitiveValue::invalidValue;
+                #endif
+                }
+                else if(name == "sys_exit")
+                {
+                #ifdef LINC_LINUX                    
+                    auto arg_0 = evaluateExpression(external_call->getArguments().at(0ul).get()).getPrimitive();
+                    return PrimitiveValue(syscall(SYS_exit, arg_0.getI32()));
+                #else
+                    return PrimitiveValue::invalidValue;
+                #endif
+                }
                 else if(name == "system")
                 {
                     class Deleter
@@ -566,7 +589,7 @@ namespace linc
                         inline void operator()(std::FILE* file){ pclose(file); }
                     };
 
-                    static std::array<char, 128> buffer;
+                    static std::array<char, 128ul> buffer;
                     auto argument = evaluateExpression(external_call->getArguments().at(0ul).get());
 
                     std::string result, command = argument.getPrimitive().getString();

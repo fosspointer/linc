@@ -249,7 +249,7 @@ namespace linc
         [[nodiscard]] BoundTypeExpression::BoundArraySpecifiers bindArraySpecifiers(const std::vector<TypeExpression::ArraySpecifier>& specifiers);
 
         BoundDeclarations m_boundDeclarations;
-        Types::u64 m_blockIndex{-1ul};
+        Types::u64 m_blockIndex{-1ul}, m_labelIdentifierIndex{-1ul};
         Types::type m_currentFunctionType{Types::voidType};
         bool m_inLoop, m_inFunction;
     };
