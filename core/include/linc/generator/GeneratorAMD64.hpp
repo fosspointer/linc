@@ -23,12 +23,15 @@ namespace linc
 
         std::pair<std::string, bool> generateProgram()
         {
+            m_variables = ScopeStack<Variable>();
+            m_variables.beginScope();
             m_hasMain = {};
             m_emitter.reset();
 
             for(const auto& declaration: m_program->declarations)
                 generateDeclaration(declaration.get());
 
+            m_variables.endScope();
             return std::pair<std::string, bool>{m_emitter.get(), m_hasMain};
         }
 
@@ -499,7 +502,7 @@ namespace linc
             const auto& default_value = declaration->getDefaultValue();
             const auto& name = declaration->getName();
 
-            if(m_variables.getScopeSize() == 0ul)
+            if(m_variables.getScopeSize() == 1ul)
             {
                 auto size = getRegisterOperandSize(declaration->getActualType().primitive);
                 if(auto literal = dynamic_cast<const BoundLiteralExpression*>(*default_value); literal && default_value)
@@ -509,10 +512,11 @@ namespace linc
 
                     switch(default_value.value()->getType().primitive)
                     {
-                    case Types::Kind::string: label_name = m_emitter.defineStringLiteral(value.getString()); break;
+                    case Types::Kind::string: label_name = m_emitter.defineStringLiteral(value.getString(), declaration->getActualType().isMutable); break;
                     default: label_name = m_emitter.defineNumeral(value.getU64(), size); break;
                     }
                     m_variables.append(name, label_name);
+                    return;
                 }
 
                 auto label_name = m_emitter.defineNumeral(0ul, std::move(size));

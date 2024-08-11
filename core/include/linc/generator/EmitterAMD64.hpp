@@ -89,10 +89,10 @@ namespace linc
             return label_name;
         }
 
-        inline std::string identifier(std::string_view name, std::string_view data)
+        inline std::string identifier(std::string_view data)
         {
-            std::string label_name = name.empty()? Logger::format("L$", m_labelCounter++): std::string{name};
-            emitData(std::string{label_name} + ": " + std::string{data}, false);
+            std::string label_name = Logger::format("L$", m_labelCounter++);
+            emitData(label_name + ": " + std::string{data}, false);
             return label_name;
         }
 
@@ -111,15 +111,18 @@ namespace linc
                 signed_offset > 0l? Logger::format(" + $]", signed_offset): Logger::format(" - $]", -signed_offset));
         }
 
-        std::string defineStringLiteral(std::string_view contents, std::string_view label_name = "")
+        std::string defineStringLiteral(std::string_view contents, bool unique = false)
         {
             if(contents.empty())
-                return identifier(label_name, "db 0"); 
+                return identifier("db 0"); 
 
-            auto find = m_literalMap.find(std::string{contents});
-            
-            if(find != m_literalMap.end())
-                return find->second;
+            if(!unique)
+            {
+                auto find = m_literalMap.find(std::string{contents});
+                        
+                if(find != m_literalMap.end())
+                    return find->second;
+            }
 
             std::string literal{'"'};
             literal.reserve(contents.size() * 2ul);
@@ -148,12 +151,14 @@ namespace linc
                 }
             }
 
-            auto result = identifier(label_name, Logger::format("db $0", literal));
-            m_literalMap[std::string{contents}] = result;
+            auto result = identifier(Logger::format("db $0", literal));
+            
+            if(!unique)
+                m_literalMap[std::string{contents}] = result;
             return result;
         }
 
-        std::string defineNumeral(Types::u64 numeral, Registers::Size size, std::string_view label_name = "")
+        std::string defineNumeral(Types::u64 numeral, Registers::Size size)
         {
             std::string define_directive{'d'};
 
@@ -165,7 +170,7 @@ namespace linc
             case Registers::Size::QuadWord: define_directive.push_back('q'); break;
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Registers::Size);
             }
-            return identifier(label_name, Logger::format("$ $0", define_directive, numeral));
+            return identifier(Logger::format("$ $0", define_directive, numeral));
         }
 
         inline void binary(BinaryInstruction instruction, std::string_view destination, std::string_view source, InstructionKind kind = InstructionKind::General)
