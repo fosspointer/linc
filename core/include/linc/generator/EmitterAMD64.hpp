@@ -22,7 +22,8 @@ namespace linc
 
         enum class BinaryInstruction: unsigned char
         {
-            Move, MoveExtend, MoveIfZero, And, Or, Xor, Add, Subtract, Multiply, Divide, Compare, Test, ConvertFloatToInt, ConvertDoubleToInt, ConvertIntToFloat, ConvertIntToDouble
+            Move, MoveExtend, MoveIfZero, And, Or, Xor, Add, Subtract, Multiply, Divide, Compare, Test, ConvertFloatToInt, ConvertDoubleToInt, ConvertIntToFloat,
+            ConvertIntToDouble, BitShiftLeft, BitShiftRight
         };
 
         enum class InstructionKind: unsigned char
@@ -272,6 +273,8 @@ namespace linc
                 case BinaryInstruction::ConvertDoubleToInt: return "cvttsd2si";
                 case BinaryInstruction::ConvertIntToFloat: return "cvtsi2ss";
                 case BinaryInstruction::ConvertIntToDouble: return "cvtsi2sd";
+                case BinaryInstruction::BitShiftLeft: return "shl";
+                case BinaryInstruction::BitShiftRight: return "shr";
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(EmitterAMD64::UnaryInstruction);
                 }
             case InstructionKind::Float:

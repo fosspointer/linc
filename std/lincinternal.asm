@@ -182,16 +182,14 @@ __i64_to_string:
     call __memory_alloc
     pop rdx
     mov rsi, 10
-    lea rcx, [rax + 21]
-    mov byte [rcx], 0
-    dec rcx
+    lea rcx, [rax + 20]
     mov rax, rdx
-    xor bl, bl
+    xor r8b, r8b
     test rax, rax
     jz .zero
     jns .loop
     neg rax
-    inc bl
+    inc r8b
 .loop:
     test rax, rax
     jz .exit
@@ -202,7 +200,7 @@ __i64_to_string:
     mov byte [rcx], dl
     jmp .loop
 .exit:
-    test bl, bl
+    test r8b, r8b
     jz .non_negative
     dec rcx
     mov byte [rcx], '-'
@@ -221,16 +219,14 @@ __i32_to_string:
     call __memory_alloc
     pop rdx
     mov esi, 10
-    lea rcx, [rax + 12]
-    mov byte [rcx], 0
-    dec rcx
+    lea rcx, [rax + 11]
     mov eax, edx
-    xor bl, bl
+    xor r8b, r8b
     test eax, eax
     jz .zero
     jns .loop
     neg eax
-    inc bl
+    inc r8b
 .loop:
     test rax, rax
     jz .exit
@@ -241,7 +237,7 @@ __i32_to_string:
     mov byte [rcx], dl
     jmp .loop
 .exit:
-    test bl, bl
+    test r8b, r8b
     jz .non_negative
     dec rcx
     mov byte [rcx], '-'
@@ -260,18 +256,16 @@ __i16_to_string:
     call __memory_alloc
     pop rdx
     mov si, 10
-    lea rcx, [rax + 7]
-    mov byte [rcx], 0
-    dec rcx
-    mov eax, edx
-    xor bl, bl
+    lea rcx, [rax + 6]
+    mov ax, dx
+    xor r8b, r8b
     test ax, ax
     jz .zero
     jns .loop
     neg ax
-    inc bl
+    inc r8b
 .loop:
-    test rax, rax
+    test ax, ax
     jz .exit
     dec rcx
     xor rdx, rdx
@@ -280,7 +274,7 @@ __i16_to_string:
     mov byte [rcx], dl
     jmp .loop
 .exit:
-    test bl, bl
+    test r8b, r8b
     jz .non_negative
     dec rcx
     mov byte [rcx], '-'
@@ -298,28 +292,26 @@ __i8_to_string:
     mov rdi, 5
     call __memory_alloc
     pop rdx
-    mov sil, 10
-    lea rcx, [rax + 5]
-    mov byte [rcx], 0
-    dec rcx
-    mov eax, edx
-    xor bl, bl
+    mov si, 10
+    lea rcx, [rax + 4]
+    mov al, dl
+    xor r8b, r8b
     test al, al
     jz .zero
     jns .loop
     neg al
-    inc bl
+    inc r8b
 .loop:
-    test rax, rax
+    xor ah, ah
+    test al, al
     jz .exit
     dec rcx
-    xor rdx, rdx
-    div si
-    add dl, '0'
-    mov byte [rcx], dl
+    div sil
+    add ah, '0'
+    mov byte [rcx], ah
     jmp .loop
 .exit:
-    test bl, bl
+    test r8b, r8b
     jz .non_negative
     dec rcx
     mov byte [rcx], '-'
@@ -338,11 +330,8 @@ __u64_to_string:
     call __memory_alloc
     pop rdx
     mov rsi, 10
-    lea rcx, [rax + 21]
-    mov byte [rcx], 0
-    dec rcx
+    lea rcx, [rax + 20]
     mov rax, rdx
-    xor bl, bl
     test rax, rax
     jnz .loop
     mov byte [rcx], '0'
@@ -368,11 +357,8 @@ __u32_to_string:
     call __memory_alloc
     pop rdx
     mov esi, 10
-    lea rcx, [rax + 11]
-    mov byte [rcx], 0
-    dec rcx
+    lea rcx, [rax + 10]
     mov eax, edx
-    xor bl, bl
     test eax, eax
     jnz .loop
     mov byte [rcx], '0'
@@ -398,18 +384,15 @@ __u16_to_string:
     call __memory_alloc
     pop rdx
     mov si, 10
-    lea rcx, [rax + 6]
-    mov byte [rcx], 0
-    dec rcx
-    mov eax, edx
-    xor bl, bl
+    lea rcx, [rax + 5]
+    mov ax, dx
     test ax, ax
     jnz .loop
     mov byte [rcx], '0'
     mov rax, rcx
     ret
 .loop:
-    test rax, rax
+    test ax, ax
     jz .exit
     dec rcx
     xor rdx, rdx
@@ -428,24 +411,21 @@ __u8_to_string:
     call __memory_alloc
     pop rdx
     mov sil, 10
-    lea rcx, [rax + 4]
-    mov byte [rcx], 0
-    dec rcx
-    mov eax, edx
-    xor bl, bl
-    test ax, ax
+    lea rcx, [rax + 3]
+    mov al, dl
+    test al, al
     jnz .loop
     mov byte [rcx], '0'
     mov rax, rcx
     ret
 .loop:
-    test rax, rax
+    xor ah, ah
+    test al, al
     jz .exit
     dec rcx
-    xor rdx, rdx
-    div si
-    add dl, '0'
-    mov byte [rcx], dl
+    div sil
+    add ah, '0'
+    mov byte [rcx], ah
     jmp .loop
 .exit:
     mov rax, rcx

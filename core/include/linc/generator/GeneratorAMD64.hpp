@@ -396,6 +396,7 @@ namespace linc
                 m_emitter.binary(Emitter::BinaryInstruction::Test, Registers::getConditional(), Registers::getConditional());
                 m_emitter.unary(Emitter::UnaryInstruction::JumpIfNotZero, label_exit);
                 generateStatement(expression->getElseBodyStatement().value());
+                m_emitter.pop(Registers::getReturn());
                 m_emitter.label(label_exit);
             }
             
@@ -759,6 +760,18 @@ namespace linc
             case BoundBinaryOperator::Kind::LogicalOr:
             case BoundBinaryOperator::Kind::BitwiseOr:
                 m_emitter.binary(Emitter::BinaryInstruction::Or, Registers::getPrimary(), Registers::getSecondary(), kind);
+                m_emitter.push(Registers::getPrimary());
+                break;
+            case BoundBinaryOperator::Kind::BitwiseShiftLeft:
+                if constexpr(Registers::getCount() != Registers::getSecondary())
+                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getCount(), Registers::getSecondary());
+                m_emitter.binary(Emitter::BinaryInstruction::BitShiftLeft, Registers::getPrimary(), Registers::getCount(Registers::Size::Byte), kind);
+                m_emitter.push(Registers::getPrimary());
+                break;
+            case BoundBinaryOperator::Kind::BitwiseShiftRight:
+                if constexpr(Registers::getCount() != Registers::getSecondary())
+                    m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getCount(), Registers::getSecondary());
+                m_emitter.binary(Emitter::BinaryInstruction::BitShiftRight, Registers::getPrimary(), Registers::getCount(Registers::Size::Byte), kind);
                 m_emitter.push(Registers::getPrimary());
                 break;
             default: throw LINC_EXCEPTION("Unimplemented binary expresssion kind.");
