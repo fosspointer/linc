@@ -1,58 +1,55 @@
 #pragma once
 #include <linc/tree/Expression.hpp>
-#include <linc/tree/Statement.hpp>
 
 namespace linc
 {
     class IfExpression final : public Expression
     {
     public:
-        IfExpression(const Token& if_keyword_token, std::unique_ptr<const Expression> test_expression, std::unique_ptr<const Statement> body_if_statement,
-            const Token& else_keyword_token, std::unique_ptr<const Statement> body_else_statement)
-            :Expression(if_keyword_token.info), m_ifKeywordToken(if_keyword_token), m_testExpression(std::move(test_expression)),
-            m_bodyIfStatement(std::move(body_if_statement)), m_elseKeywordToken(else_keyword_token), m_bodyElseStatement(std::move(body_else_statement))
+        IfExpression(const Token& if_keyword, std::unique_ptr<const Expression> test_expression, std::unique_ptr<const Expression> if_body,
+            const Token& else_keyword, std::unique_ptr<const Expression> else_body)
+            :Expression(if_keyword.info), m_ifKeyword(if_keyword), m_testExpression(std::move(test_expression)),
+            m_ifBody(std::move(if_body)), m_elseKeyword(else_keyword), m_elseBody(std::move(else_body))
         {
-            addToken(m_ifKeywordToken);
+            addToken(m_ifKeyword);
             addTokens(m_testExpression->getTokens());
-            addTokens(m_bodyIfStatement->getTokens());
-            addToken(m_elseKeywordToken.value());
-            addTokens(m_bodyElseStatement.value()->getTokens());
+            addTokens(m_ifBody->getTokens());
+            addToken(m_elseKeyword.value());
+            addTokens(m_elseBody.value()->getTokens());
         }
 
-        IfExpression(const Token& if_keyword_token, std::unique_ptr<const Expression> test_expression, std::unique_ptr<const Statement> body_if_statement)
-            :Expression(if_keyword_token.info), m_ifKeywordToken(if_keyword_token), m_testExpression(std::move(test_expression)),
-            m_bodyIfStatement(std::move(body_if_statement)), m_elseKeywordToken(std::nullopt), m_bodyElseStatement(std::nullopt)
+        IfExpression(const Token& if_keyword, std::unique_ptr<const Expression> test_expression, std::unique_ptr<const Expression> if_body)
+            :Expression(if_keyword.info), m_ifKeyword(if_keyword), m_testExpression(std::move(test_expression)),
+            m_ifBody(std::move(if_body)), m_elseKeyword(std::nullopt), m_elseBody(std::nullopt)
         {
-            addToken(m_ifKeywordToken);
+            addToken(m_ifKeyword);
             addTokens(m_testExpression->getTokens());
-            addTokens(m_bodyIfStatement->getTokens());
+            addTokens(m_ifBody->getTokens());
         }
 
         virtual std::unique_ptr<const Expression> clone() const final override
         {
-            if(m_bodyElseStatement.has_value() && m_elseKeywordToken.has_value())
-                return std::make_unique<const IfExpression>(m_ifKeywordToken, std::move(m_testExpression->clone()), 
-                    std::move(m_bodyIfStatement->clone()), m_elseKeywordToken.value(), std::move(m_bodyElseStatement.value()->clone()));
-            else return std::make_unique<const IfExpression>(m_ifKeywordToken, std::move(m_testExpression->clone()), 
-                    std::move(m_bodyIfStatement->clone()));
+            if(m_elseBody.has_value() && m_elseKeyword.has_value())
+                return std::make_unique<const IfExpression>(m_ifKeyword, std::move(m_testExpression->clone()), 
+                    std::move(m_ifBody->clone()), m_elseKeyword.value(), std::move(m_elseBody.value()->clone()));
+            else return std::make_unique<const IfExpression>(m_ifKeyword, std::move(m_testExpression->clone()), 
+                    std::move(m_ifBody->clone()));
         }
 
-        const Token& getIfKeywordToken() const { return m_ifKeywordToken; } 
-        const std::optional<const Token>& getElseKeywordToken() const { return m_elseKeywordToken; }
+        const Token& getIfKeyword() const { return m_ifKeyword; } 
+        const std::optional<const Token>& getElseKeyword() const { return m_elseKeyword; }
 
         const Expression* const getTestExpression() const { return m_testExpression.get(); } 
-        const Statement* const getIfBodyStatement() const { return m_bodyIfStatement.get(); } 
-        const std::optional<const Statement*> getElseBodyStatement() const 
-        {  
-            if(m_bodyElseStatement.has_value())
-                return m_bodyElseStatement.value().get();
-            else return std::nullopt;
+        const Expression* const getIfBody() const { return m_ifBody.get(); } 
+        const std::optional<const Expression* const> getElseBody() const 
+        { 
+            return m_elseBody.has_value()? std::make_optional(m_elseBody->get()): std::nullopt;
         } 
     private:
-        const Token m_ifKeywordToken;
+        const Token m_ifKeyword;
         const std::unique_ptr<const Expression> m_testExpression;
-        const std::unique_ptr<const Statement> m_bodyIfStatement;
-        const std::optional<const Token> m_elseKeywordToken;
-        const std::optional<const std::unique_ptr<const Statement>> m_bodyElseStatement;
+        const std::unique_ptr<const Expression> m_ifBody;
+        const std::optional<const Token> m_elseKeyword;
+        const std::optional<const std::unique_ptr<const Expression>> m_elseBody;
     };
 }

@@ -4,7 +4,7 @@ namespace linc
 {
     BoundFunctionDeclaration::BoundFunctionDeclaration(const Types::type& type, const std::string& name, 
         std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments, 
-        std::unique_ptr<const BoundStatement> body)
+        std::unique_ptr<const BoundExpression> body)
         :BoundDeclaration(Types::voidType), m_returnType(type), m_name(name), m_arguments(std::move(arguments)), m_body(std::move(body))
     {}
 

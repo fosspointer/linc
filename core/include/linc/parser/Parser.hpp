@@ -1,8 +1,6 @@
 #pragma once
-#include <linc/system/Internals.hpp>
 #include <linc/parser/Program.hpp>
-#include <linc/lexer/Operators.hpp>
-#include <linc/Tree.hpp>
+#include <linc/system/Reporting.hpp>
 #include <linc/Include.hpp>
 
 namespace linc
@@ -25,14 +23,7 @@ namespace linc
         using TokenSize = TokenList::size_type;
 
         /// @brief Constructor: begin a scope and append all internal symbols as valid definitions.
-        inline Parser()
-        {
-            beginScope();
-            m_definitions.top().reserve(Internals::get().size());
-            
-            for(const auto& internal: Internals::get())
-                m_definitions.top().push_back(Definition{Definition::Kind::External, internal.name});
-        }
+        Parser();
         
         /// @brief Parse the current list of tokens as a program.
         /// @return The resulting program.
@@ -42,40 +33,73 @@ namespace linc
         void set(std::vector<Token> tokens, std::string_view filepath);
 
         /// @brief Parse the following tokens as an AST statement.
-        std::unique_ptr<const Statement> parseStatement() const;
+        std::unique_ptr<const class Statement> parseStatement() const;
 
         /// @brief Parse the following tokens as an AST declaration.
-        std::unique_ptr<const Declaration> parseDeclaration() const;
+        std::unique_ptr<const class Declaration> parseDeclaration() const;
+
+        /// @brief Parse the following tokens as an AST variant node (i.e. either a statement or an expression).
+        std::unique_ptr<const class Node> parseVariant() const;
         
         /// @brief Parse the following tokens as an AST variable declaration.
-        std::unique_ptr<const VariableDeclaration> parseVariableDeclaration() const;
+        std::unique_ptr<const class VariableDeclaration> parseVariableDeclaration() const;
+
+        /// @brief Parse the following tokens as a direct variable declaration (implicit typing). 
+        std::unique_ptr<const class DirectVariableDeclaration> parseDirectVariableDeclaration() const;
         
         /// @brief Parse the following tokens as an AST function declaration.
-        std::unique_ptr<const FunctionDeclaration> parseFunctionDeclaration() const;
+        std::unique_ptr<const class FunctionDeclaration> parseFunctionDeclaration() const;
         
         /// @brief Parse the following tokens as an AST external declaration.
-        std::unique_ptr<const ExternalDeclaration> parseExternalDeclaration() const;
+        std::unique_ptr<const class ExternalDeclaration> parseExternalDeclaration() const;
         
         /// @brief Parse the following tokens as an AST structure declaration.
-        std::unique_ptr<const StructureDeclaration> parseStructureDeclaration() const;
+        std::unique_ptr<const class StructureDeclaration> parseStructureDeclaration() const;
 
         /// @brief Parse the following tokens as an AST modifier expression.
-        std::unique_ptr<const Expression> parseModifierExpression() const;
+        std::unique_ptr<const class Expression> parseModifierExpression() const;
         
         /// @brief Parse the following tokens as an AST expression.
-        std::unique_ptr<const Expression> parseExpression(uint16_t parent_precedence = 0) const;
+        std::unique_ptr<const class Expression> parseExpression(uint16_t parent_precedence = 0) const;
         
         /// @brief Parse the following tokens as an AST primary expression.
-        std::unique_ptr<const Expression> parsePrimaryExpression() const;
+        std::unique_ptr<const class Expression> parsePrimaryExpression() const;
+
+        /// @brief Parse the following tokens as an AST array initializer expression.
+        std::unique_ptr<const class ArrayInitializerExpression> parseArrayInitializerExpression() const;
+
+        /// @brief Parse the following tokens as an AST block expression.
+        std::unique_ptr<const class BlockExpression> parseBlockExpression() const;
+
+        /// @brief Parse the following tokens as an AST parenthesis expression.
+        std::unique_ptr<const class ParenthesisExpression> parseParenthesisExpression() const;
+
+        /// @brief Parse the following tokens as an AST if(/else) expression.
+        std::unique_ptr<const class IfExpression> parseIfExpression() const;
+
+        /// @brief Parse the following tokens as an AST for expression.
+        std::unique_ptr<const class ForExpression> parseForExpression() const;
+
+        /// @brief Parse the following tokens as an AST while(/else/finally) expression.
+        std::unique_ptr<const class WhileExpression> parseWhileExpression() const;
+
+        /// @brief Parse the following tokens as an AST conversion expression.
+        std::unique_ptr<const class ConversionExpression> parseConversionExpression() const;
+
+        /// @brief Parse the following tokens as an AST conversion expression.
+        std::unique_ptr<const class StructureInitializerExpression> parseStructureInitializerExpression() const;
         
         /// @brief Parse the following tokens as an AST literal expression.
-        std::unique_ptr<const LiteralExpression> parseLiteralExpression() const;
+        std::unique_ptr<const class LiteralExpression> parseLiteralExpression() const;
         
         /// @brief Parse the following tokens as an AST identifier expression.
-        std::unique_ptr<const IdentifierExpression> parseIdentifierExpression() const;
+        std::unique_ptr<const class IdentifierExpression> parseIdentifierExpression() const;
+
+        /// @brief Parse the following tokens as an AST function call expression.
+        std::unique_ptr<const class CallExpression> parseCallExpression() const;
         
         /// @brief Parse the following tokens as an AST type expression.
-        std::unique_ptr<const TypeExpression> parseTypeExpression() const;
+        std::unique_ptr<const class TypeExpression> parseTypeExpression() const;
 
         /// @brief Require the next token to be an EOF token (used when appropriate).
         inline auto parseEndOfFile() const { return match(Token::Type::EndOfFile); }
@@ -165,11 +189,10 @@ namespace linc
                 return consume();
 
             auto token_type = peek()? peek()->type: Token::Type::InvalidToken;
-
+            
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                .span = peek() && !peek()->value? TextSpan{.lineIndex = -1ul}: TextSpan{.lineIndex = info.line - 1ul,
-                    .spanStart = info.characterIndex, .spanEnd = info.characterIndex + peek()->value.value().length()},
+                .span = TextSpan::fromTokenInfo(info),
                 .message = Logger::format("$::$ Expected token of type '$', got '$'.", info.file, info.line, Token::typeToString(type),
                     Token::typeToString(token_type))}, !m_matchFailed);
 

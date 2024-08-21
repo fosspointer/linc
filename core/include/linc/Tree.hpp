@@ -20,6 +20,7 @@
 #include <linc/tree/StructureInitializerExpression.hpp>
 #include <linc/tree/Declaration.hpp>
 #include <linc/tree/VariableDeclaration.hpp>
+#include <linc/tree/DirectVariableDeclaration.hpp>
 #include <linc/tree/FunctionDeclaration.hpp>
 #include <linc/tree/ExternalDeclaration.hpp>
 #include <linc/tree/StructureDeclaration.hpp>

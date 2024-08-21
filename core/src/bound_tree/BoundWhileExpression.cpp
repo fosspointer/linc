@@ -2,11 +2,11 @@
 
 namespace linc
 {
-    BoundWhileExpression::BoundWhileExpression(Types::type type, std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundStatement> body_while_statement, 
-        std::optional<std::unique_ptr<const BoundStatement>> body_finally_statement, std::optional<std::unique_ptr<const BoundStatement>> body_else_statement)
-        :BoundExpression(type), m_testExpression(std::move(test_expression)), m_bodyWhileStatement(std::move(body_while_statement)),
-        m_bodyFinallyStatement(body_finally_statement? std::make_optional(std::move(body_finally_statement.value())): std::nullopt),
-        m_bodyElseStatement(body_else_statement? std::make_optional(std::move(body_else_statement.value())): std::nullopt)
+    BoundWhileExpression::BoundWhileExpression(Types::type type, std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundExpression> while_body, 
+        std::optional<std::unique_ptr<const BoundExpression>> finally_body, std::optional<std::unique_ptr<const BoundExpression>> else_body)
+        :BoundExpression(type), m_testExpression(std::move(test_expression)), m_whileBody(std::move(while_body)),
+        m_finallyBody(finally_body? std::make_optional(std::move(finally_body.value())): std::nullopt),
+        m_elseBody(else_body? std::make_optional(std::move(else_body.value())): std::nullopt)
     {
         if(!m_testExpression->getType().isCompatible(Types::fromKind(Types::Kind::_bool)))
             Reporting::push(Reporting::Report{
@@ -18,23 +18,23 @@ namespace linc
 
     std::unique_ptr<const BoundExpression> BoundWhileExpression::clone() const
     {
-        if(m_bodyFinallyStatement.has_value())
-            if(m_bodyElseStatement.has_value())
+        if(m_finallyBody.has_value())
+            if(m_elseBody.has_value())
                 return std::make_unique<const BoundWhileExpression>(getType(), std::move(m_testExpression->clone()), 
-                    std::move(m_bodyWhileStatement->clone()), std::move(m_bodyFinallyStatement.value()->clone()),
-                    std::move(m_bodyElseStatement.value()->clone()));
+                    std::move(m_whileBody->clone()), std::move(m_finallyBody.value()->clone()),
+                    std::move(m_elseBody.value()->clone()));
             else
                 return std::make_unique<const BoundWhileExpression>(getType(), std::move(m_testExpression->clone()),
-                    std::move(m_bodyWhileStatement->clone()), std::move(m_bodyFinallyStatement.value()->clone()),
+                    std::move(m_whileBody->clone()), std::move(m_finallyBody.value()->clone()),
                     std::nullopt);
         else
             return std::make_unique<const BoundWhileExpression>(getType(), std::move(m_testExpression->clone()),
-                std::move(m_bodyWhileStatement->clone()), std::nullopt, std::nullopt);
+                std::move(m_whileBody->clone()), std::nullopt, std::nullopt);
     }
 
     std::string BoundWhileExpression::toStringInner() const
     {
-        return Logger::format("While$:$ Expression", m_bodyFinallyStatement.has_value()? "/Finally": "",
-            m_bodyElseStatement.has_value()? "/Else": "");
+        return Logger::format("While$:$ Expression", m_finallyBody.has_value()? "/Finally": "",
+            m_elseBody.has_value()? "/Else": "");
     }
 }

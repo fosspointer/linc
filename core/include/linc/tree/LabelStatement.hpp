@@ -7,8 +7,8 @@ namespace linc
     class LabelStatement final : public Statement
     {
     public:
-        LabelStatement(const Token& label_specifier, std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const Statement> next)
-            :Statement(label_specifier.info), m_labelSpecifier(label_specifier), m_identifier(std::move(identifier)), m_next(std::move(next))
+        LabelStatement(const Token& terminator, const Token& label_specifier, std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const Statement> next)
+            :Statement(terminator, label_specifier.info), m_labelSpecifier(label_specifier), m_identifier(std::move(identifier)), m_next(std::move(next))
         {
             addTokens(m_identifier->getTokens());
             addToken(m_labelSpecifier);
@@ -17,7 +17,7 @@ namespace linc
         virtual std::unique_ptr<const Statement> clone() const final override
         {
             auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
-            return std::make_unique<const LabelStatement>(m_labelSpecifier, std::move(identifier), m_next->clone());
+            return std::make_unique<const LabelStatement>(getTerminator(), m_labelSpecifier, std::move(identifier), m_next->clone());
         }
 
         inline const Token& getLabelSpecifier() const { return m_labelSpecifier; }

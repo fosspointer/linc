@@ -56,6 +56,12 @@
 - Functions can now implicitly determine their return type (emitting it does not assume void).
 - Codegen: while expressions now support else and finally clauses.
 - Codegen: added and improved string operations (plus string indexing). 
+- Added terminator `;` token for all statements.
+- Made bodies of if/while expressions, as well as those of function declarations statements. 
+- Made expression statements have void type.
+- Added tail-expressions to blocks.
+- Misc: error reporting improvements.
+- Made array typed variables with no default value and no explicit size invalid (instead of defaulting to 0).
 
 ## Future plans (in order of priority)
 

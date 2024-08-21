@@ -3,13 +3,13 @@
 namespace linc
 {
     BoundForExpression::BoundForExpression(std::unique_ptr<const BoundVariableDeclaration> declaration, std::unique_ptr<const BoundExpression> expression,
-        std::unique_ptr<const BoundStatement> statement, std::unique_ptr<const BoundStatement> body)
+        std::unique_ptr<const BoundStatement> statement, std::unique_ptr<const BoundExpression> body)
         :BoundExpression(body->getType()), m_specifier(BoundVariableForSpecifier{std::move(declaration), std::move(expression), std::move(statement)}), 
         m_body(std::move(body))    
     {}
 
     BoundForExpression::BoundForExpression(std::unique_ptr<const BoundIdentifierExpression> value_identifier,
-        std::unique_ptr<const BoundIdentifierExpression> array_identifier, std::unique_ptr<const BoundStatement> body)
+        std::unique_ptr<const BoundIdentifierExpression> array_identifier, std::unique_ptr<const BoundExpression> body)
         :BoundExpression(body->getType()), m_specifier(BoundRangeForSpecifier(std::move(value_identifier), std::move(array_identifier))),
         m_body(std::move(body))    
     {}

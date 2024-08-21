@@ -10,33 +10,33 @@
 
 namespace linc
 {
-    BoundIfExpression::BoundIfExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundStatement> body_if_statement, 
-        std::unique_ptr<const BoundStatement> body_else_statement, Types::type type)
-        :BoundExpression(type), m_testExpression(std::move(test_expression)), m_bodyIfStatement(std::move(body_if_statement)),
-        m_bodyElseStatement(std::move(body_else_statement))
+    BoundIfExpression::BoundIfExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundExpression> if_body, 
+        std::unique_ptr<const BoundExpression> else_body, Types::type type)
+        :BoundExpression(type), m_testExpression(std::move(test_expression)), m_ifBody(std::move(if_body)),
+        m_elseBody(std::move(else_body))
     {
         LINC_BOUND_IF_ELSE_EXPRESSION_TYPECHECK;
     }
 
-    BoundIfExpression::BoundIfExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundStatement> body_if_statement,
+    BoundIfExpression::BoundIfExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundExpression> if_body,
         Types::type type)
-        :BoundExpression(type), m_testExpression(std::move(test_expression)), m_bodyIfStatement(std::move(body_if_statement))
+        :BoundExpression(type), m_testExpression(std::move(test_expression)), m_ifBody(std::move(if_body))
     {
         LINC_BOUND_IF_ELSE_EXPRESSION_TYPECHECK;
     }
 
     std::unique_ptr<const BoundExpression> BoundIfExpression::clone() const
     {
-        if(m_bodyElseStatement.has_value())
-            return std::make_unique<const BoundIfExpression>(std::move(m_testExpression->clone()), std::move(m_bodyIfStatement->clone()),
-                std::move(m_bodyElseStatement.value()->clone()), getType());
+        if(m_elseBody.has_value())
+            return std::make_unique<const BoundIfExpression>(std::move(m_testExpression->clone()), std::move(m_ifBody->clone()),
+                std::move(m_elseBody.value()->clone()), getType());
         
         return std::make_unique<const BoundIfExpression>(std::move(m_testExpression->clone()),
-            std::move(m_bodyIfStatement->clone()), getType());
+            std::move(m_ifBody->clone()), getType());
     }
 
     std::string BoundIfExpression::toStringInner() const
     {
-        return Logger::format("If$ Expression", m_bodyElseStatement.has_value()? "/Else": "");
+        return Logger::format("If$ Expression", m_elseBody.has_value()? "/Else": "");
     }
 }

@@ -343,23 +343,23 @@ try
         if(linc::Reporting::hasError()){ linc::Reporting::clearReports(); success = false; continue; }
                 
         parser.set(tokens, shell_name);
-        auto tree = parser.parseStatement();
+        auto tree = parser.parseVariant();
         parser.parseEndOfFile();
 
         if(linc::Reporting::hasError()){ linc::Reporting::clearReports(); success = false; continue; }
 
-        auto program = binder.bindStatement(tree.get());
+        auto program = binder.bindNode(tree.get());
 
         if(optimization)
-            program = linc::Optimizer::optimizeStatement(program.get());
+            program = linc::Optimizer::optimizeNode(program.get());
 
         if(linc::Reporting::hasError()){ linc::Reporting::clearReports(); success = false; continue; }
         else if(show_tree)
-            interpreter.printNodeTree(program.get(), "");
+            interpreter.printNodeTree(program.get(), std::string{});
 
         if(!linc::Reporting::hasError())
         {
-            auto result = interpreter.evaluateStatement(program.get());
+            auto result = interpreter.evaluateNode(program.get());
             if((result.getIfPrimitive() && result.getPrimitive().getKind() != linc::PrimitiveValue::Kind::Invalid)
             || (result.getIfArray() && result.getArray().getKind() != linc::Types::Kind::invalid)
             || result.getIfStructure())

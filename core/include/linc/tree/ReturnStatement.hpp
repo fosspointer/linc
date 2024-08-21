@@ -7,8 +7,8 @@ namespace linc
     class ReturnStatement final : public Statement
     {
     public:
-        ReturnStatement(const Token& return_keyword, std::unique_ptr<const Expression> expression)
-            :Statement(expression->getInfo()), m_returnKeyword(return_keyword), m_expression(std::move(expression))
+        ReturnStatement(const Token& terminator, const Token& return_keyword, std::unique_ptr<const Expression> expression)
+            :Statement(terminator, expression->getInfo()), m_returnKeyword(return_keyword), m_expression(std::move(expression))
         {
             addToken(m_returnKeyword);
             addTokens(m_expression->getTokens());
@@ -19,7 +19,7 @@ namespace linc
     
         virtual std::unique_ptr<const Statement> clone() const final override
         {
-            return std::make_unique<const ReturnStatement>(m_returnKeyword, m_expression->clone());
+            return std::make_unique<const ReturnStatement>(getTerminator(), m_returnKeyword, m_expression->clone());
         } 
     private:
         const Token m_returnKeyword;

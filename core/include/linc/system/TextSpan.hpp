@@ -24,5 +24,10 @@ namespace linc
 
             return Code::trim(format);
         }
+
+        static TextSpan fromTokenInfo(const Token::Info& token_info)
+        {
+            return TextSpan{.lineIndex = token_info.line - 1ul, .spanStart = token_info.characterStart, .spanEnd = token_info.characterEnd};
+        }
     };
 }

@@ -39,7 +39,7 @@ namespace linc
             std::size_t line, characterIndex;
 
             inline operator char() const { return character; }
-            inline Token::Info getInfo() const { return Token::Info{.file = file, .line = line, .characterIndex = characterIndex}; }
+            inline Token::Info getInfo() const { return Token::Info{.file = file, .line = line, .characterStart = characterIndex, .characterEnd = characterIndex + 1ul}; }
         };
 
         /// @brief Representation of source code, as a dynamic array of lines.

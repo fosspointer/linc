@@ -48,6 +48,8 @@ namespace linc
         case Type::Dot: return "Dot";
         case Type::PreprocessorSpecifier: return "Preprocessor Specifier";
         case Type::GlueSpecifier: return "Glue Specifier";
+        case Type::ColonEquals: return "Colon Equals";
+        case Type::Terminator: return "Terminator";
         case Type::OperatorPlus: return "Plus Operator";
         case Type::OperatorMinus: return "Minus Operator";
         case Type::OperatorAsterisk: return "Asterisk Operator";
@@ -145,27 +147,6 @@ namespace linc
         case Type::KeywordBreak:
         case Type::KeywordContinue:
         case Type::KeywordStructure:
-            return true;
-        default: return false;
-        }
-    }
-
-    bool Token::isSymbol() const
-    {
-        switch(type)
-        {
-        case Type::ParenthesisLeft:
-        case Type::ParenthesisRight:
-        case Type::SquareLeft:
-        case Type::SquareRight:
-        case Type::BraceLeft:
-        case Type::BraceRight:
-        case Type::Colon:
-        case Type::Comma:
-        case Type::Tilde:
-        case Type::Dot:
-        case Type::PreprocessorSpecifier:
-        case Type::GlueSpecifier:
             return true;
         default: return false;
         }

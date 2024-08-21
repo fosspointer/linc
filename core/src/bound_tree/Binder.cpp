@@ -2,69 +2,205 @@
 #include <linc/Lexer.hpp>
 #include <linc/system/Internals.hpp>
 
-template <typename T>
-static std::optional<T> parseString(const std::string& str, std::optional<linc::Token::NumberBase> base)
-{
-    using namespace linc;
-    
-    if(str.empty())
-        return static_cast<T>(0);
-
-    char* p;
-    if constexpr(std::is_integral<T>::value)
-    {
-        T result{};
-        bool negative{str[0ul] == '-'};
-
-        for(std::size_t i{negative? 1ul: 0ul}; i < str.size(); ++i)
-            if(linc::Lexer::isDigit(str[i], base.value()))
-            {
-                auto displacement = std::isdigit(str[i])? 0: 'A' - '9' - 1;
-                result = result * static_cast<T>(linc::Token::baseToInt(base.value())) + (str[i] - '0' - displacement);
-            }
-            else
-                return std::nullopt;
-
-        return negative? -result: result;
-    }
-    else if constexpr(std::is_same<T, Types::f32>::value)
-    {
-        Types::f32 value = strtof(str.c_str(), &p);
-        
-        if(*p)
-            return std::nullopt;
-        else return value;
-    }
-    else if constexpr(std::is_same<T, Types::f64>::value)
-    {
-        Types::f64 value = strtod(str.c_str(), &p);
-        
-        if(*p)
-            return std::nullopt;
-        else return value;
-    }
-    else if constexpr(std::is_same<T, Types::_bool>::value)
-    {
-        Types::_bool value = strtoll(str.c_str(), &p, 10);
-        
-        if(str == "false")
-            return false;
-        else if(str == "true")
-            return true;
-        else if(*p)
-            return std::nullopt;
-        else return value;
-    }
-    else if constexpr(std::is_same<T, Types::_char>::value)
-    {
-        Types::_char value = str.empty()? '\0': str.at(0); 
-        return value;
-    }
-    else return std::nullopt;
-}
-
 namespace linc
 {
+    template <typename T>
+    static std::optional<T> parseString(const std::string& str, std::optional<Token::NumberBase> base)
+    {
+        using namespace linc;
+        
+        if(str.empty())
+            return static_cast<T>(0);
+
+        char* p;
+        if constexpr(std::is_integral<T>::value)
+        {
+            T result{};
+            bool negative{str[0ul] == '-'};
+
+            for(std::size_t i{negative? 1ul: 0ul}; i < str.size(); ++i)
+                if(Lexer::isDigit(str[i], base.value()))
+                {
+                    auto displacement = std::isdigit(str[i])? 0: 'A' - '9' - 1;
+                    result = result * static_cast<T>(Token::baseToInt(base.value())) + (str[i] - '0' - displacement);
+                }
+                else
+                    return std::nullopt;
+
+            return negative? -result: result;
+        }
+        else if constexpr(std::is_same<T, Types::f32>::value)
+        {
+            Types::f32 value = strtof(str.c_str(), &p);
+            
+            if(*p)
+                return std::nullopt;
+            else return value;
+        }
+        else if constexpr(std::is_same<T, Types::f64>::value)
+        {
+            Types::f64 value = strtod(str.c_str(), &p);
+            
+            if(*p)
+                return std::nullopt;
+            else return value;
+        }
+        else if constexpr(std::is_same<T, Types::_bool>::value)
+        {
+            Types::_bool value = strtoll(str.c_str(), &p, 10);
+            
+            if(str == "false")
+                return false;
+            else if(str == "true")
+                return true;
+            else if(*p)
+                return std::nullopt;
+            else return value;
+        }
+        else if constexpr(std::is_same<T, Types::_char>::value)
+        {
+            Types::_char value = str.empty()? '\0': str.at(0); 
+            return value;
+        }
+        else return std::nullopt;
+    }
+
+    BoundSymbols::BoundSymbols()
+    {
+        beginScope();
+    }
+
+    void BoundSymbols::clear()
+    {
+        while(!m_scopes.empty())
+            m_scopes.pop();
+
+        while(!m_labels.empty())
+            m_labels.pop();
+        
+        beginScope();
+    }
+
+    std::vector<std::unique_ptr<const BoundDeclaration>>::const_iterator BoundSymbols::find(const std::string& name) const
+    {
+        for(auto it = m_scopes.top().getSymbols().begin(); it != end(); ++it)
+            if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(it->get()))
+            {
+                if(variable->getName() == name)
+                    return it;
+            }
+            else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(it->get()))
+            {
+                if(function->getName() == name)
+                    return it;
+            }
+            else if(auto external_function = dynamic_cast<const BoundExternalDeclaration*>(it->get()))
+            {
+                if(external_function->getName() == name)
+                    return it;
+            }
+            else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(it->get()))
+            {
+                if(structure_declaration->getName() == name)
+                    return it;
+            }
+            else 
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .message = "Unexpected declaration type during symbol binding process"});
+
+                return end();
+            }
+            
+        return end();
+    }
+
+    bool BoundSymbols::push(std::unique_ptr<const BoundDeclaration> symbol)
+    {
+        auto find = end();
+        
+        if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(symbol.get()))
+            find = this->find(variable->getName());
+        else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(symbol.get()))
+            find = this->find(function->getName());
+        else if(auto external_function = dynamic_cast<const BoundExternalDeclaration*>(symbol.get()))
+            find = this->find(external_function->getName());
+        else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(symbol.get()))
+            find = this->find(structure_declaration->getName());
+        else 
+        {
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = "Unexpected declaration type during binding process"});
+            return false;
+        }          
+
+        if(find == end())
+        {
+            m_scopes.top().getSymbols().push_back(std::move(symbol));
+            return true;
+        }
+        else return false;
+    }
+
+    bool BoundSymbols::pushLabel(const std::string& name, Types::u64 block_index, Types::u64 scope, bool is_loop)
+    {
+        if(m_labels.empty())
+        {
+            Reporting::push(Reporting::Report{  
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("Attempted to create label '$' outside of scope.", name)
+            });
+            return false;
+        }
+            
+        else if(m_labels.top().contains(name))
+        {
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("Cannot redefine label '$' in this scope.", name)
+            });
+            return false;
+        }
+        else return (m_labels.top()[name] = Label{block_index, scope, is_loop}, true);
+    }
+
+    void BoundSymbols::beginScope()
+    {
+        if(m_scopes.size() != m_labels.size())
+            throw LINC_EXCEPTION("Scope stack doesn't match its corresponding label stack size wise.");
+
+        if(m_scopes.empty())
+        {
+            m_scopes.push(Scope{});
+            m_labels.push(std::unordered_map<std::string, Label>{});
+        }
+        else 
+        {
+            m_scopes.push(Scope(m_scopes.top()));
+            m_labels.push(m_labels.top());
+        }
+    }
+
+    void BoundSymbols::endScope()
+    {
+        m_scopes.pop();
+        m_labels.pop();
+    }
+
+    BoundSymbols::Scope::Scope(const Scope& scope)
+    {
+        for(const auto& symbol: scope.m_symbols)
+            m_symbols.push_back(symbol->clone());
+    }
+
+    BoundSymbols::Scope::Scope(Scope&& scope)
+    {
+        for(auto& symbol: scope.m_symbols)
+            m_symbols.push_back(std::move(symbol));
+    }
+
     BoundProgram Binder::bind(const Program* program)
     {
         BoundProgram bound_program;
@@ -89,7 +225,7 @@ namespace linc
         else if(auto declaration = dynamic_cast<const Declaration*>(node))
             return bindDeclaration(declaration);
 
-        else throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized node.");
+        else throw LINC_EXCEPTION_INVALID_INPUT("Encountered unrecognized node while binding");
     }
 
     std::unique_ptr<const BoundStatement> Binder::bindStatement(const Statement* statement)
@@ -125,6 +261,9 @@ namespace linc
     {
         if(auto variable_declaration = dynamic_cast<const VariableDeclaration*>(declaration))
             return Types::unique_cast<const BoundDeclaration>(bindVariableDeclaration(variable_declaration));
+
+        else if(auto direct_variable_declaration = dynamic_cast<const DirectVariableDeclaration*>(declaration))
+            return Types::unique_cast<const BoundDeclaration>(bindDirectVariableDeclaration(direct_variable_declaration));
 
         else if(auto function_declaration = dynamic_cast<const FunctionDeclaration*>(declaration))
             return Types::unique_cast<const BoundDeclaration>(bindFunctionDeclaration(function_declaration));
@@ -201,15 +340,15 @@ namespace linc
     {
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-            .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = info.characterIndex, .spanEnd = info.characterIndex + 1ul},
-            .message = linc::Logger::format("$::$ Invalid binary operator '$' for operands `$` and `$`.",
+            .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = info.characterStart, .spanEnd = info.characterEnd},
+            .message = Logger::format("$::$ Invalid binary operator '$' for operands `$` and `$`.",
             info.file, info.line, BoundBinaryOperator::kindToString(operator_kind), left_type, right_type)});
 
         if(left_type.kind == Types::type::Kind::Primitive && right_type.kind == Types::type::Kind::Primitive
         && Types::isNumeric(left_type.primitive) && Types::isNumeric(right_type.primitive) && left_type.primitive != right_type.primitive){
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$::$ Note that Linc does not allow for implicit type conversions between numeric types. "
+                .message = Logger::format("$::$ Note that Linc does not allow for implicit type conversions between numeric types. "
                     "Did you forget to do a type-cast?", info.file, info.line, BoundBinaryOperator::kindToString(operator_kind), left_type, right_type)});
         }
     }
@@ -218,8 +357,8 @@ namespace linc
     {
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-            .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = info.characterIndex, .spanEnd = info.characterIndex + 1ul},
-            .message = linc::Logger::format("$::$ Invalid unary operator '$' for operand of type `$`.",
+            .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = info.characterStart, .spanEnd = info.characterEnd},
+            .message = Logger::format("$::$ Invalid unary operator '$' for operand of type `$`.",
             info.file, info.line, BoundUnaryOperator::kindToString(operator_kind), operand_type)});
     }
 
@@ -235,22 +374,23 @@ namespace linc
         return std::make_unique<const BoundExpressionStatement>(std::move(expression));
     }
 
-    const std::unique_ptr<const BoundBlockExpression> Binder::bindBlockExpression(const BlockExpression* statement)
+    const std::unique_ptr<const BoundBlockExpression> Binder::bindBlockExpression(const BlockExpression* expression)
     {
         std::vector<std::unique_ptr<const BoundStatement>> statements;
 
         m_boundDeclarations.beginScope();
 
-        for(std::size_t i{0ul}; i < statement->getStatements().size(); ++i)
+        for(std::size_t i{0ul}; i < expression->getStatements().size(); ++i)
         {
             m_blockIndex = i;
-            statements.push_back(bindStatement(statement->getStatements()[i].get()));
+            statements.push_back(bindStatement(expression->getStatements()[i].get()));
         }
+        auto tail = expression->getTail()? bindExpression(expression->getTail()): nullptr;
         
         m_blockIndex = -1ul;
         m_boundDeclarations.endScope();
 
-        return std::make_unique<const BoundBlockExpression>(std::move(statements));
+        return std::make_unique<const BoundBlockExpression>(std::move(statements), std::move(tail));
     }
 
     const std::unique_ptr<const BoundLabelStatement> Binder::bindLabelStatement(const LabelStatement* statement)
@@ -399,20 +539,45 @@ namespace linc
         if(variable->getDefaultValue() && !variable->getDefaultValue().value()->getType().isAssignableTo(type))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$ Cannot assign expression of type `$` to variable of type `$`", 
+                .message = Logger::format("$ Cannot assign expression of type `$` to variable of type `$`", 
                     declaration->getInfoString(), variable->getDefaultValue().value()->getType(), type)});
 
         else if(!is_argument && !type.isMutable && !default_value)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$ Cannot declare immutable variable '$' without default value.",
+                .message = Logger::format("$ Cannot declare immutable variable '$' without default value.",
+                    declaration->getInfoString(), name)
+            });
+
+        else if(type.kind == Types::type::Kind::Array && !type.array.count.has_value())
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Cannot automatically infer the size of an array-typed variable with no default value.",
                     declaration->getInfoString(), name)
             });
 
         else if(!m_boundDeclarations.push(variable->clone()))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$ Cannot redeclare symbol '$' as variable of type `$`.", 
+                .message = Logger::format("$ Cannot redeclare symbol '$' as variable of type `$`.", 
+                    declaration->getInfoString(), name, variable->getActualType())});
+
+        return variable;
+    }
+
+    const std::unique_ptr<const BoundVariableDeclaration> Binder::bindDirectVariableDeclaration(const DirectVariableDeclaration* declaration)
+    {
+        auto value = bindExpression(declaration->getValue());
+        auto type = value->getType();
+        type.isMutable = declaration->getMutabilitySpecifier().has_value(); 
+        auto name = declaration->getIdentifier()->getValue();
+
+        auto variable = std::make_unique<const BoundVariableDeclaration>(type, name, std::move(value));
+
+        if(!m_boundDeclarations.push(variable->clone()))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Cannot redeclare symbol '$' as variable of type `$`.", 
                     declaration->getInfoString(), name, variable->getActualType())});
 
         return variable;
@@ -458,7 +623,7 @@ namespace linc
 
         m_inFunction = true;
         m_currentFunctionType = return_type;
-        auto body = bindStatement(declaration->getBody());
+        auto body = bindExpression(declaration->getBody());
         if(return_type == Types::invalidType) return_type = body->getType();
         m_currentFunctionType = Types::voidType;
         m_inFunction = false;
@@ -543,7 +708,7 @@ namespace linc
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$ Undeclared identifier '$'.", expression->getInfoString(), value)});
+                .message = Logger::format("$ Undeclared identifier '$'.", expression->getInfoString(), value)});
 
             return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
         }
@@ -552,7 +717,7 @@ namespace linc
 
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-            .message = linc::Logger::format("$ Cannot reference identifier '$', as it is not a variable.", expression->getInfoString(), value)});
+            .message = Logger::format("$ Cannot reference identifier '$', as it is not a variable.", expression->getInfoString(), value)});
 
         return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
     }
@@ -602,17 +767,17 @@ namespace linc
     const std::unique_ptr<const BoundIfExpression> Binder::bindIfExpression(const IfExpression* expression)
     {
         auto test_expression = bindExpression(expression->getTestExpression());
-        auto body_if_statement = bindStatement(expression->getIfBodyStatement());
-        auto _body_else_statement = expression->getElseBodyStatement();
+        auto if_body = bindExpression(expression->getIfBody());
+        auto _else_body = expression->getElseBody();
 
-        if(_body_else_statement)
+        if(_else_body)
         {
-            auto body_else_statement = bindStatement(_body_else_statement.value());
-            auto type = body_if_statement->getType() == body_else_statement->getType()? body_if_statement->getType(): Types::voidType;
-            return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(body_if_statement),
-                std::move(body_else_statement), type);
+            auto else_body = bindExpression(_else_body.value());
+            auto type = if_body->getType() == else_body->getType()? if_body->getType(): Types::voidType;
+            return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(if_body),
+                std::move(else_body), type);
         }
-        else return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(body_if_statement), Types::voidType);
+        else return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(if_body), Types::voidType);
     }
 
     const std::unique_ptr<const BoundWhileExpression> Binder::bindWhileExpression(const WhileExpression* expression)
@@ -621,49 +786,49 @@ namespace linc
         auto test_expression = bindExpression(expression->getTestExpression());
 
         m_inLoop = true;
-        auto body_statement = bindStatement(expression->getWhileBodyStatement());
+        auto body = bindExpression(expression->getWhileBody());
         m_inLoop = false;
         
-        auto type = body_statement->getType();
+        auto type = body->getType();
 
-        auto _body_finally_statement = expression->getFinallyBodyStatement();
-        auto _body_else_statement = expression->getElseBodyStatement();
+        auto _finally_body = expression->getFinallyBody();
+        auto _else_body = expression->getElseBody();
 
-        if(_body_finally_statement)
+        if(_finally_body)
         {
-            auto body_finally_statement = bindStatement(_body_finally_statement.value());
-            auto finally_type = type.isCompatible(body_finally_statement->getType())? type: Types::voidType;
+            auto finally_body = bindExpression(_finally_body.value());
+            auto finally_type = type.isCompatible(finally_body->getType())? type: Types::voidType;
 
-            if(_body_else_statement)
+            if(_else_body)
             {
-                auto body_else_statement = bindStatement(_body_else_statement.value());
-                auto else_type = finally_type.isCompatible(body_else_statement->getType())? finally_type: Types::voidType;
+                auto else_body = bindExpression(_else_body.value());
+                auto else_type = finally_type.isCompatible(else_body->getType())? finally_type: Types::voidType;
 
                 m_boundDeclarations.endScope();
-                return std::make_unique<const BoundWhileExpression>(else_type, std::move(test_expression), std::move(body_statement), 
-                    std::move(body_finally_statement), std::move(body_else_statement));
+                return std::make_unique<const BoundWhileExpression>(else_type, std::move(test_expression), std::move(body), 
+                    std::move(finally_body), std::move(else_body));
             }
             else
             {
                 m_boundDeclarations.endScope();
-                return std::make_unique<const BoundWhileExpression>(finally_type, std::move(test_expression), std::move(body_statement), 
-                    std::move(body_finally_statement));
+                return std::make_unique<const BoundWhileExpression>(finally_type, std::move(test_expression), std::move(body), 
+                    std::move(finally_body));
             }
         }
-        else if(_body_else_statement)
+        else if(_else_body)
         {
-            auto body_else_statement = bindStatement(_body_else_statement.value());
-            auto else_type = type.isCompatible(body_else_statement->getType())? type: Types::voidType;
+            auto else_body = bindExpression(_else_body.value());
+            auto else_type = type.isCompatible(else_body->getType())? type: Types::voidType;
 
             m_boundDeclarations.endScope();
-            return std::make_unique<const BoundWhileExpression>(else_type, std::move(test_expression), std::move(body_statement), 
-                std::nullopt, std::move(body_else_statement));
+            return std::make_unique<const BoundWhileExpression>(else_type, std::move(test_expression), std::move(body), 
+                std::nullopt, std::move(else_body));
         }
 
         else
         {
             m_boundDeclarations.endScope();
-            return std::make_unique<const BoundWhileExpression>(Types::voidType, std::move(test_expression), std::move(body_statement));
+            return std::make_unique<const BoundWhileExpression>(Types::voidType, std::move(test_expression), std::move(body));
         };
     }
 
@@ -680,7 +845,7 @@ namespace linc
             auto statement = bindStatement(variable_specifier->statement.get());\
             
             m_inLoop = true;
-            auto body = bindStatement(expression->getBody());
+            auto body = bindExpression(expression->getBody());
             m_inLoop = false;
 
             m_boundDeclarations.endScope(); 
@@ -704,7 +869,7 @@ namespace linc
             auto value_identifier = bindIdentifierExpression(range_specifier->valueIdentifier.get());
             
             m_inLoop = true;
-            auto body = bindStatement(expression->getBody());
+            auto body = bindExpression(expression->getBody());
             m_inLoop = false;
 
             m_boundDeclarations.endScope();
@@ -778,12 +943,10 @@ namespace linc
                 });
             }
 
-            return std::make_unique<const BoundFunctionCallExpression>(function->getReturnType(), name, std::move(arguments), 
-                std::move(function->getBody()->clone()));
+            return std::make_unique<const BoundFunctionCallExpression>(function->getReturnType(), name, std::move(arguments));
         }
 
-        return std::make_unique<const BoundFunctionCallExpression>(Types::invalidType, name, std::move(arguments),
-            std::make_unique<const BoundExpressionStatement>(std::make_unique<const BoundLiteralExpression>(PrimitiveValue::invalidValue, Types::invalidType)));
+        return std::make_unique<const BoundFunctionCallExpression>(Types::invalidType, name, std::move(arguments));
     }
 
     const std::unique_ptr<const BoundExternalCallExpression> Binder::bindExternalCallExpression(const CallExpression* expression)

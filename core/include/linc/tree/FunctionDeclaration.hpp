@@ -24,7 +24,7 @@ namespace linc
 
         FunctionDeclaration(const Token& function_specifier, const Token& type_specifier, const Token& left_parenthesis,
             const Token& right_parenenthesis, std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const TypeExpression> type, 
-            std::vector<Argument> arguments, std::unique_ptr<const Statement> body)
+            std::vector<Argument> arguments, std::unique_ptr<const Expression> body)
             :Declaration(function_specifier.info), m_functionSpecifier(function_specifier), m_typeSpecifier(type_specifier),
             m_leftParenthesis(left_parenthesis), m_rightParenthesis(right_parenenthesis), m_identifier(std::move(identifier)), m_returnType(std::move(type)), 
             m_arguments(std::move(arguments)), m_body(std::move(body))
@@ -79,12 +79,12 @@ namespace linc
         inline const IdentifierExpression* const getIdentifier() const { return m_identifier.get(); }
         inline const TypeExpression* const getReturnType() const { return m_returnType.get(); }
         inline const std::vector<Argument>& getArguments() const { return m_arguments; }
-        inline const Statement* const getBody() const { return m_body.get(); }
+        inline const Expression* const getBody() const { return m_body.get(); }
     private:
         const Token m_functionSpecifier, m_typeSpecifier, m_leftParenthesis, m_rightParenthesis;
         const std::unique_ptr<const IdentifierExpression> m_identifier;
         const std::unique_ptr<const TypeExpression> m_returnType;
         const std::vector<Argument> m_arguments;
-        const std::unique_ptr<const Statement> m_body;
+        const std::unique_ptr<const Expression> m_body;
     };
 }

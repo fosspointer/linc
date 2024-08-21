@@ -8,8 +8,9 @@ namespace linc
     class BoundBlockExpression final : public BoundExpression
     {
     public:
-        BoundBlockExpression(std::vector<std::unique_ptr<const BoundStatement>> statements);
+        BoundBlockExpression(std::vector<std::unique_ptr<const BoundStatement>> statements, std::unique_ptr<const BoundExpression> tail);
         [[nodiscard]] inline const std::vector<std::unique_ptr<const BoundStatement>>& getStatements() const { return m_statements; }
+        [[nodiscard]] inline const BoundExpression* const getTail() const { return m_tail? m_tail.get(): nullptr; }
 
         virtual std::unique_ptr<const BoundExpression> clone() const final override;
 
@@ -24,5 +25,6 @@ namespace linc
     private:
         virtual std::string toStringInner() const final override;
         const std::vector<std::unique_ptr<const BoundStatement>> m_statements;
+        const std::unique_ptr<const BoundExpression> m_tail;
     };
 }

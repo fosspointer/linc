@@ -14,7 +14,7 @@ namespace linc
         struct Info final 
         {
             std::string file;
-            std::size_t line, characterIndex;
+            std::size_t line, characterStart, characterEnd;
 
             bool operator==(const Info& other) const = default;
         };
@@ -34,7 +34,7 @@ namespace linc
 
             // Symbols
             ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, Colon, Comma, Tilde, Dot, PreprocessorSpecifier,
-            GlueSpecifier,
+            GlueSpecifier, ColonEquals, Terminator,
             
             // Arithmetic operators
             OperatorPlus, OperatorMinus, OperatorAsterisk, OperatorSlash, OperatorPercent,
@@ -107,12 +107,6 @@ namespace linc
         /// but serve a unique purpose in the language (e.g. if, true, return, while).
         /// @return Boolean corresponding to the result of the test.
         [[nodiscard]] bool isKeyword() const;
-
-        /// @brief Check whether this token is a symbol. Symbols are, like operators, character sequences which serve a specific
-        /// purpose in the language. Unlike operators, Symbols don't necessarily 'act' on a given operand, but are used purely for syntactical 
-        /// purposes (e.g. to specify a function's return type, to group statements into a scope).
-        /// @return Boolean corresponding to the result of the test.
-        [[nodiscard]] bool isSymbol() const;
 
         /// @brief Check whether this token is an identifier. Identifiers are non-reserved sequences of alphanumeric(plus '_') characters
         /// used to 'identify', as the name suggests, structures like functions and variables. An identifier cannot, however, have a digit as its

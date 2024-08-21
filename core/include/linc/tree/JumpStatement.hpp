@@ -7,8 +7,8 @@ namespace linc
     class JumpStatement final : public Statement
     {
     public:
-        JumpStatement(const Token& jump_keyword, std::unique_ptr<const IdentifierExpression> identifier)
-            :Statement(jump_keyword.info), m_jumpKeyword(jump_keyword), m_identifier(std::move(identifier))
+        JumpStatement(const Token& terminator, const Token& jump_keyword, std::unique_ptr<const IdentifierExpression> identifier)
+            :Statement(terminator, jump_keyword.info), m_jumpKeyword(jump_keyword), m_identifier(std::move(identifier))
         {
             addToken(m_jumpKeyword);
             addTokens(m_identifier->getTokens());
@@ -20,7 +20,7 @@ namespace linc
         virtual std::unique_ptr<const Statement> clone() const final override
         {
             auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
-            return std::make_unique<const JumpStatement>(m_jumpKeyword, std::move(identifier));
+            return std::make_unique<const JumpStatement>(getTerminator(), m_jumpKeyword, std::move(identifier));
         } 
     private:
         const Token m_jumpKeyword;

@@ -26,14 +26,14 @@ namespace linc
 
         ForExpression(const Token& for_keyword, const Token& left_parenthesis, const Token& right_parenthesis,
             std::unique_ptr<const VariableDeclaration> declaration, std::unique_ptr<const Expression> expression,
-            std::unique_ptr<const Statement> statement, std::unique_ptr<const Statement> body)
+            std::unique_ptr<const Statement> statement, std::unique_ptr<const Expression> body)
             :Expression(for_keyword.info), m_forKeyword(for_keyword), m_leftParenthesis(left_parenthesis), m_rightParenthesis(right_parenthesis),
             m_specifier(VariableForSpecifier{std::move(declaration), std::move(expression), std::move(statement)}), m_body(std::move(body))
         {}
 
         ForExpression(const Token& for_keyword, const Token& left_parenthesis, const Token& right_parenthesis, const Token& in_keyword,
             std::unique_ptr<const IdentifierExpression> value_identifier, std::unique_ptr<const IdentifierExpression> array_identifier,
-            std::unique_ptr<const Statement> body)
+            std::unique_ptr<const Expression> body)
             :m_forKeyword(for_keyword), m_leftParenthesis(left_parenthesis), m_rightParenthesis(right_parenthesis),
             m_specifier(RangeForSpecifier{in_keyword, std::move(value_identifier), std::move(array_identifier)}), m_body(std::move(body))
         {}
@@ -41,7 +41,7 @@ namespace linc
         inline const Token& getForKeyword() const { return m_forKeyword; }
         inline const Token& getLeftParenthesis() const { return m_leftParenthesis; }
         inline const Token& getRightParenthesis() const { return m_rightParenthesis; }
-        inline const Statement* const getBody() const { return m_body.get(); }
+        inline const Expression* const getBody() const { return m_body.get(); }
         
         inline const Specifier& getSpecifier() const { return m_specifier; }
 
@@ -68,6 +68,6 @@ namespace linc
     private:
         const Token m_forKeyword, m_leftParenthesis, m_rightParenthesis;
         const Specifier m_specifier;
-        const std::unique_ptr<const Statement> m_body;
+        const std::unique_ptr<const Expression> m_body;
     };
 }

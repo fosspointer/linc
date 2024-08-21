@@ -79,6 +79,8 @@ namespace linc
         LINC_OPERATOR_MAP_PAIR(",", Token::Type::Comma),
         LINC_OPERATOR_MAP_PAIR("#", Token::Type::PreprocessorSpecifier),
         LINC_OPERATOR_MAP_PAIR("##", Token::Type::GlueSpecifier),
+        LINC_OPERATOR_MAP_PAIR(":=", Token::Type::ColonEquals),
+        LINC_OPERATOR_MAP_PAIR(";", Token::Type::Terminator),
         LINC_OPERATOR_MAP_PAIR("+", Token::Type::OperatorPlus),
         LINC_OPERATOR_MAP_PAIR("++", Token::Type::OperatorIncrement),
         LINC_OPERATOR_MAP_PAIR("--", Token::Type::OperatorDecrement),
@@ -110,7 +112,7 @@ namespace linc
         LINC_OPERATOR_MAP_PAIR("!!", Token::Type::OperatorBitwiseNot)
     };
 
-    Token::Type Operators::get(const std::string& operator_string)
+    Token::Type Operators::get(const std::string& operator_string, const Token::Info& token_info)
     {
         auto find = s_operatorMap.find(operator_string);
         
@@ -119,7 +121,8 @@ namespace linc
 
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-            .message = linc::Logger::format("Expected operator, found invalid character sequence '$'.", operator_string)});
+            .span = TextSpan{.lineIndex = token_info.line - 1ul, .spanStart = token_info.characterStart, .spanEnd = token_info.characterEnd},
+            .message = linc::Logger::format("$::$ Expected operator, found invalid character sequence.", token_info.file, token_info.line)});
         
         return Token::Type::InvalidToken;
     }

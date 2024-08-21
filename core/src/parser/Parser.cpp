@@ -1,7 +1,19 @@
 #include <linc/parser/Parser.hpp>
+#include <linc/lexer/Operators.hpp>
+#include <linc/system/Internals.hpp>
+#include <linc/Tree.hpp>
 
 namespace linc
 {
+    Parser::Parser()
+    {
+        beginScope();
+        m_definitions.top().reserve(Internals::get().size());
+        
+        for(const auto& internal: Internals::get())
+            m_definitions.top().push_back(Definition{Definition::Kind::External, internal.name});
+    }
+
     Program Parser::operator()() const
     {
         Program program;
@@ -30,13 +42,15 @@ namespace linc
             auto label_specifier = consume();
             auto identifier = parseIdentifierExpression();
             auto next = parseStatement();
-            
-            return std::make_unique<const LabelStatement>(label_specifier, std::move(identifier), std::move(next)); 
+            auto terminator = match(Token::Type::Terminator);
+
+            return std::make_unique<const LabelStatement>(terminator, label_specifier, std::move(identifier), std::move(next)); 
         }
         else if(peek()->type == Token::Type::KeywordJump)
         {
             auto jump_keyword = consume();
             auto identifier = parseIdentifierExpression();
+            auto terminator = match(Token::Type::Terminator);
 
             if(!identifier)
             {
@@ -47,34 +61,37 @@ namespace linc
                 return nullptr;
             }
 
-            return std::make_unique<const JumpStatement>(jump_keyword, std::move(identifier));
+            return std::make_unique<const JumpStatement>(terminator, jump_keyword, std::move(identifier));
         }
         else if(peek()->type == Token::Type::KeywordBreak)
         {
             auto break_keyword = consume();
             auto identifier = peek()->isIdentifier()? parseIdentifierExpression(): nullptr;
+            auto terminator = match(Token::Type::Terminator);
 
-            return std::make_unique<const BreakStatement>(break_keyword, std::move(identifier));
+            return std::make_unique<const BreakStatement>(terminator, break_keyword, std::move(identifier));
         }
         else if(peek()->type == Token::Type::KeywordContinue)
         {
             auto continue_keyword = consume();
             auto identifier = peek()->isIdentifier()? parseIdentifierExpression(): nullptr;
+            auto terminator = match(Token::Type::Terminator);
 
-            return std::make_unique<const ContinueStatement>(continue_keyword, std::move(identifier));
+            return std::make_unique<const ContinueStatement>(terminator, continue_keyword, std::move(identifier));
 
         }
         else if(peek()->type == Token::Type::KeywordReturn)
         {
             auto return_keyword = consume();
             auto expression = parseExpression();
+            auto terminator = match(Token::Type::Terminator);
 
-            return std::make_unique<const ReturnStatement>(return_keyword, std::move(expression));
+            return std::make_unique<const ReturnStatement>(terminator, return_keyword, std::move(expression));
         }
         else if(auto declaration = parseDeclaration())
-            return std::make_unique<const DeclarationStatement>(std::move(declaration));
+            return std::make_unique<const DeclarationStatement>(match(Token::Type::Terminator), std::move(declaration));
         else if(auto expression = parseExpression())
-            return std::make_unique<const ExpressionStatement>(std::move(expression));
+            return std::make_unique<const ExpressionStatement>(match(Token::Type::Terminator), std::move(expression));
         else return nullptr;
     }
 
@@ -86,9 +103,29 @@ namespace linc
         {
             const auto _operator = consume();
             const auto operand = parseModifierExpression();
+            if(!operand)
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                    .span = TextSpan{.lineIndex = _operator.info.line - 1ul, .spanStart = _operator.info.characterStart, .spanEnd = _operator.info.characterEnd},
+                    .message = Logger::format("$::$ Invalid syntax given as unary operator operand.", _operator.info.file, _operator.info.line)
+                });
+                return nullptr;
+            }
             expression = std::make_unique<const UnaryExpression>(_operator, operand->clone());
         }
         else expression = parseModifierExpression();
+
+        // if(!expression)
+        // {
+        //     auto info = getLastAvailableInfo();
+        //     Reporting::push(Reporting::Report{
+        //         .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+        //         .span = TextSpan::fromTokenInfo(info),
+        //         .message = Logger::format("$::$ Invalid expression syntax.", info.file, info.line)
+        //     });
+        //     return nullptr;
+        // }
 
         while(peek()->isBinaryOperator())
         {
@@ -100,6 +137,15 @@ namespace linc
 
             const auto _operator = consume();
             auto right = parseExpression(precedence + (associativity == Operators::Associativity::Left? 1u: 0u));
+            if(!right)
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                    .span = TextSpan{.lineIndex = _operator.info.line - 1ul, .spanStart = _operator.info.characterStart, .spanEnd = _operator.info.characterEnd},
+                    .message = Logger::format("$::$ Invalid syntax given as binary operator right operand.", _operator.info.file, _operator.info.line)
+                });
+                return nullptr;
+            }
 
             expression = std::make_unique<const BinaryExpression>(_operator, expression->clone(), std::move(right));
 
@@ -153,15 +199,7 @@ namespace linc
         if(peek()->isLiteral())
             return std::make_unique<const LiteralExpression>(consume());
         
-        Token::Info info = getLastAvailableInfo();
-
-        Reporting::push(Reporting::Report{
-            .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-            .message = Logger::format("$::$ Expected literal expression, got '$'.", 
-                info.file, info.line, Token::typeToString(peek()->type))
-        });
-        
-        return std::make_unique<const LiteralExpression>(Token{.type = Token::Type::I32Literal, .value = "0", .info = peek()->info});
+        return nullptr;
     }
 
     std::unique_ptr<const Expression> Parser::parseModifierExpression() const
@@ -204,220 +242,325 @@ namespace linc
         }
     }
 
-    std::unique_ptr<const Expression> Parser::parsePrimaryExpression() const
+    std::unique_ptr<const BlockExpression> Parser::parseBlockExpression() const
     {
-        if(peek()->type == Token::Type::SquareLeft)
+        if(peek()->type != Token::Type::BraceLeft)
+            return nullptr;
+
+        auto left_brace = consume();
+        std::unique_ptr<const Expression> tail;
+        std::vector<std::unique_ptr<const Statement>> statements;
+
+        beginScope();
+        while(!peek()->isEndOfFile() && peek()->type != Token::Type::BraceRight)
         {
-            auto left_bracket = consume();
-            std::vector<ArrayInitializerExpression::Argument> values;
-
-            while(peek()->type != Token::Type::SquareRight)
+            auto token = peek();
+            auto member = parseVariant();
+            if(!member) break;
+            else if(auto expression = Types::unique_cast_dynamic<const Expression>(member->clone()))
             {
-                auto token = peek();
-                auto expression = parseExpression();
-                auto separator = peek()->type != Token::Type::SquareRight? std::make_optional(match(Token::Type::Comma)): std::nullopt;
-
-                values.push_back(ArrayInitializerExpression::Argument{
-                    .separator = separator,
-                    .value = std::move(expression)
-                });
-
-                if(!token || !peek() || token->info == peek()->info)
-                    break;
-            }
-            auto right_bracket = match(Token::Type::SquareRight);
-
-            return std::make_unique<const ArrayInitializerExpression>(left_bracket, right_bracket, std::move(values));
-        }
-        else if(peek()->type == Token::Type::BraceLeft)
-        {
-            auto left_brace = consume();
-            std::vector<std::unique_ptr<const Statement>> statements;
-
-            beginScope();
-
-            while(!peek()->isEndOfFile() && peek()->type != Token::Type::BraceRight)
-            {
-                auto token = peek();
-                statements.push_back(std::move(parseStatement()));
-
-                if(!peek() || !token || peek()->info == token->info)
-                    break;
+                tail = std::move(expression);
+                break;
             }
             
-            endScope();
+            auto statement = Types::unique_cast<const Statement>(std::move(member));
+            statements.push_back(std::move(statement));
 
-            auto right_brace = match(Token::Type::BraceRight);
-            return std::make_unique<const BlockExpression>(left_brace, right_brace, std::move(statements));
+            if(!peek() || !token || peek()->info == token->info)
+                break;
         }
-        else if(peek()->type == Token::Type::ParenthesisLeft)
-        {   
-            auto left_parenthesis = consume();
-            auto expression = parseExpression();
-            auto right_parenthesis = match(Token::Type::ParenthesisRight);
-            return std::make_unique<const ParenthesisExpression>(left_parenthesis, right_parenthesis, std::move(expression));
-        }
-        else if(peek()->type == Token::Type::KeywordIf)
+        endScope();
+
+        auto right_brace = match(Token::Type::BraceRight);
+        return std::make_unique<const BlockExpression>(left_brace, right_brace, std::move(statements), std::move(tail));
+    }
+
+    std::unique_ptr<const ArrayInitializerExpression> Parser::parseArrayInitializerExpression() const 
+    {
+        if(peek()->type != Token::Type::SquareLeft)
+            return nullptr;
+            
+        auto left_bracket = consume();
+        std::vector<ArrayInitializerExpression::Argument> values;
+
+        while(peek()->type != Token::Type::SquareRight)
         {
-            auto if_keyword = consume();
-            auto check_expression = parseExpression();
-            auto if_body_statement = parseStatement();
-
-            if(peek() && peek()->type == Token::Type::KeywordElse)
-            {
-                auto else_keyword = consume();
-                auto else_body_statement = parseStatement();
-                return std::make_unique<const IfExpression>(if_keyword, std::move(check_expression), std::move(if_body_statement), else_keyword,
-                    std::move(else_body_statement));
-            }
-            else return std::make_unique<const IfExpression>(if_keyword, std::move(check_expression), std::move(if_body_statement));
-        }
-        else if(peek()->type == Token::Type::KeywordFor)
-        {
-            auto for_keyword = consume();
-            auto left_parenthesis = match(Token::Type::ParenthesisLeft);
-
-            if(peek()->type == Token::Type::KeywordIn)
-            {
-                auto in_keyword = consume();
-                auto array_identifier = parseIdentifierExpression();
-                auto value_identifier = parseIdentifierExpression();
-
-                if(!array_identifier || !value_identifier)
-                    return nullptr;
-
-                auto right_parenthesis = match(Token::Type::ParenthesisRight);
-                auto body = parseStatement();
-
-                return std::make_unique<const ForExpression>(for_keyword, left_parenthesis, right_parenthesis,
-                    in_keyword, std::move(value_identifier), std::move(array_identifier), std::move(body));
-            }
-
-            auto declaration = parseVariableDeclaration();
+            auto info = getLastAvailableInfo();
+            auto token = peek();
             auto expression = parseExpression();
-            auto statement = parseStatement();
+            if(!expression)
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                    .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = info.characterStart, .spanEnd = info.characterEnd},
+                    .message = Logger::format("$::$ Invalid member expression in array initializer.", info.file, info.line)
+                });
+                break;
+            }
+            auto separator = peek()->type != Token::Type::SquareRight? std::make_optional(match(Token::Type::Comma)): std::nullopt;
 
-            if(!declaration || !expression || !statement)
+            values.push_back(ArrayInitializerExpression::Argument{
+                .separator = separator,
+                .value = std::move(expression)
+            });
+
+            if(!token || !peek() || token->info == peek()->info)
+                break;
+        }
+        auto right_bracket = match(Token::Type::SquareRight);
+
+        return std::make_unique<const ArrayInitializerExpression>(left_bracket, right_bracket, std::move(values));
+    }
+
+    std::unique_ptr<const ParenthesisExpression> Parser::parseParenthesisExpression() const
+    {
+        if(peek()->type != Token::Type::ParenthesisLeft)
+            return nullptr;
+
+        auto info = getLastAvailableInfo();
+        auto left_parenthesis = consume();
+        auto expression = parseExpression();
+
+        if(!expression)
+        {
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = info.characterStart, .spanEnd = info.characterEnd},
+                .message = Logger::format("$::$ Parentheses require a valid expression.", info.file, info.line)
+            });
+            return nullptr;
+        }
+
+        auto right_parenthesis = match(Token::Type::ParenthesisRight);
+        return std::make_unique<const ParenthesisExpression>(left_parenthesis, right_parenthesis, std::move(expression));
+    }
+    
+    std::unique_ptr<const IfExpression> Parser::parseIfExpression() const
+    {
+        if(peek()->type != Token::Type::KeywordIf)
+            return nullptr;
+
+        auto info = getLastAvailableInfo();
+        auto if_keyword = consume();
+        auto check_expression = parseExpression();
+        auto if_body = parseExpression();
+
+        if(!check_expression)
+        {
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = if_keyword.info.characterStart, .spanEnd = info.characterEnd},
+                .message = Logger::format("$::$ Invalid check expression in `if` conditional.", info.file, info.line)
+            });
+            return nullptr;
+        }
+
+        else if(!if_body)
+        {
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = info.characterStart, .spanEnd = info.characterEnd},
+                .message = Logger::format("$::$ Invalid body in `if` expression.", info.file, info.line)
+            });
+            return nullptr;
+        }
+
+        if(peek() && peek()->type == Token::Type::KeywordElse)
+        {
+            auto else_keyword = consume();
+            auto else_body = parseExpression();
+
+            if(!else_body)
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                    .span = TextSpan{.lineIndex = info.line - 1ul, .spanStart = info.characterStart, .spanEnd = info.characterEnd},
+                    .message = Logger::format("$::$ Invalid body in `else` clause of `if` conditional.", info.file, info.line)
+                });
+                return nullptr;
+            }
+
+            return std::make_unique<const IfExpression>(if_keyword, std::move(check_expression), std::move(if_body), else_keyword,
+                std::move(else_body));
+        }
+        else return std::make_unique<const IfExpression>(if_keyword, std::move(check_expression), std::move(if_body));
+    }
+
+    std::unique_ptr<const ForExpression> Parser::parseForExpression() const
+    {
+        if(peek()->type != Token::Type::KeywordFor)
+            return nullptr;
+
+        auto for_keyword = consume();
+        auto left_parenthesis = match(Token::Type::ParenthesisLeft);
+
+        if(peek()->type == Token::Type::KeywordIn)
+        {
+            auto in_keyword = consume();
+            auto array_identifier = parseIdentifierExpression();
+            auto value_identifier = parseIdentifierExpression();
+
+            if(!array_identifier || !value_identifier)
                 return nullptr;
 
             auto right_parenthesis = match(Token::Type::ParenthesisRight);
-            auto body = parseStatement();
+            auto body = parseExpression();
 
             return std::make_unique<const ForExpression>(for_keyword, left_parenthesis, right_parenthesis,
-                std::move(declaration), std::move(expression), std::move(statement), std::move(body));
-        }
-        else if(peek()->type == Token::Type::KeywordWhile)
-        {
-            auto while_keyword = consume();
-            auto check_expression = parseExpression();
-            auto body_while_statement = parseStatement();
-
-            if(peek() && peek()->type == Token::Type::KeywordFinally)
-            {
-                auto finally_keyword = consume();
-                auto body_finally_statement = parseStatement();
-                
-                if(peek() && peek()->type == Token::Type::KeywordElse)
-                {
-                    auto else_keyword = consume();
-                    auto body_else_statement = parseStatement();
-
-                    return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(body_while_statement), 
-                        finally_keyword, std::move(body_finally_statement), else_keyword, std::move(body_else_statement));
-                }
-                else return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(body_while_statement), 
-                    finally_keyword, std::move(body_finally_statement));
-            }
-            else if(peek() && peek()->type == Token::Type::KeywordElse)
-            {
-                auto else_keyword = consume();
-                auto body_else_statement = parseStatement();
-
-                return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(body_while_statement), 
-                    std::nullopt, std::nullopt, else_keyword, std::move(body_else_statement));
-            }
-
-            else return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(body_while_statement));
+                in_keyword, std::move(value_identifier), std::move(array_identifier), std::move(body));
         }
 
-        else if(peek()->type == Token::Type::KeywordAs)
+        auto declaration = parseVariableDeclaration();
+        auto expression = parseExpression();
+        auto statement = parseStatement();
+
+        if(!declaration || !expression || !statement)
+            return nullptr;
+
+        auto right_parenthesis = match(Token::Type::ParenthesisRight);
+        auto body = parseExpression();
+
+        return std::make_unique<const ForExpression>(for_keyword, left_parenthesis, right_parenthesis,
+            std::move(declaration), std::move(expression), std::move(statement), std::move(body));
+    }
+
+    std::unique_ptr<const WhileExpression> Parser::parseWhileExpression() const
+    {
+        if(peek()->type != Token::Type::KeywordWhile)
+            return nullptr;
+
+        auto while_keyword = consume();
+        auto check_expression = parseExpression();
+        auto while_body = parseExpression();
+        
+        auto has_finally = peek() && peek()->type == Token::Type::KeywordFinally;
+        auto finally_keyword = has_finally? std::make_optional(consume()): std::nullopt;
+        auto finally_body = has_finally? std::make_optional(parseExpression()): std::nullopt;
+        
+        auto has_else = peek()->type == Token::Type::KeywordElse;
+        auto else_keyword = has_else? std::make_optional(consume()): std::nullopt;
+        auto else_body = has_else? std::make_optional(parseExpression()): std::nullopt;
+
+        return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(while_body), finally_keyword, std::move(finally_body),
+            else_keyword, std::move(else_body));
+    }
+
+    std::unique_ptr<const ConversionExpression> Parser::parseConversionExpression() const
+    {
+        if(peek()->type != Token::Type::KeywordAs)
+            return nullptr;
+
+        auto as_keyword = consume();
+        auto type = parseTypeExpression();
+        auto left_parenthesis = match(Token::Type::ParenthesisLeft);
+        auto expression = parseExpression();
+        auto right_parenthesis = match(Token::Type::ParenthesisRight);
+
+        return std::make_unique<const ConversionExpression>(as_keyword, left_parenthesis, right_parenthesis, std::move(type), std::move(expression));
+    }
+
+    std::unique_ptr<const StructureInitializerExpression> Parser::parseStructureInitializerExpression() const
+    {
+        if(!peek(1ul) || peek()->type != Token::Type::Identifier || !isValidStructure(*peek()->value)
+            || peek(1ul)->type != Token::Type::BraceLeft)
+            return nullptr;
+
+        auto identifier = std::make_unique<const IdentifierExpression>(consume());
+        auto left_brace = consume();
+        std::vector<StructureInitializerExpression::Argument> arguments;
+
+        while(peek()->type == Token::Type::Dot)
         {
-            auto as_keyword = consume();
-            auto type = parseTypeExpression();
-            auto left_parenthesis = match(Token::Type::ParenthesisLeft);
+            auto access_specifier = consume();
+            auto identifier = parseIdentifierExpression();
+            auto equality_specifier = match(Token::Type::OperatorAssignment);
             auto expression = parseExpression();
-            auto right_parenthesis = match(Token::Type::ParenthesisRight);
+            auto separator = peek()->type == Token::Type::Comma? consume(): match(Token::Type::BraceRight);
 
-            return std::make_unique<const ConversionExpression>(as_keyword, left_parenthesis, right_parenthesis, std::move(type), std::move(expression));
+            arguments.push_back(StructureInitializerExpression::Argument{access_specifier, equality_specifier, separator,
+                std::move(identifier), std::move(expression)});
         }
 
-        else if(peek(1ul) && peek()->type == Token::Type::Identifier && isValidStructure(*peek()->value)
-            && peek(1ul)->type == Token::Type::BraceLeft)
+        return std::make_unique<const StructureInitializerExpression>(left_brace, std::move(identifier), std::move(arguments));
+    }
+
+    std::unique_ptr<const CallExpression> Parser::parseCallExpression() const
+    {
+        if(!peek(1ul) || !peek()->isIdentifier() || peek(1ul)->type != Token::Type::ParenthesisLeft)
+            return nullptr;
+
+        auto identifier = consume();
+        auto left_parenthesis = consume();
+        std::vector<CallExpression::Argument> arguments;
+
+        while(peek() && peek()->type != Token::Type::ParenthesisRight)
         {
-            auto identifier = std::make_unique<const IdentifierExpression>(consume());
-            auto left_brace = consume();
-            std::vector<StructureInitializerExpression::Argument> arguments;
-
-            while(peek()->type == Token::Type::Dot)
-            {
-                auto access_specifier = consume();
-                auto identifier = parseIdentifierExpression();
-                auto equality_specifier = match(Token::Type::OperatorAssignment);
-                auto expression = parseExpression();
-                auto separator = peek()->type == Token::Type::Comma? consume(): match(Token::Type::BraceRight);
-
-                arguments.push_back(StructureInitializerExpression::Argument{access_specifier, equality_specifier, separator,
-                    std::move(identifier), std::move(expression)});
-            }
-
-            return std::make_unique<const StructureInitializerExpression>(left_brace, std::move(identifier), std::move(arguments));
+            auto token = peek();
+            auto expression = parseExpression();
+            auto separator = peek()->type != Token::Type::ParenthesisRight? std::make_optional(match(Token::Type::Comma)): std::nullopt;
+            arguments.push_back(CallExpression::Argument{separator, std::move(expression)});
+            
+            if(!token || !peek() || token->info == peek()->info)
+                break;
         }
-        else if(peek()->type == Token::Type::Identifier && !isTypeIdentifier(*peek()))
-        {
-            auto identifier = consume();
 
-            if(peek()->type == Token::Type::ParenthesisLeft)
-            {
-                auto left_parenthesis = consume();
-                std::vector<CallExpression::Argument> arguments;
+        auto right_parenthesis = match(Token::Type::ParenthesisRight);
+        auto definition = findDefinition(identifier.value.value_or(""));
+        
+        if(!definition)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan{.lineIndex = identifier.info.line -1ul, .spanStart = identifier.info.characterStart,
+                    .spanEnd = identifier.info.characterEnd},
+                .message = Logger::format("$::$ Call to undeclared function `$`.",
+                    identifier.info.file, identifier.info.line, identifier.value.value_or(""))
+            }), nullptr);
 
-                while(peek() && peek()->type != Token::Type::ParenthesisRight)
-                {
-                    auto token = peek();
-                    auto expression = parseExpression();
-                    auto separator = peek()->type != Token::Type::ParenthesisRight? std::make_optional(match(Token::Type::Comma)): std::nullopt;
-                    arguments.push_back(CallExpression::Argument{separator, std::move(expression)});
-                    
-                    if(!token || !peek() || token->info == peek()->info)
-                        break;
-                }
+        else if(definition != Definition::Kind::Function && definition != Definition::Kind::External)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan{.lineIndex = identifier.info.line -1ul, .spanStart = identifier.info.characterStart,
+                    .spanEnd = identifier.info.characterEnd},
+                .message = Logger::format("$::$ Call to non-callable symbol `$`.",
+                    identifier.info.file, identifier.info.line, identifier.value.value_or(""))
+            }), nullptr);
 
-                auto right_parenthesis = match(Token::Type::ParenthesisRight);
-                auto definition = findDefinition(identifier.value.value_or(""));
-                
-                if(!definition)
-                    return (Reporting::push(Reporting::Report{
-                        .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                        .span = TextSpan{.lineIndex = identifier.info.line -1ul, .spanStart = identifier.info.characterIndex,
-                            .spanEnd = identifier.info.characterIndex + identifier.value->size()},
-                        .message = Logger::format("$::$ Call to undeclared function `$`.",
-                            identifier.info.file, identifier.info.line, identifier.value.value_or(""))
-                    }), nullptr);
+        return std::make_unique<const CallExpression>(identifier, left_parenthesis, right_parenthesis, std::move(arguments),
+            definition == Definition::Kind::External);
+    }
 
-                else if(definition != Definition::Kind::Function && definition != Definition::Kind::External)
-                    return (Reporting::push(Reporting::Report{
-                        .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                        .span = TextSpan{.lineIndex = identifier.info.line -1ul, .spanStart = identifier.info.characterIndex,
-                            .spanEnd = identifier.info.characterIndex + identifier.value->size()},
-                        .message = Logger::format("$::$ Call to non-callable symbol `$`.",
-                            identifier.info.file, identifier.info.line, identifier.value.value_or(""))
-                    }), nullptr);
+    std::unique_ptr<const Expression> Parser::parsePrimaryExpression() const
+    {
+        if(auto array_initializer = parseArrayInitializerExpression())
+            return array_initializer;
 
-                return std::make_unique<const CallExpression>(identifier, left_parenthesis, right_parenthesis, std::move(arguments),
-                    definition == Definition::Kind::External);
-            }
-            else return std::make_unique<const IdentifierExpression>(identifier);
-        }
+        if(auto block = parseBlockExpression())
+            return block;
+
+        else if(auto parenthesis = parseParenthesisExpression())
+            return parenthesis;
+        
+        else if(auto if_expression = parseIfExpression())
+            return if_expression;
+
+        else if(auto for_expression = parseForExpression())
+            return for_expression;
+
+        else if(auto while_expression = parseWhileExpression())
+            return while_expression;
+
+        else if(auto conversion = parseConversionExpression())
+            return conversion;
+
+        else if(auto structure_initializer = parseStructureInitializerExpression())
+            return structure_initializer;
+        
+        else if(auto function_call = parseCallExpression())
+            return function_call;
+
+        else if(auto identifier = parseIdentifierExpression())
+            return identifier;
+
         else if(auto type_expression = parseTypeExpression())
             return std::move(type_expression);
 
@@ -426,69 +569,96 @@ namespace linc
 
     std::unique_ptr<const VariableDeclaration> Parser::parseVariableDeclaration() const
     {
-        std::unique_ptr<const TypeExpression> type;
-        
-        if(peek() && peek(1ul) && peek()->isIdentifier() && peek(1ul)->type == Token::Type::Colon)
+        if(!peek() || !peek(1ul) || !peek()->isIdentifier() || peek(1ul)->type != Token::Type::Colon)
+            return nullptr;
+
+        auto identifier = parseIdentifierExpression();
+        auto type_specifier = consume();
+        auto type = parseTypeExpression();
+        auto has_default_value = peek() && peek()->type == Token::Type::OperatorAssignment;
+        std::optional<VariableDeclaration::ValueAssignment> default_value{};
+
+        if(has_default_value)
         {
-            auto identifier = parseIdentifierExpression();
-            auto type_specifier = consume();
-            auto type = parseTypeExpression();
-            auto has_default_value = peek() && peek()->type == Token::Type::OperatorAssignment;
-            std::optional<VariableDeclaration::ValueAssignment> default_value{};
+            auto assignment_operator = match(Token::Type::OperatorAssignment);
+            auto expression = parseExpression();
 
-            if(has_default_value)
-            {
-                auto assignment_operator = match(Token::Type::OperatorAssignment);
-                auto expression = parseExpression();
-
-                default_value = VariableDeclaration::ValueAssignment(assignment_operator, std::move(expression));
-            }
-
-            if(!identifier)
-            {
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                    .message = Logger::format("$::$ Invalid identifier expression in variable declaration.",
-                        type_specifier.info.file, type_specifier.info.line)});
-                return nullptr;
-            }
-
-            if(!type)
-            {
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                    .message = Logger::format("$::$ Invalid type expression in variable declaration.",
-                        type_specifier.info.file, type_specifier.info.line)});
-                return nullptr;
-            }
-
-            if(isValidStructure(*type->getTypeIdentifier().value) && peek() && peek()->type == Token::Type::BraceLeft)
-            {
-                auto left_brace = consume();
-                std::vector<StructureInitializerExpression::Argument> arguments;
-
-                while(peek() && peek()->type == Token::Type::Dot)
-                {
-                    auto access_specifier = consume();
-                    auto field_identifier = parseIdentifierExpression();
-                    auto equality_specifier = match(Token::Type::OperatorAssignment);
-                    auto expression = parseExpression();
-                    auto separator = peek()->type == Token::Type::Comma? consume(): match(Token::Type::BraceRight);
-
-                    arguments.push_back(StructureInitializerExpression::Argument{access_specifier, equality_specifier, separator,
-                        std::move(field_identifier), std::move(expression)});
-                }
-
-                auto structure_identifier = std::make_unique<const IdentifierExpression>(type->getTypeIdentifier());
-                default_value = VariableDeclaration::ValueAssignment{
-                    left_brace, std::make_unique<const StructureInitializerExpression>(left_brace, std::move(structure_identifier), std::move(arguments))
-                };
-            }
-
-
-            return std::make_unique<const VariableDeclaration>(type_specifier, std::move(type), std::move(identifier), std::move(default_value));
+            default_value = VariableDeclaration::ValueAssignment(assignment_operator, std::move(expression));
         }
-        else return nullptr;
+
+        if(!identifier)
+        {
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .message = Logger::format("$::$ Invalid identifier expression in variable declaration.",
+                    type_specifier.info.file, type_specifier.info.line)});
+            return nullptr;
+        }
+
+        if(!type)
+        {
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .message = Logger::format("$::$ Invalid type expression in variable declaration.",
+                    type_specifier.info.file, type_specifier.info.line)});
+            return nullptr;
+        }
+
+        if(isValidStructure(*type->getTypeIdentifier().value) && peek() && peek()->type == Token::Type::BraceLeft)
+        {
+            auto left_brace = consume();
+            std::vector<StructureInitializerExpression::Argument> arguments;
+
+            while(peek() && peek()->type == Token::Type::Dot)
+            {
+                auto access_specifier = consume();
+                auto field_identifier = parseIdentifierExpression();
+                auto equality_specifier = match(Token::Type::OperatorAssignment);
+                auto expression = parseExpression();
+                auto separator = peek()->type == Token::Type::Comma? consume(): match(Token::Type::BraceRight);
+
+                arguments.push_back(StructureInitializerExpression::Argument{access_specifier, equality_specifier, separator,
+                    std::move(field_identifier), std::move(expression)});
+            }
+
+            auto structure_identifier = std::make_unique<const IdentifierExpression>(type->getTypeIdentifier());
+            default_value = VariableDeclaration::ValueAssignment{
+                left_brace, std::make_unique<const StructureInitializerExpression>(left_brace, std::move(structure_identifier), std::move(arguments))
+            };
+        }
+
+        return std::make_unique<const VariableDeclaration>(type_specifier, std::move(type), std::move(identifier), std::move(default_value));
+    }
+
+    std::unique_ptr<const DirectVariableDeclaration> Parser::parseDirectVariableDeclaration() const
+    {
+        if(!peek() || !peek(1ul) || !peek()->isIdentifier() || (peek(1ul)->type != Token::Type::ColonEquals && peek(1ul)->type != Token::Type::KeywordMutability))
+            return nullptr;
+        
+        auto identifier = parseIdentifierExpression();
+        auto mutability_specifier = peek() && peek()->type == Token::Type::KeywordMutability? std::make_optional(consume()): std::nullopt;
+        auto direct_assignment = consume();
+        auto value = parseExpression();
+
+        if(!identifier)
+        {
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .message = Logger::format("$::$ Invalid identifier expression in direct variable declaration.",
+                    direct_assignment.info.file, direct_assignment.info.line)});
+            return nullptr;
+        }
+
+        if(!value)
+        {
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .message = Logger::format("$::$ Invalid value expression in direct variable declaration.",
+                    direct_assignment.info.file, direct_assignment.info.line)});
+            return nullptr;
+        }
+
+        return std::make_unique<const DirectVariableDeclaration>(direct_assignment, mutability_specifier, std::move(identifier), std::move(value));
     }
 
     std::unique_ptr<const FunctionDeclaration> Parser::parseFunctionDeclaration() const
@@ -511,16 +681,16 @@ namespace linc
         auto has_type_specifier = peek()->type == Token::Type::Colon;
         auto type_specifier = has_type_specifier? consume(): Token{Token::Type::Colon};
 
-        std::unique_ptr<const Statement> body{nullptr};
+        std::unique_ptr<const Expression> body{nullptr};
         std::unique_ptr<const TypeExpression> return_type{nullptr};
 
         if(!has_type_specifier)
-            body = parseStatement();
+            body = parseExpression();
         
         else
         {
             return_type = parseTypeExpression();
-            body = parseStatement();
+            body = parseExpression();
         }
 
         if(!function_name)
@@ -651,6 +821,8 @@ namespace linc
     {
         if(auto variable_declaration = parseVariableDeclaration())
             return std::move(variable_declaration);
+        else if(auto direct_variable_declaration = parseDirectVariableDeclaration())
+            return std::move(direct_variable_declaration);
         else if(auto function_declaration = parseFunctionDeclaration())
             return std::move(function_declaration);
         else if(auto external_declaration = parseExternalDeclaration())
@@ -658,5 +830,38 @@ namespace linc
         else if(auto structure_declaration = parseStructureDeclaration())
             return std::move(structure_declaration);
         else return nullptr;
+    }
+
+    std::unique_ptr<const Node> Parser::parseVariant() const
+    {
+        if(peek()->isIdentifier() && (peek(1ul)->type == Token::Type::Colon || peek(1ul)->type == Token::Type::ColonEquals))
+            return parseStatement();
+
+        auto expression = parseExpression();
+
+        if(!expression)
+        {
+            auto statement = parseStatement();
+            if(!statement)
+            {
+                auto info = getLastAvailableInfo();
+                if(m_tokens.size() == 1ul)
+                    Reporting::push(Reporting::Report{
+                        .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                        .message = Logger::format("$::$ Statement or expression cannot be empty.", info.file, info.line)
+                    });
+                
+                else Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                    .message = Logger::format("$::$ No valid expression or statement syntax found.", info.file, info.line)
+                });
+            }
+            return statement;
+        }
+        
+        if(peek()->type == Token::Type::Terminator)
+            return std::make_unique<const ExpressionStatement>(consume(), std::move(expression));
+
+        else return std::move(expression);
     }
 }

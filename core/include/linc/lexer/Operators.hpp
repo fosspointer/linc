@@ -18,7 +18,7 @@ namespace linc
         using OperatorAssociativityMap = std::unordered_map<Token::Type, Associativity>;
         
         /// @brief Get the corresponding token-type representation of an operator in string representation (or invalid). 
-        static Token::Type get(const std::string& operator_string);
+        static Token::Type get(const std::string& operator_string, const Token::Info& token_info);
 
         /// @brief Get the associativity of a specified operator token type (left or right associative). Otherwise, report an error.
         static Associativity getAssociativity(Token::Type operator_token_type);

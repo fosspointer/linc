@@ -92,6 +92,20 @@ namespace linc
             }
         }
 
+        Value evaluateNode(const BoundNode* node)
+        {
+            if(auto expression = dynamic_cast<const BoundExpression*>(node))
+                return evaluateExpression(std::move(expression));
+
+            else if(auto statement = dynamic_cast<const BoundStatement*>(node))
+                return evaluateStatement(std::move(statement));
+            
+            else if(auto declaration = dynamic_cast<const BoundDeclaration*>(node))
+                return evaluateDeclaration(std::move(declaration));
+
+            throw LINC_EXCEPTION_INVALID_INPUT("Encountered unreognized node during evaluation");
+        }
+
         Value evaluateStatement(const BoundStatement* statement)
         {
             if(m_returnValue.has_value())
@@ -101,7 +115,7 @@ namespace linc
                 return evaluateDeclaration(declaration_statement->getDeclaration());
             
             else if(auto expression_statement = dynamic_cast<const BoundExpressionStatement*>(statement))
-                return evaluateExpression(expression_statement->getExpression());
+                return (evaluateExpression(expression_statement->getExpression()), PrimitiveValue::voidValue);
             
             else if(auto label_statement = dynamic_cast<const BoundLabelStatement*>(statement))
                 return evaluateStatement(label_statement->getNext());
@@ -152,8 +166,11 @@ namespace linc
 
                 return PrimitiveValue::voidValue;
             }
-            else if(dynamic_cast<const BoundFunctionDeclaration*>(declaration))
+            else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
+            {
+                m_functions.insert(std::pair(function_declaration->getName(), function_declaration->getBody()->clone()));
                 return PrimitiveValue::voidValue;
+            }
             else if(dynamic_cast<const BoundExternalDeclaration*>(declaration))
                 return PrimitiveValue::voidValue;
             else if(dynamic_cast<const BoundStructureDeclaration*>(declaration))
@@ -204,11 +221,11 @@ namespace linc
                         break;
 
                     const auto& stmt = block_expression->getStatements()[i];
-                    value = evaluateStatement(stmt.get());
-
+                    evaluateStatement(stmt.get());
                 }
                 --m_scope;
                 
+                value = block_expression->getTail()? evaluateExpression(block_expression->getTail()): value;
                 return m_returnValue.has_value()? m_returnValue.value(): value; 
             }
             else if(auto if_expression = dynamic_cast<const BoundIfExpression*>(expression))
@@ -216,9 +233,9 @@ namespace linc
                 auto test = evaluateExpression(if_expression->getTestExpression()).getPrimitive().getBool();
 
                 if(test)
-                    return evaluateStatement(if_expression->getIfBodyStatement());
+                    return evaluateExpression(if_expression->getIfBody());
                 else if(if_expression->hasElse())
-                    return evaluateStatement(if_expression->getElseBodyStatement().value());
+                    return evaluateExpression(if_expression->getElseBody().value());
                 else return PrimitiveValue::voidValue;
             }
             else if(auto for_expression = dynamic_cast<const BoundForExpression*>(expression))
@@ -246,7 +263,7 @@ namespace linc
                         else if(m_scope > m_breakScope || m_scope > m_continueScope)
                             break;
 
-                        return_value = evaluateStatement(for_expression->getBody());
+                        return_value = evaluateExpression(for_expression->getBody());
                         evaluateStatement(variable_specifier->statement.get());
                     }
                     
@@ -282,7 +299,7 @@ namespace linc
                             .isMutable = true
                         };
 
-                        return_value = evaluateStatement(for_expression->getBody());
+                        return_value = evaluateExpression(for_expression->getBody());
                     }
 
                     return (--m_scope, return_value);
@@ -297,7 +314,7 @@ namespace linc
                 ++m_scope;
                 if(evaluateExpression(while_expression->getTestExpression()).getPrimitive().getBool())
                 {
-                    return_value = evaluateStatement(while_expression->getWhileBodyStatement());
+                    return_value = evaluateExpression(while_expression->getWhileBody());
 
                     evaluated = true;
                     if(m_scope == m_breakScope) { m_breakScope = -1ul; can_continue = false; }
@@ -318,16 +335,16 @@ namespace linc
                     else if(m_scope > m_breakScope || m_scope > m_continueScope)
                         break;
 
-                    return_value = evaluateStatement(while_expression->getWhileBodyStatement());
+                    return_value = evaluateExpression(while_expression->getWhileBody());
                 }
                 
-                auto finally = while_expression->getFinallyBodyStatement();
-                auto _else = while_expression->getElseBodyStatement();
+                auto finally = while_expression->getFinallyBody();
+                auto _else = while_expression->getElseBody();
 
                 if(evaluated && finally.has_value())
-                    return_value = evaluateStatement(finally.value());
+                    return_value = evaluateExpression(finally.value());
                 else if(!evaluated && _else.has_value())
-                    return_value = evaluateStatement(_else.value());
+                    return_value = evaluateExpression(_else.value());
 
                 return (--m_scope, return_value);
             }
@@ -521,7 +538,7 @@ namespace linc
                     args.push_back(variable.name);
                 }
 
-                auto result = evaluateStatement(function_call_expression->getBody());
+                auto result = evaluateExpression(m_functions.at(function_call_expression->getName()).get());
 
                 for(const auto& argument: function_call_expression->getArguments())
                 {
@@ -775,6 +792,7 @@ namespace linc
 
         Types::u64 m_scope{0ul}, m_jumpIndex{-1ul}, m_jumpScope{-1ul}, m_breakScope{-1ul}, m_continueScope{-1ul};
         std::unordered_map<std::string, VariableValue> m_variables;
+        std::unordered_map<std::string, std::unique_ptr<const BoundExpression>> m_functions;
         std::optional<Value> m_returnValue{std::nullopt};
     };
 }
