@@ -36,9 +36,10 @@ namespace linc
 
             using Primitive = Types::Kind;
             using Structure = std::vector<std::pair<std::string, std::unique_ptr<const type>>>;
+
             struct Array final
             {
-                std::unique_ptr<const type> base_type;
+                std::unique_ptr<const type> baseType;
                 std::optional<std::size_t> count;
             };
 
@@ -55,7 +56,7 @@ namespace linc
             type(const Array& _array, bool is_mutable = false)
                 :kind(Kind::Array), isMutable(is_mutable)
             {
-                new (&array) Array{.base_type = _array.base_type? _array.base_type->clone(): nullptr, .count = _array.count};
+                new (&array) Array{.baseType = _array.baseType? _array.baseType->clone(): nullptr, .count = _array.count};
             }
 
             ~type()
@@ -72,7 +73,7 @@ namespace linc
                 switch(kind)
                 {
                 case Kind::Primitive: primitive = other.primitive; break;
-                case Kind::Array: new (&array) Array{.base_type = other.array.base_type->clone(), .count = other.array.count}; break;
+                case Kind::Array: new (&array) Array{.baseType = other.array.baseType->clone(), .count = other.array.count}; break;
                 case Kind::Structure: new (&structure) std::vector{cloneStructure(&other.structure, other.isMutable)}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
                 }
@@ -98,7 +99,7 @@ namespace linc
                 switch(kind)
                 {
                 case Kind::Primitive: primitive = other.primitive; break;
-                case Kind::Array: new (&array) Array{.base_type = other.array.base_type->clone(), .count = other.array.count}; break;
+                case Kind::Array: new (&array) Array{.baseType = other.array.baseType->clone(), .count = other.array.count}; break;
                 case Kind::Structure: new (&structure) std::vector{cloneStructure(&other.structure, other.isMutable)}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
                 }
@@ -125,7 +126,7 @@ namespace linc
                 switch(kind)
                 {
                 case Kind::Primitive: return std::make_unique<const type>(primitive, isMutable);
-                case Kind::Array: return std::make_unique<const type>(Array{.base_type = array.base_type->clone(), .count = array.count}, isMutable);
+                case Kind::Array: return std::make_unique<const type>(Array{.baseType = array.baseType->clone(), .count = array.count}, isMutable);
                 case Kind::Structure:
                 {
                     Structure structure_vector;
@@ -146,7 +147,7 @@ namespace linc
                 switch(kind)
                 {
                 case Kind::Primitive: return primitive == _other.primitive;
-                case Kind::Array: return *array.base_type == *_other.array.base_type && array.count == _other.array.count;
+                case Kind::Array: return *array.baseType == *_other.array.baseType && array.count == _other.array.count;
                 case Kind::Structure: 
                     {
                         if(structure.size() != _other.structure.size()) return false;
@@ -175,7 +176,7 @@ namespace linc
                 case Kind::Primitive: return primitive == other.primitive;
                 case Kind::Array:
                     if(array.count && *array.count == 0ul) return true;
-                    if(!array.base_type->isAssignableTo(*other.array.base_type))
+                    if(!array.baseType->isAssignableTo(*other.array.baseType))
                         return false;
                     else return (array.count && other.array.count && *array.count == *other.array.count) || !other.array.count;
                 case Kind::Structure:
@@ -245,7 +246,7 @@ namespace linc
         static type voidType, invalidType;
         
         template <typename To, typename From> 
-        [[nodiscard]] inline static const std::unique_ptr<To> unique_cast_dynamic(std::unique_ptr<From> p)
+        [[nodiscard]] inline static const std::unique_ptr<To> uniqueCastDynamic(std::unique_ptr<From> p)
         {
             std::unique_ptr<To> result(dynamic_cast<To*>(p.get()));
             p.release();
@@ -253,7 +254,7 @@ namespace linc
         }
 
         template <typename To, typename From> 
-        [[nodiscard]] inline static const std::unique_ptr<To> unique_cast(std::unique_ptr<From> p)
+        [[nodiscard]] inline static const std::unique_ptr<To> uniqueCast(std::unique_ptr<From> p)
         {
             std::unique_ptr<To> result(static_cast<To*>(p.get()));
             p.release();

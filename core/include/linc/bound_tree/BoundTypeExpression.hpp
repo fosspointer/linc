@@ -29,17 +29,17 @@ namespace linc
                 return *base;
             else
             {
-                Types::type result(Types::type::Array{.base_type = base->clone(),
+                Types::type result(Types::type::Array{.baseType = base->clone(),
                     .count = m_arraySpecifiers.back()}, m_isMutable);
                 auto cursor = &result;
 
                 for(std::size_t i{m_arraySpecifiers.size()}; i != 1ul; --i)
                 {
-                    cursor->array.base_type = std::make_unique<Types::type>(Types::type::Array{
-                        .base_type = i == 2ul? base->clone() :nullptr,
+                    cursor->array.baseType = std::make_unique<Types::type>(Types::type::Array{
+                        .baseType = i == 2ul? base->clone() :nullptr,
                         .count = m_arraySpecifiers[i - 2ul]
                     }, m_isMutable);
-                    cursor = const_cast<Types::type*>(cursor->array.base_type.get());
+                    cursor = const_cast<Types::type*>(cursor->array.baseType.get());
                 }
 
                 return result;

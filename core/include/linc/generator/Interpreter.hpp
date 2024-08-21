@@ -637,7 +637,7 @@ namespace linc
             }
             else if(auto array_initializer_expression = dynamic_cast<const BoundArrayInitializerExpression*>(expression))
             {
-                ArrayValue result = ArrayValue::fromDefault(*expression->getType().array.base_type);
+                ArrayValue result = ArrayValue::fromDefault(*expression->getType().array.baseType);
 
                 for(const auto& value: array_initializer_expression->getValues())
                     result.push(evaluateExpression(value.get()));

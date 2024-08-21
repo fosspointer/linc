@@ -257,13 +257,13 @@ namespace linc
             auto token = peek();
             auto member = parseVariant();
             if(!member) break;
-            else if(auto expression = Types::unique_cast_dynamic<const Expression>(member->clone()))
+            else if(auto expression = Types::uniqueCastDynamic<const Expression>(member->clone()))
             {
                 tail = std::move(expression);
                 break;
             }
             
-            auto statement = Types::unique_cast<const Statement>(std::move(member));
+            auto statement = Types::uniqueCast<const Statement>(std::move(member));
             statements.push_back(std::move(statement));
 
             if(!peek() || !token || peek()->info == token->info)

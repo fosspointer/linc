@@ -19,7 +19,7 @@ namespace linc
 
             for(const auto& field: m_fields)
             {
-                auto new_field = Types::unique_cast<const BoundVariableDeclaration>(field->clone());
+                auto new_field = Types::uniqueCast<const BoundVariableDeclaration>(field->clone());
                 fields.push_back(std::move(new_field));
             }
 

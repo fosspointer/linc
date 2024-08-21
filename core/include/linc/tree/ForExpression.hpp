@@ -49,7 +49,7 @@ namespace linc
         {
             if(auto variable_for_specifier = std::get_if<const VariableForSpecifier>(&m_specifier))
             {
-                auto variable_declaration = Types::unique_cast<const VariableDeclaration>(variable_for_specifier->variableDeclaration->clone());    
+                auto variable_declaration = Types::uniqueCast<const VariableDeclaration>(variable_for_specifier->variableDeclaration->clone());    
 
                 return std::make_unique<const ForExpression>(m_forKeyword, m_leftParenthesis, m_rightParenthesis,
                     std::move(variable_declaration), variable_for_specifier->expression->clone(),
@@ -57,8 +57,8 @@ namespace linc
             }
             else if(auto range_for_specifier = std::get_if<const RangeForSpecifier>(&m_specifier))
             {
-                auto value_identifier = Types::unique_cast<const IdentifierExpression>(range_for_specifier->valueIdentifier->clone());
-                auto array_identifier = Types::unique_cast<const IdentifierExpression>(range_for_specifier->arrayIdentifier->clone());
+                auto value_identifier = Types::uniqueCast<const IdentifierExpression>(range_for_specifier->valueIdentifier->clone());
+                auto array_identifier = Types::uniqueCast<const IdentifierExpression>(range_for_specifier->arrayIdentifier->clone());
 
                 return std::make_unique<const ForExpression>(m_forKeyword, m_leftParenthesis, m_rightParenthesis,
                     range_for_specifier->inKeyword, std::move(value_identifier), std::move(array_identifier), m_body->clone());

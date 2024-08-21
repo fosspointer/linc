@@ -151,7 +151,7 @@ namespace linc
             switch(type.kind)
             {
             case Types::type::Kind::Primitive: return PrimitiveValue::fromDefault(type.primitive);
-            case Types::type::Kind::Array: return ArrayValue::fromDefault(*type.array.base_type, type.array.count.value_or(0ul));
+            case Types::type::Kind::Array: return ArrayValue::fromDefault(*type.array.baseType, type.array.count.value_or(0ul));
             case Types::type::Kind::Structure:
             {
                 std::vector<Value> values;

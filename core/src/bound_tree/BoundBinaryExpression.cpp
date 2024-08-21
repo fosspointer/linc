@@ -67,14 +67,14 @@ namespace linc
             case Kind::Addition:
                 if(left_type.kind == right_type.kind)
                     return Types::type(Types::type::Array{
-                        .base_type = std::make_unique<const Types::type>(*left_type.array.base_type),
+                        .baseType = std::make_unique<const Types::type>(*left_type.array.baseType),
                         .count = left_type.array.count && right_type.array.count? std::make_optional(*left_type.array.count + *right_type.array.count): std::nullopt
                     });
                 else return Types::invalidType;
             case Kind::AdditionAssignment:
                 if(left_type.isAssignableTo(right_type) && left_type.isMutable)
                     return Types::type(Types::type::Array{
-                        .base_type = std::make_unique<const Types::type>(*left_type.array.base_type),
+                        .baseType = std::make_unique<const Types::type>(*left_type.array.baseType),
                         .count = left_type.array.count && right_type.array.count? std::make_optional(*left_type.array.count + *right_type.array.count): std::nullopt
                     });
             default: return Types::invalidType;

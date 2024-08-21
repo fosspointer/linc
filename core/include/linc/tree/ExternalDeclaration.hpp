@@ -43,12 +43,12 @@ namespace linc
 
             for(const auto& argument: m_arguments)
             {
-                auto type = Types::unique_cast<const TypeExpression>(argument->clone());
+                auto type = Types::uniqueCast<const TypeExpression>(argument->clone());
                 arguments.push_back(std::move(type));
             }
 
-            auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
-            auto type = Types::unique_cast<const TypeExpression>(m_actualType->clone());
+            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+            auto type = Types::uniqueCast<const TypeExpression>(m_actualType->clone());
 
             return std::make_unique<const ExternalDeclaration>(
                 m_externalKeyword, m_typeSpecifier, m_leftParenthesis, m_rightParenthesis,

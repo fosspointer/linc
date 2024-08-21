@@ -106,7 +106,7 @@ namespace linc
         {
         case type::Kind::Primitive: result.append(kindToString(type.primitive)); break;
         case type::Kind::Array:
-            result.append(toString(*type.array.base_type, true));
+            result.append(toString(*type.array.baseType, true));
             result.append(type.array.count? "[" + std::to_string(*type.array.count) + "]": "[]");
             break;
         case type::Kind::Structure:

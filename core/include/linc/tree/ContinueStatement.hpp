@@ -14,7 +14,7 @@ namespace linc
 
         virtual std::unique_ptr<const Statement> clone() const final override
         {
-            auto label = m_label? Types::unique_cast<const IdentifierExpression>(m_label->clone()): nullptr;
+            auto label = m_label? Types::uniqueCast<const IdentifierExpression>(m_label->clone()): nullptr;
             return std::make_unique<const ContinueStatement>(getTerminator(), m_continueKeyword, std::move(label));
         }
 

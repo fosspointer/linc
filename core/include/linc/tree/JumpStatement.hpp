@@ -19,7 +19,7 @@ namespace linc
 
         virtual std::unique_ptr<const Statement> clone() const final override
         {
-            auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
+            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
             return std::make_unique<const JumpStatement>(getTerminator(), m_jumpKeyword, std::move(identifier));
         } 
     private:

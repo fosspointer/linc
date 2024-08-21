@@ -25,7 +25,7 @@ namespace linc
 
         virtual std::unique_ptr<const Expression> clone() const final override
         {
-            auto type = Types::unique_cast<const TypeExpression>(m_type->clone());
+            auto type = Types::uniqueCast<const TypeExpression>(m_type->clone());
             
             return std::make_unique<const ConversionExpression>(m_asKeyword, m_leftParenthesis, m_rightParenthesis, std::move(type),
                 m_expression->clone()); 

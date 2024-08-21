@@ -19,11 +19,11 @@ namespace linc
             
             for(const auto& argument: m_arguments)
             {
-                auto type = Types::unique_cast<const BoundTypeExpression>(argument->clone());
+                auto type = Types::uniqueCast<const BoundTypeExpression>(argument->clone());
                 arguments.push_back(std::move(type));
             }
 
-            auto actual_type = Types::unique_cast<const BoundTypeExpression>(m_actualType->clone());
+            auto actual_type = Types::uniqueCast<const BoundTypeExpression>(m_actualType->clone());
 
             return std::make_unique<const BoundExternalDeclaration>(m_name, std::move(actual_type), std::move(arguments));
         }

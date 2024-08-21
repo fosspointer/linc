@@ -39,7 +39,7 @@ namespace linc
                 auto count = specifier.count? specifier.count->clone(): nullptr;
                 array_specifiers.push_back(ArraySpecifier{
                     .leftBracket = specifier.leftBracket, .rightBracket = specifier.rightBracket,
-                    .count = Types::unique_cast<const LiteralExpression>(std::move(count))
+                    .count = Types::uniqueCast<const LiteralExpression>(std::move(count))
                 });
             }
 

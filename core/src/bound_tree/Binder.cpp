@@ -234,25 +234,25 @@ namespace linc
             return nullptr;
 
         else if(auto declaration_statement = dynamic_cast<const DeclarationStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindDeclarationStatement(declaration_statement));
+            return Types::uniqueCast<const BoundStatement>(bindDeclarationStatement(declaration_statement));
 
         else if(auto expression_statement = dynamic_cast<const ExpressionStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindExpressionStatement(expression_statement));
+            return Types::uniqueCast<const BoundStatement>(bindExpressionStatement(expression_statement));
 
         else if(auto label_statement = dynamic_cast<const LabelStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindLabelStatement(label_statement));
+            return Types::uniqueCast<const BoundStatement>(bindLabelStatement(label_statement));
 
         else if(auto jump_statement = dynamic_cast<const JumpStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindJumpStatement(jump_statement));
+            return Types::uniqueCast<const BoundStatement>(bindJumpStatement(jump_statement));
 
         else if(auto return_statement = dynamic_cast<const ReturnStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindReturnStatement(return_statement));
+            return Types::uniqueCast<const BoundStatement>(bindReturnStatement(return_statement));
 
         else if(auto continue_statement = dynamic_cast<const ContinueStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindContinueStatement(continue_statement));
+            return Types::uniqueCast<const BoundStatement>(bindContinueStatement(continue_statement));
 
         else if(auto break_statement = dynamic_cast<const BreakStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindBreakStatement(break_statement));
+            return Types::uniqueCast<const BoundStatement>(bindBreakStatement(break_statement));
 
         throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized statement");
     }
@@ -260,19 +260,19 @@ namespace linc
     std::unique_ptr<const BoundDeclaration> Binder::bindDeclaration(const Declaration* declaration)
     {
         if(auto variable_declaration = dynamic_cast<const VariableDeclaration*>(declaration))
-            return Types::unique_cast<const BoundDeclaration>(bindVariableDeclaration(variable_declaration));
+            return Types::uniqueCast<const BoundDeclaration>(bindVariableDeclaration(variable_declaration));
 
         else if(auto direct_variable_declaration = dynamic_cast<const DirectVariableDeclaration*>(declaration))
-            return Types::unique_cast<const BoundDeclaration>(bindDirectVariableDeclaration(direct_variable_declaration));
+            return Types::uniqueCast<const BoundDeclaration>(bindDirectVariableDeclaration(direct_variable_declaration));
 
         else if(auto function_declaration = dynamic_cast<const FunctionDeclaration*>(declaration))
-            return Types::unique_cast<const BoundDeclaration>(bindFunctionDeclaration(function_declaration));
+            return Types::uniqueCast<const BoundDeclaration>(bindFunctionDeclaration(function_declaration));
 
         else if(auto external_declaration = dynamic_cast<const ExternalDeclaration*>(declaration))
-            return Types::unique_cast<const BoundDeclaration>(bindExternalDeclaration(external_declaration));
+            return Types::uniqueCast<const BoundDeclaration>(bindExternalDeclaration(external_declaration));
 
         else if(auto structure_declaration = dynamic_cast<const StructureDeclaration*>(declaration))
-            return Types::unique_cast<const BoundDeclaration>(bindStructureDeclaration(structure_declaration));
+            return Types::uniqueCast<const BoundDeclaration>(bindStructureDeclaration(structure_declaration));
         
         throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized declaration");
     }
@@ -280,57 +280,57 @@ namespace linc
     std::unique_ptr<const BoundExpression> Binder::bindExpression(const Expression* expression)
     {
         if(auto literal_expression = dynamic_cast<const LiteralExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindLiteralExpression(literal_expression));
+            return Types::uniqueCast<const BoundExpression>(bindLiteralExpression(literal_expression));
         
         else if(auto unary_expression = dynamic_cast<const UnaryExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindUnaryExpression(unary_expression));
+            return Types::uniqueCast<const BoundExpression>(bindUnaryExpression(unary_expression));
         
         else if(auto binary_expression = dynamic_cast<const BinaryExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindBinaryExpression(binary_expression));
+            return Types::uniqueCast<const BoundExpression>(bindBinaryExpression(binary_expression));
         
         else if(auto identifier_expression = dynamic_cast<const IdentifierExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindIdentifierExpression(identifier_expression));
+            return Types::uniqueCast<const BoundExpression>(bindIdentifierExpression(identifier_expression));
 
         else if(auto type_expression = dynamic_cast<const TypeExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindTypeExpression(type_expression));
+            return Types::uniqueCast<const BoundExpression>(bindTypeExpression(type_expression));
         
         else if(auto block_expression = dynamic_cast<const BlockExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindBlockExpression(block_expression));
+            return Types::uniqueCast<const BoundExpression>(bindBlockExpression(block_expression));
 
         else if(auto parenthesis_expression = dynamic_cast<const ParenthesisExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindExpression(parenthesis_expression->getExpression()));
+            return Types::uniqueCast<const BoundExpression>(bindExpression(parenthesis_expression->getExpression()));
 
         else if(auto if_else_expression = dynamic_cast<const IfExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindIfExpression(if_else_expression));
+            return Types::uniqueCast<const BoundExpression>(bindIfExpression(if_else_expression));
 
         else if(auto while_expression = dynamic_cast<const WhileExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindWhileExpression(while_expression));
+            return Types::uniqueCast<const BoundExpression>(bindWhileExpression(while_expression));
 
         else if(auto for_expression = dynamic_cast<const ForExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindForExpression(for_expression));
+            return Types::uniqueCast<const BoundExpression>(bindForExpression(for_expression));
             
         else if(auto function_call_expression = dynamic_cast<const CallExpression*>(expression))
         {
             if(function_call_expression->isExternal())
-                return Types::unique_cast<const BoundExpression>(bindExternalCallExpression(function_call_expression));
+                return Types::uniqueCast<const BoundExpression>(bindExternalCallExpression(function_call_expression));
 
-            else return Types::unique_cast<const BoundExpression>(bindFunctionCallExpression(function_call_expression));
+            else return Types::uniqueCast<const BoundExpression>(bindFunctionCallExpression(function_call_expression));
         }
 
         else if(auto conversion_expression = dynamic_cast<const ConversionExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindConversionExpression(conversion_expression));
+            return Types::uniqueCast<const BoundExpression>(bindConversionExpression(conversion_expression));
 
         else if(auto array_initializer_expression = dynamic_cast<const ArrayInitializerExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindArrayInitializerExpression(array_initializer_expression));
+            return Types::uniqueCast<const BoundExpression>(bindArrayInitializerExpression(array_initializer_expression));
 
         else if(auto index_expression = dynamic_cast<const IndexExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindIndexExpression(index_expression));
+            return Types::uniqueCast<const BoundExpression>(bindIndexExpression(index_expression));
 
         else if(auto access_exprsesion = dynamic_cast<const AccessExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindAccessExpression(access_exprsesion));
+            return Types::uniqueCast<const BoundExpression>(bindAccessExpression(access_exprsesion));
 
         else if(auto structure_initializer_expression = dynamic_cast<const StructureInitializerExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindStructureInitializerExpression(structure_initializer_expression));
+            return Types::uniqueCast<const BoundExpression>(bindStructureInitializerExpression(structure_initializer_expression));
 
         throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized expression");
     }
@@ -856,7 +856,7 @@ namespace linc
             auto array_identifier = bindIdentifierExpression(range_specifier->arrayIdentifier.get());
             auto range_type = Types::type(array_identifier->getType().kind == Types::type::Kind::Primitive
                 && array_identifier->getType().primitive == Types::Kind::string?
-                Types::fromKind(Types::Kind::_char): *array_identifier->getType().array.base_type);
+                Types::fromKind(Types::Kind::_char): *array_identifier->getType().array.baseType);
             auto variable_declaration = std::make_unique<const BoundVariableDeclaration>(range_type, range_specifier->valueIdentifier->getValue(), std::nullopt);
 
             if(!m_boundDeclarations.push(variable_declaration->clone()))
@@ -1169,7 +1169,7 @@ namespace linc
         }
 
         return std::make_unique<const BoundArrayInitializerExpression>(std::move(values), Types::type(Types::type::Array{
-            .base_type = type.clone(),
+            .baseType = type.clone(),
             .count = values.size() 
         }));
     }
@@ -1212,7 +1212,7 @@ namespace linc
     }
 
         auto type = array->getType().kind == Types::type::Kind::Primitive && array->getType().primitive == Types::Kind::string?
-            Types::type(Types::Kind::_char, array->getType().isMutable): *array->getType().array.base_type; 
+            Types::type(Types::Kind::_char, array->getType().isMutable): *array->getType().array.baseType; 
         
         return std::make_unique<const BoundIndexExpression>(std::move(array), std::move(index), type);
     }

@@ -149,7 +149,7 @@ namespace linc
 
                 for(const auto& argument: function_declaration->getArguments())
                 {
-                    auto optimized_argument = Types::unique_cast<const BoundVariableDeclaration>(optimizeDeclaration(argument.get()));
+                    auto optimized_argument = Types::uniqueCast<const BoundVariableDeclaration>(optimizeDeclaration(argument.get()));
                     arguments.push_back(std::move(optimized_argument));
                 }
 

@@ -30,11 +30,11 @@ namespace linc
 
             for(const auto& field: m_fields)
             {
-                auto new_field = Types::unique_cast<const VariableDeclaration>(field->clone());
+                auto new_field = Types::uniqueCast<const VariableDeclaration>(field->clone());
                 fields.push_back(std::move(new_field));
             }
 
-            auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
+            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
 
             return std::make_unique<const StructureDeclaration>(m_structureKeyword, m_leftBrace, m_rightBrace, std::move(identifier),  std::move(fields));
         }

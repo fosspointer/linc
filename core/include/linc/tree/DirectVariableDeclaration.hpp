@@ -24,7 +24,7 @@ namespace linc
 
         virtual std::unique_ptr<const Declaration> clone() const final override
         {
-            auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
+            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
             return std::make_unique<const DirectVariableDeclaration>(m_directAssignment, m_mutabilitySpecifier, std::move(identifier), m_value->clone());
         }
 

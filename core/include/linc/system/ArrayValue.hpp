@@ -311,7 +311,7 @@ namespace linc
             switch(type.kind)
             {
             case Types::type::Kind::Primitive: return fromDefault(type.primitive, count);
-            case Types::type::Kind::Array: return ArrayValue(fromDefault(*type.array.base_type, type.array.count.value_or(0ul)), count);
+            case Types::type::Kind::Array: return ArrayValue(fromDefault(*type.array.baseType, type.array.count.value_or(0ul)), count);
             case Types::type::Kind::Structure: throw LINC_EXCEPTION_INVALID_INPUT("Arrays of structures are not yet implemented in linc");
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
             }
