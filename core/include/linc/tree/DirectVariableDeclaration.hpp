@@ -33,7 +33,7 @@ namespace linc
         inline const IdentifierExpression* const getIdentifier() const { return m_identifier.get(); }
         inline const Expression* const getValue() const { return m_value.get(); }
     private:
-        const Token& m_directAssignment;
+        const Token m_directAssignment;
         const std::optional<Token> m_mutabilitySpecifier;
         const std::unique_ptr<const IdentifierExpression> m_identifier;
         const std::unique_ptr<const Expression> m_value;

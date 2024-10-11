@@ -99,7 +99,7 @@ namespace linc
     std::string Types::toString(const type& type, bool ignore_mutability)
     {
         std::string result;
-        if(type.isMutable && !ignore_mutability)
+        if(type.isMutable && !ignore_mutability && type.kind != type::Kind::Function)
             result.append("mut ");
 
         switch(type.kind)
@@ -115,6 +115,11 @@ namespace linc
                 result.append((i == 0ul? "": ", ") + type.structure[i].first + ": " + toString(*type.structure[i].second));
             result.push_back('}');
             break;
+        case type::Kind::Function:
+            result.append("fn(");
+            for(decltype(type::Function::argumentTypes)::size_type i{0ul}; i < type.function.argumentTypes.size(); ++i)
+                result.append((i == 0ul? "": ", ") + toString(*type.function.argumentTypes[i]));
+            result.append("): " + toString(*type.function.returnType));
         }   
 
         return result;

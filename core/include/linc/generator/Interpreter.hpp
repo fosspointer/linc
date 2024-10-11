@@ -235,7 +235,7 @@ namespace linc
                 if(test)
                     return evaluateExpression(if_expression->getIfBody());
                 else if(if_expression->hasElse())
-                    return evaluateExpression(if_expression->getElseBody().value());
+                    return evaluateExpression(if_expression->getElseBody());
                 else return PrimitiveValue::voidValue;
             }
             else if(auto for_expression = dynamic_cast<const BoundForExpression*>(expression))
@@ -341,10 +341,10 @@ namespace linc
                 auto finally = while_expression->getFinallyBody();
                 auto _else = while_expression->getElseBody();
 
-                if(evaluated && finally.has_value())
-                    return_value = evaluateExpression(finally.value());
-                else if(!evaluated && _else.has_value())
-                    return_value = evaluateExpression(_else.value());
+                if(evaluated && finally)
+                    return_value = evaluateExpression(finally);
+                else if(!evaluated && _else)
+                    return_value = evaluateExpression(_else);
 
                 return (--m_scope, return_value);
             }
@@ -507,12 +507,26 @@ namespace linc
             }
             else if(auto identifier_expression = dynamic_cast<const BoundIdentifierExpression*>(expression))
             {
+                if(identifier_expression->getType().kind == Types::type::Kind::Function)
+                {
+                    auto find = m_functions.find(identifier_expression->getValue());
+
+                    if(find == m_functions.end())
+                        return (Reporting::push(Reporting::Report{
+                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                            .message = Logger::format("Function `$` does not exist!", identifier_expression->getValue())
+                        }), PrimitiveValue::invalidValue);
+
+                    // return find->second
+                    return PrimitiveValue::voidValue;
+                }
+
                 auto find = m_variables.find(identifier_expression->getValue());
                 
                 if(find == m_variables.end())
                     return (Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                        .message = Logger::format("Variable '$' does not exist!", identifier_expression->getValue())
+                        .message = Logger::format("Variable `$` does not exist!", identifier_expression->getValue())
                     }), PrimitiveValue::invalidValue);
 
                 return find->second.value;

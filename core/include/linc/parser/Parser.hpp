@@ -32,6 +32,9 @@ namespace linc
         /// @brief Set the current list of tokens, as well as their corresponding filepath.
         void set(std::vector<Token> tokens, std::string_view filepath);
 
+        /// @brief Parse the following tokens as a list of delimeted types (or nothing if a right parenthesis token is found).
+        std::vector<class DelimitedType> parseDelimitedTypeList() const;
+
         /// @brief Parse the following tokens as an AST statement.
         std::unique_ptr<const class Statement> parseStatement() const;
 
@@ -93,7 +96,7 @@ namespace linc
         std::unique_ptr<const class LiteralExpression> parseLiteralExpression() const;
         
         /// @brief Parse the following tokens as an AST identifier expression.
-        std::unique_ptr<const class IdentifierExpression> parseIdentifierExpression() const;
+        std::unique_ptr<const class IdentifierExpression> parseIdentifierExpression(bool type_inclusive = false) const;
 
         /// @brief Parse the following tokens as an AST function call expression.
         std::unique_ptr<const class CallExpression> parseCallExpression() const;
@@ -172,7 +175,7 @@ namespace linc
         /// @return The consumed token, if it exists. Otherwise, an EOF.
         [[nodiscard]] inline Token consume() const
         {
-            Token::Info info = getLastAvailableInfo();
+            Token::Info info = peekInfo();
 
             if(m_index + 1ul >= m_tokens.size())
                 return Token{.type = Token::Type::EndOfFile, .info = info};
@@ -183,7 +186,7 @@ namespace linc
         /// @return The following token, if it matches the given token-type. Otherwise, a dummy token that satisfies the type.
         [[nodiscard]] inline Token match(Token::Type type) const
         {
-            Token::Info info = getLastAvailableInfo();
+            Token::Info info = peekInfo();
 
             if(peek() && peek()->type == type)
                 return consume();
@@ -202,7 +205,7 @@ namespace linc
         }
         
         /// @brief Get most appropriate/last available token information (character index, file, line).
-        [[nodiscard]] inline Token::Info getLastAvailableInfo() const
+        [[nodiscard]] inline Token::Info peekInfo() const
         {
             return m_index < m_tokens.size()? m_tokens[m_index].info: m_tokens.back().info;
         }

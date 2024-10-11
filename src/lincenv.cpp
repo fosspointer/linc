@@ -166,7 +166,6 @@ try
     };
 
     init();
-
     while(true)
     {
         auto prompt = linc::Logger::format("$linc $:$$>$ ", linc::Colors::toANSI(linc::Colors::getCurrentColor()),
@@ -222,13 +221,12 @@ try
                 const auto index = linc::PrimitiveValue(i).toString();
 
                 if(auto variable = dynamic_cast<const linc::BoundVariableDeclaration*>(symbol.get()))
-                    linc::Logger::println("[$]: variable $ of type '$'", index, linc::PrimitiveValue(variable->getName()),
+                    linc::Logger::println("[$]: variable $ of type `$`", index, linc::PrimitiveValue(variable->getName()),
                     linc::PrimitiveValue(variable->getActualType()));
                 
                 else if(auto function = dynamic_cast<const linc::BoundFunctionDeclaration*>(symbol.get()))
-                    linc::Logger::println("[$]: function $ with return type '$' (# of args: $)", index,
-                        linc::PrimitiveValue(function->getName()), linc::PrimitiveValue(function->getReturnType()),
-                        linc::PrimitiveValue(function->getArguments().size()));
+                    linc::Logger::println("[$]: function $ of type `$`", index,
+                        linc::PrimitiveValue(function->getName()), linc::PrimitiveValue(function->getFunctionType()));
 
                 else if(auto external_function = dynamic_cast<const linc::BoundExternalDeclaration*>(symbol.get()))
                     linc::Logger::println("[$]: external function $ with return type '$' (# of args: $)", index,

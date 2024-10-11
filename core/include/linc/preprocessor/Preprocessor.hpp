@@ -288,7 +288,7 @@ namespace linc
 
         inline Token consume() const
         {
-            Token::Info info = getLastAvailableInfo();
+            Token::Info info = peekInfo();
 
             if(m_index + 1ul >= m_tokens.size())
                 return (++m_index, Token{.type = Token::Type::EndOfFile, .info = info});
@@ -297,7 +297,7 @@ namespace linc
 
         inline Token match(Token::Type type, const std::string& error_message = "") const
         {
-            Token::Info info = getLastAvailableInfo();
+            Token::Info info = peekInfo();
 
             if(peek() && peek()->type == type)
                 return consume();
@@ -315,7 +315,7 @@ namespace linc
             return Token{.type = type, .info = info};
         }
 
-        [[nodiscard]] inline Token::Info getLastAvailableInfo() const
+        [[nodiscard]] inline Token::Info peekInfo() const
         {
             return m_index < m_tokens.size()? m_tokens[m_index].info: m_tokens.back().info;
         }

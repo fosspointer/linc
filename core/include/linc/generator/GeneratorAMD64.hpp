@@ -52,12 +52,13 @@ namespace linc
         void generateStatement(const BoundStatement* statement)
         {
             if(auto expression_statement = dynamic_cast<const BoundExpressionStatement*>(statement))
+            {
                 generateExpression(expression_statement->getExpression());
-
-            else if(auto declaration_statement = dynamic_cast<const BoundDeclarationStatement*>(statement)) {
-                generateDeclaration(declaration_statement->getDeclaration());
-                m_emitter.push(Registers::getReturn());
+                m_emitter.pop(Registers::getReturn());
             }
+
+            else if(auto declaration_statement = dynamic_cast<const BoundDeclarationStatement*>(statement))
+                generateDeclaration(declaration_statement->getDeclaration());
 
             else if(auto label_statement = dynamic_cast<const BoundLabelStatement*>(statement))
                 generateLabelStatement(label_statement);
@@ -88,19 +89,20 @@ namespace linc
             m_variables.beginScope();
 
             for(const auto& item: expression->getStatements())
-            {
                 generateStatement(item.get());
-                m_emitter.pop(Registers::getPrimary());
-            }
 
-            m_variables.endScope();
-            auto offset = m_emitter.getStackPosition() - stack_position;
+            if(auto tail = expression->getTail())
+                generateExpression(tail);
+            else m_emitter.push(Registers::getPrimary());
+            
+            auto offset = m_emitter.getStackPosition() - stack_position - 1ul;
             if(offset)
             {
                 auto bytes = static_cast<Types::i64>(8ul * offset);
                 m_emitter.binary(bytes > 0l? Emitter::BinaryInstruction::Add: Emitter::BinaryInstruction::Subtract, Registers::getStack(), std::to_string(std::abs(bytes)));
             }
-            m_emitter.unary(Emitter::UnaryInstruction::Push, Registers::getPrimary());
+            
+            m_variables.endScope();
         }
 
         void generateExpression(const BoundExpression* expression)
@@ -354,8 +356,8 @@ namespace linc
         void generateWhileExpression(const BoundWhileExpression* expression)
         {
             m_variables.beginScope();
-            auto has_else = expression->getElseBody().has_value();
-            auto has_finally = expression->getFinallyBody().has_value();
+            auto has_else = expression->hasElse();
+            auto has_finally = expression->hasFinally();
 
             if(has_else || has_finally)
                 m_emitter.binary(Emitter::BinaryInstruction::Xor, Registers::getConditional(), Registers::getConditional());
@@ -378,7 +380,7 @@ namespace linc
                 auto label_else = m_emitter.reserveLabel();
 
                 m_emitter.unary(Emitter::UnaryInstruction::JumpIfZero, label_else);
-                generateExpression(*expression->getFinallyBody());
+                generateExpression(expression->getFinallyBody());
                 m_emitter.pop(Registers::getReturn());
                 
                 if(has_else)
@@ -388,7 +390,7 @@ namespace linc
 
                 if(has_else)
                 {
-                    generateExpression(expression->getElseBody().value());
+                    generateExpression(expression->getElseBody());
                     m_emitter.pop(Registers::getReturn());
                     m_emitter.label(label_finally);
                 }
@@ -398,7 +400,7 @@ namespace linc
                 auto label_exit = m_emitter.reserveLabel();
                 m_emitter.binary(Emitter::BinaryInstruction::Test, Registers::getConditional(), Registers::getConditional());
                 m_emitter.unary(Emitter::UnaryInstruction::JumpIfNotZero, label_exit);
-                generateExpression(expression->getElseBody().value());
+                generateExpression(expression->getElseBody());
                 m_emitter.pop(Registers::getReturn());
                 m_emitter.label(label_exit);
             }
@@ -418,7 +420,7 @@ namespace linc
             generateExpression(expression->getIfBody());
             m_emitter.pop(Registers::getReturn());
 
-            auto has_else = expression->getElseBody().has_value();
+            auto has_else = expression->hasElse();
 
             if(has_else)
                 m_emitter.unary(Emitter::UnaryInstruction::Jump, label_true);
@@ -427,7 +429,7 @@ namespace linc
 
             if(has_else)
             {
-                generateExpression(expression->getElseBody().value());
+                generateExpression(expression->getElseBody());
                 m_emitter.pop(Registers::getReturn());
                 m_emitter.label(label_true);
             }
@@ -857,77 +859,6 @@ namespace linc
             }
         }
     private:
-        // void generateMutableOperator(const Types::type& type, const BoundExpression* expression, const BoundExpression* new_value)
-        // {
-        //     generateExpression(new_value);
-        //     m_emitter.pop(Registers::getPrimary());
-            
-        //     if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(expression))
-        //     {
-        //         auto variable = m_variables.get(identifier->getValue());
-                
-        //         if(const auto static_identifier = std::get_if<std::string>(&variable))
-        //             m_emitter.push(*static_identifier);
-        //         else m_emitter.push(m_emitter.getStackOffset(std::get<std::size_t>(variable)));
-        //     }
-        //     else if(auto index_expression = dynamic_cast<const BoundIndexExpression*>(expression))
-        //     {
-        //         auto index = evaluateExpression(index_expression->getIndex()).getPrimitive().getU64();
-        //         auto array = index_expression->getArray();
-
-        //         if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(array))
-        //         {
-        //             auto find = m_variables.find(identifier->getValue());
-                    
-        //             if(find == m_variables.end())
-        //                 return PrimitiveValue::invalidValue;
-
-        //             find->second.value.getArray().set(index, new_value);
-        //             result = new_value;
-        //             return result;
-        //         }
-                
-        //         Reporting::push(Reporting::Report{
-        //             .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-        //             .message = "Cannot use mutable operator on temporary array operands."
-        //         });
-
-        //         return PrimitiveValue::invalidValue;
-        //     }
-        //     else if(auto access_expression = dynamic_cast<const BoundAccessExpression*>(expression))
-        //     {
-        //         auto index = access_expression->getIndex();
-        //         auto base = access_expression->getBase();
-
-        //         if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(base))
-        //         {
-        //             auto find = m_variables.find(identifier->getValue());
-                    
-        //             if(find == m_variables.end())
-        //                 return PrimitiveValue::invalidValue;
-
-        //             find->second.value.getStructure().at(index) = new_value;
-        //             result = new_value;
-        //             return result;
-        //         }
-
-        //         Reporting::push(Reporting::Report{
-        //             .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-        //             .message = "Cannot use mutable operator on temporary structure operands."
-        //         });
-
-        //         return PrimitiveValue::invalidValue;
-        //     }
-        //     else return (Reporting::push(Reporting::Report{
-        //             .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-        //             .message = "Cannot use mutable operator on temporary operands."
-        //         }), PrimitiveValue::invalidValue);
-
-        //     if(result.getIfPrimitive() && (result.getPrimitive().getKind() == PrimitiveValue::Kind::Signed
-        //         || result.getPrimitive().getKind() == PrimitiveValue::Kind::Unsigned))
-        //         return result.getPrimitive().convert(type.primitive);
-        //     else return result;
-        // }
         const BoundProgram* const m_program;
         const Target::Platform m_platform;
         Emitter m_emitter;

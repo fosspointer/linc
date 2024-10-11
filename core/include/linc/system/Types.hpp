@@ -31,7 +31,7 @@ namespace linc
         public:
             enum class Kind
             {
-                Primitive, Array, Structure
+                Primitive, Array, Structure, Function
             };
 
             using Primitive = Types::Kind;
@@ -41,6 +41,12 @@ namespace linc
             {
                 std::unique_ptr<const type> baseType;
                 std::optional<std::size_t> count;
+            };
+
+            struct Function final
+            {
+                std::unique_ptr<const type> returnType;
+                std::vector<std::unique_ptr<const type>> argumentTypes;
             };
 
             type(Primitive primitive, bool is_mutable = false)
@@ -59,12 +65,21 @@ namespace linc
                 new (&array) Array{.baseType = _array.baseType? _array.baseType->clone(): nullptr, .count = _array.count};
             }
 
+            type(const Function& _function, bool is_mutable = false)
+                :kind(Kind::Function), isMutable(is_mutable)
+            {
+                new (&function) Function{cloneFunction(&_function)};
+            }
+
             ~type()
             {
-                if(kind == Kind::Array)
-                    array.~Array();
-                else if(kind == Kind::Structure)
-                    structure.~vector();
+                switch(kind)
+                {
+                case Kind::Array: array.~Array();
+                case Kind::Structure: structure.~vector();
+                case Kind::Function: function.~Function();
+                default: break;
+                }
             }
 
             type(const type& other)
@@ -75,6 +90,7 @@ namespace linc
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{.baseType = other.array.baseType->clone(), .count = other.array.count}; break;
                 case Kind::Structure: new (&structure) std::vector{cloneStructure(&other.structure, other.isMutable)}; break;
+                case Kind::Function: new (&function) Function{cloneFunction(&other.function)}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
                 }
             }
@@ -87,6 +103,7 @@ namespace linc
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{std::move(other.array)}; break;
                 case Kind::Structure: new (&structure) std::vector{std::move(other.structure)}; break;
+                case Kind::Function: new (&function) Function{std::move(other.function)}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
                 }
             }
@@ -101,6 +118,7 @@ namespace linc
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{.baseType = other.array.baseType->clone(), .count = other.array.count}; break;
                 case Kind::Structure: new (&structure) std::vector{cloneStructure(&other.structure, other.isMutable)}; break;
+                case Kind::Function: new (&function) Function{cloneFunction(&other.function)}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
                 }
                 return *this;
@@ -116,6 +134,7 @@ namespace linc
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{std::move(other.array)}; break;
                 case Kind::Structure: new (&structure) std::vector{std::move(other.structure)}; break;
+                case Kind::Function: new (&function) Function{std::move(other.function)}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
                 }
                 return *this;
@@ -135,25 +154,45 @@ namespace linc
                  
                     return std::make_unique<const type>(std::move(structure_vector), isMutable);
                 }
+                case Kind::Function:
+                {
+                    std::vector<std::unique_ptr<const type>> argument_types;
+                    for(const auto& argument_type: function.argumentTypes)
+                        argument_types.push_back(argument_type->clone());
+                    
+                    return std::make_unique<const type>(Function{.returnType = function.returnType->clone(), .argumentTypes = std::move(argument_types)},
+                        isMutable);
+                }
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
                 }
             }
 
-            bool operator==(const type& _other) const
+            bool operator==(const type& other) const
             {
-                if(isMutable != _other.isMutable || kind != _other.kind)
+                if(isMutable != other.isMutable || kind != other.kind)
                     return false;
                 
                 switch(kind)
                 {
-                case Kind::Primitive: return primitive == _other.primitive;
-                case Kind::Array: return *array.baseType == *_other.array.baseType && array.count == _other.array.count;
+                case Kind::Primitive: return primitive == other.primitive;
+                case Kind::Array: return *array.baseType == *other.array.baseType && array.count == other.array.count;
                 case Kind::Structure: 
                     {
-                        if(structure.size() != _other.structure.size()) return false;
+                        if(structure.size() != other.structure.size()) return false;
 
                         for(Structure::size_type i{0ul}; i < structure.size(); ++i)
-                            if(*structure[i].second != *_other.structure[i].second)
+                            if(*structure[i].second != *other.structure[i].second)
+                                return false;
+
+                        return true;
+                    }
+                case Kind::Function:
+                    {
+                        if(!function.returnType || !other.function.returnType || *function.returnType != *other.function.returnType
+                        || function.argumentTypes.size() != other.function.argumentTypes.size()) return false;
+
+                        for(decltype(Function::argumentTypes)::size_type i{0ul}; i < function.argumentTypes.size(); ++i)
+                            if(!function.argumentTypes[i] || !other.function.argumentTypes[i] || *function.argumentTypes[i] != *other.function.argumentTypes[i])
                                 return false;
 
                         return true;
@@ -187,6 +226,7 @@ namespace linc
                         else if(!structure[i].second->isAssignableTo(*other.structure[i].second)) return false;
                 
                     return true;
+                case Kind::Function: return type(function) == type(other.function);
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
                 }
             }
@@ -202,6 +242,7 @@ namespace linc
                 Primitive primitive;
                 Array array;
                 Structure structure;
+                Function function;
             };
             bool isMutable;
 
@@ -217,6 +258,16 @@ namespace linc
                 }
 
                 return result;
+            }
+
+            static Function cloneFunction(const Function* function)
+            {
+                std::vector<std::unique_ptr<const Types::type>> argument_types;
+
+                for(const auto& argument_type: function->argumentTypes)
+                    argument_types.push_back(argument_type->clone());
+
+                return Function{.returnType = function->returnType->clone(), .argumentTypes = std::move(argument_types)};
             }
         };
        
@@ -249,8 +300,13 @@ namespace linc
         [[nodiscard]] inline static const std::unique_ptr<To> uniqueCastDynamic(std::unique_ptr<From> p)
         {
             std::unique_ptr<To> result(dynamic_cast<To*>(p.get()));
-            p.release();
-            return std::move(result);
+            
+            if(result)
+            {
+                p.release();
+                return result;
+            }
+            return nullptr;
         }
 
         template <typename To, typename From> 

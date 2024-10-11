@@ -9,7 +9,7 @@ namespace linc
     {
     public:
         BoundReturnStatement(std::unique_ptr<const BoundExpression> expression)
-            :BoundStatement(expression->getType()), m_expression(std::move(expression))
+            :m_expression(std::move(expression))
         {}
 
         [[nodiscard]] const BoundExpression* const getExpression() const { return m_expression.get(); }

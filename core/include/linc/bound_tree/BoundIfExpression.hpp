@@ -6,33 +6,25 @@ namespace linc
     class BoundIfExpression final : public BoundExpression
     {
     public:
-        BoundIfExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundExpression> if_body, 
-            std::unique_ptr<const BoundExpression> else_body, Types::type type);
-
-        BoundIfExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundExpression> if_body, Types::type type);
+        BoundIfExpression(Types::type type, std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundExpression> if_body, 
+            std::unique_ptr<const BoundExpression> else_body);
 
         [[nodiscard]] inline const BoundExpression* const getTestExpression() const { return m_testExpression.get(); }
         [[nodiscard]] inline const BoundExpression* const getIfBody() const { return m_ifBody.get(); }
-        [[nodiscard]] inline const std::optional<const BoundExpression* const> getElseBody() const
-        {
-            return m_elseBody.has_value()? std::make_optional(m_elseBody->get()): std::nullopt;
-        }
-        [[nodiscard]] inline const bool hasElse() const { return m_elseBody.has_value(); }
+        [[nodiscard]] inline const BoundExpression* const getElseBody() const { return m_elseBody? m_elseBody.get(): nullptr; }
+        [[nodiscard]] inline const bool hasElse() const { return (bool)m_elseBody; }
 
         virtual std::unique_ptr<const BoundExpression> clone() const final override;
 
         inline virtual std::vector<const BoundNode*> getChildren() const final override
         {
-            if(m_elseBody.has_value())
-                return {m_testExpression.get(), m_ifBody.get(), m_elseBody->get()};
+            if(m_elseBody)
+                return {m_testExpression.get(), m_ifBody.get(), m_elseBody.get()};
             else
                 return {m_testExpression.get(), m_ifBody.get()};
         }
     private:
         virtual std::string toStringInner() const final override;
-        
-        const std::unique_ptr<const BoundExpression> m_testExpression;
-        const std::unique_ptr<const BoundExpression> m_ifBody;
-        const std::optional<const std::unique_ptr<const BoundExpression>> m_elseBody;
+        const std::unique_ptr<const BoundExpression> m_testExpression, m_ifBody, m_elseBody;
     };
 }

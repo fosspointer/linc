@@ -8,7 +8,7 @@ namespace linc
     {
     public:
         explicit BoundJumpStatement(Types::u64 block_index, Types::u64 scope, Types::u64 identifier_index)
-            :BoundStatement(Types::voidType), m_blockIndex(block_index), m_scope(scope), m_identifierIndex(identifier_index)
+            :m_blockIndex(block_index), m_scope(scope), m_identifierIndex(identifier_index)
         {}
 
         [[nodiscard]] inline Types::u64 getBlockIndex() const { return m_blockIndex; }

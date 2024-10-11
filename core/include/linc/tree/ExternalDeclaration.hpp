@@ -3,6 +3,7 @@
 #include <linc/tree/IdentifierExpression.hpp>
 #include <linc/tree/TypeExpression.hpp>
 #include <linc/tree/VariableDeclaration.hpp>
+#include <linc/tree/DelimetedType.hpp>
 
 #define LINC_EXTERNAL_DECLARATION_TOKEN_TYPE_ASSERT(field_name, token_type) \
     if(field_name.type != token_type) \
@@ -18,7 +19,7 @@ namespace linc
     public:
         ExternalDeclaration(const Token& external_keyword, const Token& left_parenthesis, const Token& right_parenthesis, const Token& type_specifier,
             std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const TypeExpression> type,
-            std::vector<std::unique_ptr<const TypeExpression>> arguments)
+            std::vector<DelimitedType> arguments)
             :Declaration(external_keyword.info), m_externalKeyword(external_keyword), m_leftParenthesis(left_parenthesis),
             m_rightParenthesis(right_parenthesis), m_typeSpecifier(type_specifier), m_identifier(std::move(identifier)), m_actualType(std::move(type)),
             m_arguments(std::move(arguments)) 
@@ -31,7 +32,10 @@ namespace linc
             addTokens(std::vector<Token>{m_externalKeyword, m_leftParenthesis});
 
             for(const auto& argument: m_arguments)
-                addTokens(argument->getTokens());
+            {
+                addTokens(argument.type->getTokens());
+                if(argument.delimeter) addToken(*argument.delimeter);
+            }
             
             addTokens(std::vector<Token>{m_rightParenthesis, m_typeSpecifier});
             addTokens(m_actualType->getTokens());
@@ -39,12 +43,12 @@ namespace linc
 
         virtual std::unique_ptr<const Declaration> clone() const final override
         {
-            std::vector<std::unique_ptr<const TypeExpression>> arguments;
+            std::vector<DelimitedType> arguments;
 
             for(const auto& argument: m_arguments)
             {
-                auto type = Types::uniqueCast<const TypeExpression>(argument->clone());
-                arguments.push_back(std::move(type));
+                auto type = Types::uniqueCast<const TypeExpression>(argument.type->clone());
+                arguments.push_back(DelimitedType{std::move(type), argument.delimeter});
             }
 
             auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
@@ -61,11 +65,11 @@ namespace linc
         inline const Token& getRightParenthesis() const { return m_rightParenthesis; }
         inline const IdentifierExpression* const getIdentifier() const { return m_identifier.get(); }
         inline const TypeExpression* const getActualType() const { return m_actualType.get(); }
-        inline const std::vector<std::unique_ptr<const TypeExpression>>& getArguments() const { return m_arguments; }
+        inline const std::vector<DelimitedType>& getArguments() const { return m_arguments; }
     private:
         const Token m_externalKeyword, m_leftParenthesis, m_rightParenthesis, m_typeSpecifier;
         const std::unique_ptr<const IdentifierExpression> m_identifier;
         const std::unique_ptr<const TypeExpression> m_actualType;
-        const std::vector<std::unique_ptr<const TypeExpression>> m_arguments;
+        const std::vector<DelimitedType> m_arguments;
     };
 }

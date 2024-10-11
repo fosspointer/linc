@@ -14,7 +14,7 @@ namespace linc
         {}
 
         Node(const Token::Info& token_info)
-            :m_info(NodeInfo{.tokenList = {}, .info = token_info})
+            :m_info(NodeInfo{.tokenList = std::vector<Token>{}, .info = token_info})
         {}
 
         virtual ~Node() = default;

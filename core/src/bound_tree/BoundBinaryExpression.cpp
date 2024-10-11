@@ -57,7 +57,7 @@ namespace linc
             return Types::invalidType;
         }
         else if(kind == Kind::Equals || kind == Kind::NotEquals)
-            return Types::fromKind(Types::Kind::_bool);
+            return left_type.isCompatible(right_type)? Types::fromKind(Types::Kind::_bool): Types::invalidType;
         else if(kind == Kind::Assignment)
             return left_type.isMutable && left_type.isAssignableTo(right_type)? left_type: Types::invalidType;
         else if(left_type.kind == Types::type::Kind::Array)

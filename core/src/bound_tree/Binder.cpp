@@ -589,9 +589,11 @@ namespace linc
         auto name = declaration->getIdentifier()->getValue();
 
         std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments;
+        std::vector<std::unique_ptr<const Types::type>> argument_types;
+        arguments.reserve(declaration->getArguments().size());
+        argument_types.reserve(declaration->getArguments().size());
 
         m_boundDeclarations.beginScope();
-
         bool has_default_value{false}, has_error{false};
 
         for(std::size_t i = 0; i < declaration->getArguments().size(); ++i)
@@ -621,14 +623,24 @@ namespace linc
             arguments.push_back(std::move(bound_argument));
         }
 
+        for(const auto& argument: arguments)
+            argument_types.push_back(argument->getActualType().clone());
+
         m_inFunction = true;
         m_currentFunctionType = return_type;
         auto body = bindExpression(declaration->getBody());
-        if(return_type == Types::invalidType) return_type = body->getType();
+        if(return_type == Types::invalidType) { return_type = body->getType(); return_type.isMutable = false; }
         m_currentFunctionType = Types::voidType;
         m_inFunction = false;
 
-        auto function = std::make_unique<const BoundFunctionDeclaration>(return_type, name, std::move(arguments), std::move(body));
+        if(return_type.isMutable)
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Warning, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(declaration->getTypeSpecifier().info),
+                .message = Logger::format("$ Mutable modifier is ineffective on function return types.", declaration->getInfoString())});
+
+        auto function_type = Types::type{Types::type::Function{return_type.clone(), std::move(argument_types)}, return_type.isMutable};
+        auto function = std::make_unique<const BoundFunctionDeclaration>(function_type, name, std::move(arguments), std::move(body));
         
         if(!function->getBody()->getType().isAssignableTo(function->getReturnType()))
             Reporting::push(Reporting::Report{
@@ -655,7 +667,7 @@ namespace linc
         std::vector<std::unique_ptr<const BoundTypeExpression>> arguments;
         for(const auto& argument : declaration->getArguments())
         {
-            auto type = bindTypeExpression(argument.get());
+            auto type = bindTypeExpression(argument.type.get());
             arguments.push_back(std::move(type));
         }
         
@@ -715,6 +727,9 @@ namespace linc
         else if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(find->get()))
             return std::make_unique<const BoundIdentifierExpression>(value, variable->getActualType());
 
+        else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find->get()))
+            return std::make_unique<const BoundIdentifierExpression>(value, function->getFunctionType());
+
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
             .message = Logger::format("$ Cannot reference identifier '$', as it is not a variable.", expression->getInfoString(), value)});
@@ -724,15 +739,28 @@ namespace linc
 
     const std::unique_ptr<const BoundTypeExpression> Binder::bindTypeExpression(const TypeExpression* expression)
     {
-        const auto kind = Types::kindFromUserString(expression->getTypeIdentifier().value.value());
+        const auto kind = expression->getIfIdentifierRoot()? Types::kindFromUserString(expression->getIfIdentifierRoot()->getValue()): Types::Kind::invalid;
         auto specifiers = bindArraySpecifiers(expression->getArraySpecifiers());
 
         if(kind != Types::Kind::invalid)
             return std::make_unique<const BoundTypeExpression>(kind, expression->getMutabilityKeyword().has_value(), std::move(specifiers));
 
+        else if(auto function = expression->getIfFunctionRoot())
+        {
+            auto return_type = bindTypeExpression(function->returnType.get())->getActualType().clone();
+            std::vector<std::unique_ptr<const Types::type>> argument_types;
+            argument_types.reserve(function->argumentTypes.size());
+
+            for(const auto& type: function->argumentTypes)
+                argument_types.push_back(bindTypeExpression(type.type.get())->getActualType().clone());
+
+            return std::make_unique<const BoundTypeExpression>(Types::type::Function{std::move(return_type), std::move(argument_types)}, expression->getMutabilityKeyword().has_value(),
+                std::move(specifiers));
+        }
+
         else
         {
-            auto name = *expression->getTypeIdentifier().value;
+            auto name = expression->getIfIdentifierRoot()->getValue();
             auto find = m_boundDeclarations.find(name);
             
             if(find == m_boundDeclarations.end())
@@ -768,68 +796,46 @@ namespace linc
     {
         auto test_expression = bindExpression(expression->getTestExpression());
         auto if_body = bindExpression(expression->getIfBody());
-        auto _else_body = expression->getElseBody();
+        auto else_body = expression->getElseBody()? bindExpression(expression->getElseBody()): nullptr;
+        auto type = else_body && if_body->getType() == else_body->getType()? if_body->getType(): Types::voidType; 
 
-        if(_else_body)
-        {
-            auto else_body = bindExpression(_else_body.value());
-            auto type = if_body->getType() == else_body->getType()? if_body->getType(): Types::voidType;
-            return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(if_body),
-                std::move(else_body), type);
-        }
-        else return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(if_body), Types::voidType);
+        return std::make_unique<const BoundIfExpression>(type, std::move(test_expression), std::move(if_body), std::move(else_body));
     }
 
     const std::unique_ptr<const BoundWhileExpression> Binder::bindWhileExpression(const WhileExpression* expression)
     {
-        m_boundDeclarations.beginScope();
         auto test_expression = bindExpression(expression->getTestExpression());
+        auto while_body = bindExpression(expression->getWhileBody());
+        auto else_body = expression->hasElse()? bindExpression(expression->getElseBody()): nullptr;
+        auto finally_body = expression->hasFinally()? bindExpression(expression->getFinallyBody()): nullptr;
+        auto type = while_body->getType();
 
-        m_inLoop = true;
-        auto body = bindExpression(expression->getWhileBody());
-        m_inLoop = false;
-        
-        auto type = body->getType();
-
-        auto _finally_body = expression->getFinallyBody();
-        auto _else_body = expression->getElseBody();
-
-        if(_finally_body)
+        if(else_body && finally_body)
         {
-            auto finally_body = bindExpression(_finally_body.value());
-            auto finally_type = type.isCompatible(finally_body->getType())? type: Types::voidType;
-
-            if(_else_body)
-            {
-                auto else_body = bindExpression(_else_body.value());
-                auto else_type = finally_type.isCompatible(else_body->getType())? finally_type: Types::voidType;
-
-                m_boundDeclarations.endScope();
-                return std::make_unique<const BoundWhileExpression>(else_type, std::move(test_expression), std::move(body), 
-                    std::move(finally_body), std::move(else_body));
-            }
-            else
-            {
-                m_boundDeclarations.endScope();
-                return std::make_unique<const BoundWhileExpression>(finally_type, std::move(test_expression), std::move(body), 
-                    std::move(finally_body));
-            }
+            if(!while_body->getType().isCompatible(finally_body->getType())
+            || !finally_body->getType().isCompatible(else_body->getType())
+            || !else_body->getType().isCompatible(while_body->getType()))
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .message = Logger::format("$ Incompatible typing in while-finally-else expression.", expression->getInfoString())
+                });
         }
-        else if(_else_body)
+        else if(else_body)
         {
-            auto else_body = bindExpression(_else_body.value());
-            auto else_type = type.isCompatible(else_body->getType())? type: Types::voidType;
-
-            m_boundDeclarations.endScope();
-            return std::make_unique<const BoundWhileExpression>(else_type, std::move(test_expression), std::move(body), 
-                std::nullopt, std::move(else_body));
+            if(!while_body->getType().isCompatible(else_body->getType()))
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .message = Logger::format("$ Incompatible typing in while-else expression.", expression->getInfoString())
+                });
         }
+        else if(while_body->getType() != Types::voidType || (finally_body && finally_body->getType() != Types::voidType))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ All typed while expressions must have an else clause.", expression->getInfoString())
+            });
 
-        else
-        {
-            m_boundDeclarations.endScope();
-            return std::make_unique<const BoundWhileExpression>(Types::voidType, std::move(test_expression), std::move(body));
-        };
+        return std::make_unique<const BoundWhileExpression>(type, std::move(test_expression), std::move(while_body), std::move(else_body),
+            std::move(finally_body));
     }
 
     const std::unique_ptr<const BoundForExpression> Binder::bindForExpression(const ForExpression* expression)
@@ -1231,7 +1237,7 @@ namespace linc
             
             return std::make_unique<const BoundAccessExpression>(std::move(base), -1ul, Types::invalidType);
         }
-        auto structure = base->getType().structure;
+        auto structure = Types::type{base->getType()}.structure;
 
         for(std::size_t index{0ul}; index < structure.size(); ++index)
             if(structure[index].first == name)

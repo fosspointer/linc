@@ -3,7 +3,7 @@
 namespace linc
 {
     BoundDeclarationStatement::BoundDeclarationStatement(std::unique_ptr<const BoundDeclaration> declaration)
-        :BoundStatement(declaration->getType()), m_declaration(std::move(declaration))
+        :m_declaration(std::move(declaration))
     {}
 
     std::unique_ptr<const BoundStatement> BoundDeclarationStatement::clone() const

@@ -34,28 +34,21 @@ namespace linc
                     if(literal->getValue().getBool())
                         return if_expression->getIfBody()->clone();
                     else if(auto else_body = if_expression->getElseBody())
-                        return else_body.value()->clone();
+                        return else_body->clone();
                     else return std::make_unique<const BoundBlockExpression>(std::vector<std::unique_ptr<const BoundStatement>>{}, nullptr);
                 }
                 auto if_body = optimizeExpression(if_expression->getIfBody());
+                auto else_body = if_expression->hasElse()? optimizeExpression(if_expression->getElseBody()): nullptr;
+                return std::make_unique<const BoundIfExpression>(if_expression->getType(), std::move(test_expression), std::move(if_body),
+                    std::move(else_body));
 
-                if(auto _else_body = if_expression->getElseBody())
-                {
-                    auto else_body = optimizeExpression(_else_body.value());
-                    return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(if_body), std::move(else_body),
-                        if_expression->getType());
-                }
-
-                else return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(if_body), if_expression->getType());
             }
             else if(auto while_expression = dynamic_cast<const BoundWhileExpression*>(expression))
             {
                 auto test = optimizeExpression(while_expression->getTestExpression());
                 auto while_body = optimizeExpression(while_expression->getWhileBody());
-                auto finally_body = while_expression->getFinallyBody()
-                    ? std::make_optional(optimizeExpression(*while_expression->getFinallyBody())): std::nullopt;
-                auto else_body = while_expression->getElseBody()
-                    ? std::make_optional(optimizeExpression(*while_expression->getElseBody())): std::nullopt;
+                auto finally_body = while_expression->hasFinally()? optimizeExpression(while_expression->getFinallyBody()): nullptr;
+                auto else_body = while_expression->hasElse()? optimizeExpression(while_expression->getElseBody()): nullptr;
 
                 return std::make_unique<const BoundWhileExpression>(while_expression->getType(), std::move(test), std::move(while_body),
                     std::move(finally_body), std::move(else_body));
@@ -145,7 +138,9 @@ namespace linc
             {
                 auto body = optimizeExpression(function_declaration->getBody());
                 std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments;
+                std::vector<std::unique_ptr<const Types::type>> argument_types;
                 arguments.reserve(function_declaration->getArguments().size());
+                argument_types.reserve(function_declaration->getArguments().size());
 
                 for(const auto& argument: function_declaration->getArguments())
                 {
@@ -153,8 +148,11 @@ namespace linc
                     arguments.push_back(std::move(optimized_argument));
                 }
 
-                return std::make_unique<const BoundFunctionDeclaration>(function_declaration->getReturnType(), function_declaration->getName(),
-                    std::move(arguments), std::move(body));
+                for(const auto& argument: arguments)
+                    argument_types.push_back(argument->getActualType().clone());
+
+                auto function_type = Types::type{Types::type::Function{function_declaration->getReturnType().clone(), std::move(argument_types)}};
+                return std::make_unique<const BoundFunctionDeclaration>(function_type, function_declaration->getName(), std::move(arguments), std::move(body));
             }
             return declaration->clone();
         }

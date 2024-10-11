@@ -34,6 +34,21 @@ namespace linc
         m_index = {};
         m_matchFailed = {};
     }
+
+    std::vector<DelimitedType> Parser::parseDelimitedTypeList() const
+    {
+        if(peek()->type == Token::Type::ParenthesisRight) return std::vector<DelimitedType>{};
+        auto info = peekInfo();
+        std::vector<DelimitedType> result;
+
+        while(auto type = parseTypeExpression())
+        {
+            auto comma = peek()->type != Token::Type::ParenthesisRight? std::make_optional(match(Token::Type::Comma)): std::nullopt;
+            result.push_back(DelimitedType{.type = std::move(type), .delimeter = comma});
+        }
+
+        return result;
+    }
     
     std::unique_ptr<const Statement> Parser::parseStatement() const 
     {
@@ -118,7 +133,7 @@ namespace linc
 
         // if(!expression)
         // {
-        //     auto info = getLastAvailableInfo();
+        //     auto info = peekInfo();
         //     Reporting::push(Reporting::Report{
         //         .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
         //         .span = TextSpan::fromTokenInfo(info),
@@ -159,10 +174,43 @@ namespace linc
     std::unique_ptr<const TypeExpression> Parser::parseTypeExpression() const
     {
         auto has_mutability_keyword = peek()->type == Token::Type::KeywordMutability;
-        if(has_mutability_keyword || isTypeIdentifier(*peek()))
+        auto root_peek_offset = has_mutability_keyword? 1ul: 0ul;
+        auto has_function_root = peek(root_peek_offset)->type == Token::Type::KeywordFunction && peek(root_peek_offset + 1ul)->type == Token::Type::ParenthesisLeft;
+        if(has_mutability_keyword || isTypeIdentifier(*peek()) || has_function_root)
         {
             auto mutability_keyword = has_mutability_keyword? std::make_optional(consume()): std::nullopt;
-            auto typename_identifier = match(Token::Type::Identifier);
+            TypeExpression::Root root{nullptr};
+            auto root_info = peekInfo();
+
+            if(has_function_root)
+            {
+                auto function_keyword = consume();
+                auto left_parenthesis = consume();
+                auto argument_types = parseDelimitedTypeList();
+                auto right_parenthesis = match(Token::Type::ParenthesisRight);
+                auto type_specifier = match(Token::Type::Colon);
+                auto return_type = parseTypeExpression();
+
+                if(!return_type)
+                    return (Reporting::push(Reporting::Report{
+                        .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                        .span = TextSpan{.lineIndex = type_specifier.info.line - 1ul, .spanStart = type_specifier.info.characterStart, .spanEnd = 
+                            peekInfo().characterEnd},
+                        .message = Logger::format("$::$ Invalid return type in function pointer root.",
+                            function_keyword.info.file, function_keyword.info.line)
+                    }), nullptr);
+
+                root = TypeExpression::FunctionRoot{
+                    function_keyword, type_specifier, left_parenthesis, right_parenthesis, std::move(return_type), std::move(argument_types)
+                };
+            }
+            else root = parseIdentifierExpression(true);
+
+            if(auto identifier_root = std::get_if<0ul>(&root); identifier_root && *identifier_root == nullptr)
+                return (Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                    .message = Logger::format("$::$ Type root specified was invalid.", root_info.file, root_info.line)
+                }), nullptr);
 
             std::vector<TypeExpression::ArraySpecifier> specifiers;
 
@@ -179,16 +227,16 @@ namespace linc
                 });
             }
 
-            return std::make_unique<const TypeExpression>(typename_identifier, mutability_keyword, std::move(specifiers));
+            return std::make_unique<const TypeExpression>(mutability_keyword, std::move(root), std::move(specifiers));
         }
         return nullptr;
     }
 
-    std::unique_ptr<const IdentifierExpression> Parser::parseIdentifierExpression() const
+    std::unique_ptr<const IdentifierExpression> Parser::parseIdentifierExpression(bool type_inclusive) const
     {
-        auto has_identifier = peek()->isIdentifier() && !isTypeIdentifier(*peek());
+        auto has_identifier = peek()->isIdentifier();
         
-        if(has_identifier)
+        if(has_identifier && (!isTypeIdentifier(*peek()) || type_inclusive))
             return std::make_unique<const IdentifierExpression>(consume());
         
         return nullptr;
@@ -285,7 +333,7 @@ namespace linc
 
         while(peek()->type != Token::Type::SquareRight)
         {
-            auto info = getLastAvailableInfo();
+            auto info = peekInfo();
             auto token = peek();
             auto expression = parseExpression();
             if(!expression)
@@ -317,7 +365,7 @@ namespace linc
         if(peek()->type != Token::Type::ParenthesisLeft)
             return nullptr;
 
-        auto info = getLastAvailableInfo();
+        auto info = peekInfo();
         auto left_parenthesis = consume();
         auto expression = parseExpression();
 
@@ -340,12 +388,12 @@ namespace linc
         if(peek()->type != Token::Type::KeywordIf)
             return nullptr;
 
-        auto info = getLastAvailableInfo();
+        auto info = peekInfo();
         auto if_keyword = consume();
-        auto check_expression = parseExpression();
+        auto test_expression = parseExpression();
         auto if_body = parseExpression();
 
-        if(!check_expression)
+        if(!test_expression)
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
@@ -380,10 +428,9 @@ namespace linc
                 return nullptr;
             }
 
-            return std::make_unique<const IfExpression>(if_keyword, std::move(check_expression), std::move(if_body), else_keyword,
-                std::move(else_body));
+            return std::make_unique<const IfExpression>(if_keyword, else_keyword, std::move(test_expression), std::move(if_body), std::move(else_body));
         }
-        else return std::make_unique<const IfExpression>(if_keyword, std::move(check_expression), std::move(if_body));
+        else return std::make_unique<const IfExpression>(if_keyword, std::nullopt, std::move(test_expression), std::move(if_body), nullptr);
     }
 
     std::unique_ptr<const ForExpression> Parser::parseForExpression() const
@@ -430,19 +477,19 @@ namespace linc
             return nullptr;
 
         auto while_keyword = consume();
-        auto check_expression = parseExpression();
+        auto test_expression = parseExpression();
         auto while_body = parseExpression();
         
         auto has_finally = peek() && peek()->type == Token::Type::KeywordFinally;
         auto finally_keyword = has_finally? std::make_optional(consume()): std::nullopt;
-        auto finally_body = has_finally? std::make_optional(parseExpression()): std::nullopt;
+        auto finally_body = has_finally? parseExpression(): nullptr;
         
         auto has_else = peek()->type == Token::Type::KeywordElse;
         auto else_keyword = has_else? std::make_optional(consume()): std::nullopt;
-        auto else_body = has_else? std::make_optional(parseExpression()): std::nullopt;
+        auto else_body = has_else? parseExpression(): nullptr;
 
-        return std::make_unique<const WhileExpression>(while_keyword, std::move(check_expression), std::move(while_body), finally_keyword, std::move(finally_body),
-            else_keyword, std::move(else_body));
+        return std::make_unique<const WhileExpression>(while_keyword, finally_keyword, else_keyword, std::move(test_expression), std::move(while_body),
+            std::move(finally_body), std::move(else_body));
     }
 
     std::unique_ptr<const ConversionExpression> Parser::parseConversionExpression() const
@@ -516,7 +563,7 @@ namespace linc
                     identifier.info.file, identifier.info.line, identifier.value.value_or(""))
             }), nullptr);
 
-        else if(definition != Definition::Kind::Function && definition != Definition::Kind::External)
+        else if(definition != Definition::Kind::Function && definition != Definition::Kind::External && definition != Definition::Kind::Variable)
             return (Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
                 .span = TextSpan{.lineIndex = identifier.info.line -1ul, .spanStart = identifier.info.characterStart,
@@ -604,28 +651,7 @@ namespace linc
             return nullptr;
         }
 
-        if(isValidStructure(*type->getTypeIdentifier().value) && peek() && peek()->type == Token::Type::BraceLeft)
-        {
-            auto left_brace = consume();
-            std::vector<StructureInitializerExpression::Argument> arguments;
-
-            while(peek() && peek()->type == Token::Type::Dot)
-            {
-                auto access_specifier = consume();
-                auto field_identifier = parseIdentifierExpression();
-                auto equality_specifier = match(Token::Type::OperatorAssignment);
-                auto expression = parseExpression();
-                auto separator = peek()->type == Token::Type::Comma? consume(): match(Token::Type::BraceRight);
-
-                arguments.push_back(StructureInitializerExpression::Argument{access_specifier, equality_specifier, separator,
-                    std::move(field_identifier), std::move(expression)});
-            }
-
-            auto structure_identifier = std::make_unique<const IdentifierExpression>(type->getTypeIdentifier());
-            default_value = VariableDeclaration::ValueAssignment{
-                left_brace, std::make_unique<const StructureInitializerExpression>(left_brace, std::move(structure_identifier), std::move(arguments))
-            };
-        }
+        m_definitions.top().push_back(Definition{.kind = Definition::Kind::Variable, .identifier = identifier->getValue()});
 
         return std::make_unique<const VariableDeclaration>(type_specifier, std::move(type), std::move(identifier), std::move(default_value));
     }
@@ -748,28 +774,7 @@ namespace linc
         }
 
         auto left_parenthesis = match(Token::Type::ParenthesisLeft);
-
-        std::vector<std::unique_ptr<const TypeExpression>> arguments;
-
-        while(peek() && peek()->type != Token::Type::ParenthesisRight)
-        {
-            auto token = peek();
-            auto argument = parseTypeExpression();
-
-            if(!argument)
-            {
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                    .message = Logger::format("$::$ Expected argument in external declaration.", peek()->info.file, peek()->info.line)
-                });
-                break;
-            }
-
-            arguments.push_back(std::move(argument));
-            if(!token || !peek() || token->info == peek()->info)
-                break;
-        }
-
+        auto arguments = parseDelimitedTypeList();
         auto right_parenthesis = match(Token::Type::ParenthesisRight);
         auto type_specifier = match(Token::Type::Colon);
         auto actual_type = parseTypeExpression();
@@ -834,7 +839,8 @@ namespace linc
 
     std::unique_ptr<const Node> Parser::parseVariant() const
     {
-        if(peek()->isIdentifier() && (peek(1ul)->type == Token::Type::Colon || peek(1ul)->type == Token::Type::ColonEquals))
+        if(peek()->isIdentifier() && (peek(1ul)->type == Token::Type::Colon || peek(1ul)->type == Token::Type::ColonEquals ||
+            peek(1ul)->type == Token::Type::KeywordMutability))
             return parseStatement();
 
         auto expression = parseExpression();
@@ -844,7 +850,7 @@ namespace linc
             auto statement = parseStatement();
             if(!statement)
             {
-                auto info = getLastAvailableInfo();
+                auto info = peekInfo();
                 if(m_tokens.size() == 1ul)
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,

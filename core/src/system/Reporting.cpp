@@ -29,8 +29,8 @@ namespace linc
             if(report.span.lineIndex == -1ul)
                 Logger::log(report.type, "[$] $", stageToString(report.stage), report.message);
             else
-                Logger::log(report.type, "[$] $\n $:#4in$:#3 `$`", stageToString(report.stage), report.message, report.span.get(s_source),
-                    Colors::pop(), Colors::push(Colors::Color::Yellow));
+                Logger::log(report.type, "[$] $\n $:#4in$:#3 `$`", stageToString(report.stage), report.message, report.span.get(s_source,
+                    report.type == Reporting::Type::Error? Colors::Color::Red: Colors::Color::Blue), Colors::pop(), Colors::push(Colors::Color::Yellow));
         }
     }
 

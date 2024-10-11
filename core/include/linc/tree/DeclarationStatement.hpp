@@ -13,7 +13,7 @@ namespace linc
 
         virtual std::unique_ptr<const Statement> clone() const final override
         {
-            return std::make_unique<const DeclarationStatement>(getTerminator(), std::move(m_declaration->clone()));
+            return std::make_unique<const DeclarationStatement>(getTerminator(), m_declaration->clone());
         }
 
         inline const Declaration* getDeclaration() const { return m_declaration.get(); }

@@ -38,30 +38,34 @@
 
 ## Changelog for linc version 0.6.1
 
-- Added Linux AMD64 experimental partial codegen support.
-- Changed hexadecimal literals to only allow for uppercase letters (so as to potentially allow floating point literals in the future; do keep in mind that `f32` and `f64` both contain the character `f`, which would have otherwise been interpreted as a digit).
-- Minor changes.
-- Changed the 'stdinternal.s' assembly filename to 'lincinternal.s'.
-- Added more internal utilies (e.g. stringification, syscalls). 
-- Emitter improvements (plus identifier additions).
-- Added return statements.
-- Implemented type expressions (plus type-of operations).
-- Hugely improved stringification operations.
-- Fixed literal expression signedness.
-- Fixed block expression stack adjustion (for scoping).
-- Updated linc icon.
-- Linc internal shared library (building + linking).
+- Codegen: Added Linux AMD64 experimental partial codegen support.
+- Language: Changed hexadecimal literals to only allow for uppercase letters (so as to potentially allow floating point literals in the future; do keep in mind that `f32` and `f64` both contain the character `f`, which would have otherwise been interpreted as a digit).
+- Misc: Minor changes.
+- Codegen: Changed the 'stdinternal.s' assembly filename to 'lincinternal.s'.
+- Codegen: Added more internal utilies (e.g. stringification, syscalls). 
+- Codegen: Emitter improvements (plus identifier additions).
+- Codegen: Added return statements.
+- Codegen: Implemented type expressions (plus type-of operations).
+- Codegen: Hugely improved stringification operations.
+- Codegen: Fixed literal expression signedness.
+- Codegen: Fixed block expression stack adjustion (for scoping).
+- Assets: Updated linc icon.
+- Language: Linc internal shared library (building + linking).
 - Codegen: Added scoped symbols (fixing differently scoped 'name collisions', which shouldn't exist).
 - Codegen: Added basic statically-stored variables (public variables).
-- Functions can now implicitly determine their return type (emitting it does not assume void).
+- Language: Functions can now implicitly determine their return type (emitting it does not assume void).
 - Codegen: while expressions now support else and finally clauses.
 - Codegen: added and improved string operations (plus string indexing). 
-- Added terminator `;` token for all statements.
-- Made bodies of if/while expressions, as well as those of function declarations statements. 
-- Made expression statements have void type.
-- Added tail-expressions to blocks.
+- Language: Added terminator `;` token for all statements.
+- Language: Made bodies of if/while expressions, as well as those of function declarations statements. 
+- Language: Made expression statements have void type.
+- Language: Added tail-expressions to blocks.
 - Misc: error reporting improvements.
-- Made array typed variables with no default value and no explicit size invalid (instead of defaulting to 0).
+- Language: Made array typed variables with no default value and no explicit size invalid (instead of defaulting to 0).
+- Misc: Refactoring and adjusting codegen for previous changes.
+- Language: Added function pointer types (no function pointers for now).
+- Misc: Cleaned up the type system (removed typing from statements).
+- Misc: Switched from `std::optional<std::unique_ptr>` to just `std::unique_ptr` (`std::nullopt` -> `nullptr`). 
 
 ## Future plans (in order of priority)
 

@@ -3,21 +3,25 @@
 namespace linc
 {
     BoundTypeExpression::BoundTypeExpression(Types::type::Primitive primitive, bool is_mutable, BoundArraySpecifiers specifiers)
-        :BoundExpression(Types::fromKind(Types::Kind::type)), m_base(primitive), m_isMutable(is_mutable), m_arraySpecifiers(std::move(specifiers))
+        :BoundExpression(Types::fromKind(Types::Kind::type)), m_root(primitive), m_isMutable(is_mutable), m_arraySpecifiers(std::move(specifiers))
     {}
     
     BoundTypeExpression::BoundTypeExpression(Types::type::Structure structure, bool is_mutable, BoundArraySpecifiers specifiers)
-        :BoundExpression(Types::fromKind(Types::Kind::type)), m_base(std::move(structure)), m_isMutable(is_mutable), m_arraySpecifiers(std::move(specifiers))
+        :BoundExpression(Types::fromKind(Types::Kind::type)), m_root(std::move(structure)), m_isMutable(is_mutable), m_arraySpecifiers(std::move(specifiers))
+    {}
+
+    BoundTypeExpression::BoundTypeExpression(Types::type::Function function, bool is_mutable, BoundArraySpecifiers specifiers)
+        :BoundExpression(Types::fromKind(Types::Kind::type)), m_root(std::move(function)), m_isMutable(is_mutable), m_arraySpecifiers(std::move(specifiers))
     {}
     
     std::unique_ptr<const BoundExpression> BoundTypeExpression::clone() const
     {
-        if(auto primitive = std::get_if<Types::type::Primitive>(&m_base))
+        if(auto primitive = std::get_if<Types::type::Primitive>(&m_root))
             return std::make_unique<const BoundTypeExpression>(*primitive, m_isMutable, m_arraySpecifiers);
 
         else
         {
-            const auto& structure = std::get<Types::type::Structure>(m_base);
+            const auto& structure = std::get<Types::type::Structure>(m_root);
             Types::type::Structure new_structure;
             new_structure.reserve(structure.size());
 

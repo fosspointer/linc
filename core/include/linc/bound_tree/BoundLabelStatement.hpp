@@ -8,7 +8,7 @@ namespace linc
     public:
         BoundLabelStatement(const std::string& name, std::unique_ptr<const BoundStatement> next, Types::u64 block_index,
             Types::u64 identifier_index)
-            :BoundStatement(next->getType()), m_name(name), m_next(std::move(next)), m_blockIndex(block_index),
+            :m_name(name), m_next(std::move(next)), m_blockIndex(block_index),
             m_identifierIndex(identifier_index)
         {}
 

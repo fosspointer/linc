@@ -32,3 +32,4 @@
 #include <linc/tree/ReturnStatement.hpp>
 #include <linc/tree/ContinueStatement.hpp>
 #include <linc/tree/BreakStatement.hpp>
+#include <linc/tree/DelimetedType.hpp>

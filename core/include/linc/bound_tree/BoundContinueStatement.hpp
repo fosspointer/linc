@@ -8,7 +8,7 @@ namespace linc
     {
     public:
         explicit BoundContinueStatement(Types::u64 scope)
-            :BoundStatement(Types::voidType), m_scope(scope)
+            :m_scope(scope)
         {}
 
         [[nodiscard]] inline Types::u64 getScope() const { return m_scope; }
