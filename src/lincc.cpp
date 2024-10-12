@@ -12,20 +12,47 @@
 #include "Windows.hpp"
 #endif
 
+#define LINC_ASSEMBLER "nasm"
+#define LINC_LINKER "ld"
 #define LINC_EXIT_SUCCESS 0
 #define LINC_EXIT_FAILURE_LINC_EXCEPTION 1
 #define LINC_EXIT_FAILURE_STANDARD_EXCEPTION 2
 #define LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION 3
 #define LINC_EXIT_COMPILATION_FAILURE 4
 
-static std::string cut_filename(std::string str)
+static std::string get_filename(std::string_view str)
 {
-    auto find = str.find_last_of('/');
-    if(find == std::string::npos)
-        return str.substr(0ul, str.find_last_of('.'));
+    return std::filesystem::path(str).stem().string();
+}
 
-    str = str.substr(find + 1);
-    return str.substr(0ul, str.find_last_of('.'));
+static inline std::string get_path(std::string_view str)
+{
+    return std::filesystem::path(str).parent_path().string();
+}
+
+static inline bool executable_exists(std::string_view executable_name)
+{
+    const static std::string path = []()
+    {
+        auto path = std::getenv("PATH");
+        return path? std::string{path}: std::string{};
+    }();
+    std::string::size_type start{}, end{};
+
+    while(std::string::npos != (end = path.find(':', start)))
+    {
+        auto directory = path.substr(start, end - start);
+        auto executable_test = std::filesystem::path(directory) / executable_name;
+
+        if(std::filesystem::exists(executable_test)
+        && std::filesystem::is_regular_file(executable_test)
+        && std::filesystem::perms::none != (std::filesystem::status(executable_test).permissions()
+            & (std::filesystem::perms::owner_exec | std::filesystem::perms::group_exec | std::filesystem::perms::others_exec)))
+            return true;
+
+        start = end + 1ul;
+    }
+    return false;
 }
 
 static auto compile_code(const std::string& raw_code, const std::string& filepath, std::vector<std::string> include_directories, bool optimization)
@@ -62,18 +89,20 @@ try
 #ifdef LINC_WINDOWS
     linc::Windows::enableAnsi();
 #endif
-    const static auto option_include = 'i', option_output = 'o', option_version = 'v', option_optimization = 'O';
+    const static auto option_include = 'i', option_output = 'o', option_version = 'v', option_optimization = 'O', option_compile_only = 'c';
 
     Arguments argument_handler(argument_count, arguments, std::unordered_map<char, Arguments::Option>{
-        std::pair(option_include, Arguments::Option{.description = "Specify a custom include path."}),
-        std::pair(option_output, Arguments::Option{.description = "Manually name the resulting output symbol."}),
-        std::pair(option_optimization, Arguments::Option{.description = "Use optimization.", .flag = true}),
         std::pair(option_version, Arguments::Option{.description = "Display the current Linc version in use.", .flag = true}),
+        std::pair(option_include, Arguments::Option{.description = "Specify a custom include path."}),
+        std::pair(option_output, Arguments::Option{.description = "Specify the output symbol."}),
+        std::pair(option_optimization, Arguments::Option{.description = "Use optimization.", .flag = true}),
+        std::pair(option_compile_only, Arguments::Option{.description = "Compile to object file(s) only; do not link.", .flag = true}),
     }, std::vector<std::pair<std::string, char>>{
         std::pair("--include", option_include),
         std::pair("--output", option_output),
         std::pair("--version", option_version),
         std::pair("--optimization", option_optimization),
+        std::pair("--compile-only", option_compile_only)
     });
 
     if(!linc::Reporting::getReports().empty())
@@ -83,13 +112,29 @@ try
         linc::Logger::log(linc::Logger::Type::Info, "Linc version $", LINC_VERSION);
         return LINC_EXIT_SUCCESS;
     }
+    else if(!executable_exists(LINC_ASSEMBLER))
+    {
+        linc::Reporting::push(linc::Reporting::Report{
+            .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Environment,
+            .message = linc::Logger::format("Assembler executable `$` not found in PATH.", LINC_ASSEMBLER)
+        });
+        return LINC_EXIT_COMPILATION_FAILURE;
+    }
+    else if(!argument_handler.get(option_compile_only).empty() && !executable_exists(LINC_LINKER))
+    {
+        linc::Reporting::push(linc::Reporting::Report{
+            .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Environment,
+            .message = linc::Logger::format("Linker executable `$` not found in PATH.", LINC_LINKER)
+        });
+        return LINC_EXIT_COMPILATION_FAILURE;
+    }
 
     auto files = argument_handler.getDefaults();
     auto output = argument_handler.get(option_output);
     auto optimization = !argument_handler.get(option_optimization).empty(); 
 
     bool found_entry_point{false};
-    std::string binary_name;
+    std::string binary_filename;
 
     if(output.size() > 1ul)
     {
@@ -99,7 +144,7 @@ try
         });
         return LINC_EXIT_COMPILATION_FAILURE;
     }
-    else if(!output.empty()) binary_name = output.at(0ul);
+    else if(!output.empty()) binary_filename = output.at(0ul);
     
     if(files.empty())
     {
@@ -111,7 +156,7 @@ try
     }
 
     std::vector<std::pair<std::string, bool>> code;
-    std::string linker_command{linc::Logger::format("LD_LIBRARY_PATH=$/lib ld ", LINC_INSTALL_PATH)};
+    std::string linker_command{linc::Logger::format("LD_LIBRARY_PATH=$/lib $ ", LINC_INSTALL_PATH, LINC_LINKER)};
 
     for(const auto& file: files)
     {
@@ -123,13 +168,9 @@ try
             });
             return LINC_EXIT_COMPILATION_FAILURE;
         }
-        auto filepath = linc::Files::toAbsolute(file);
         auto raw_code = linc::Files::read(file);
-        auto [assembly, file_main] = compile_code(raw_code, filepath, argument_handler.get(option_include), optimization);
-        
-        if(assembly.empty())
-            return LINC_EXIT_COMPILATION_FAILURE;
-
+        auto build_directory = get_path(binary_filename);
+        auto [assembly, file_main] = compile_code(raw_code, linc::Files::toAbsolute(file), argument_handler.get(option_include), optimization);
         if(file_main)
         {
             if(found_entry_point)
@@ -142,25 +183,31 @@ try
             }
             else found_entry_point = true;
             
-            if(binary_name.empty()) binary_name = cut_filename(file);
+            if(binary_filename.empty()) binary_filename = get_filename(file);
         }
 
-        auto binary_path = cut_filename(filepath);
-        linc::Files::write(linc::Logger::format("$.asm", binary_path), assembly);
-        std::system(linc::Logger::format("nasm -felf64 $:#0.asm -o $.o", binary_path).c_str());
-        linc::Logger::append(linker_command, "$.o ", binary_path);
+        if(assembly.empty())
+            return LINC_EXIT_COMPILATION_FAILURE;
+
+        auto filepath = (std::filesystem::path(build_directory.empty()? get_path(linc::Files::toAbsolute(file)): build_directory) / get_filename(file)).string();
+
+        linc::Files::write(linc::Logger::format("$.asm", filepath), assembly);
+        std::system(linc::Logger::format("$ -felf64 $:#1.asm -o $.o", LINC_ASSEMBLER, filepath).c_str());
+        linc::Logger::append(linker_command, "$.o ", filepath);
     }
 
-    if(!found_entry_point)
+    if(!argument_handler.get(option_compile_only).empty())
+        return LINC_EXIT_SUCCESS;
+    else if(!found_entry_point)
     {
         linc::Reporting::push(linc::Reporting::Report{
-            .type = linc::Reporting::Type::Info, .stage = linc::Reporting::Stage::Environment,
-            .message = "No entry point was given, only object files created!"
+            .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Environment,
+            .message = "No entry point provided; linking aborted."
         });
         return LINC_EXIT_SUCCESS;
     }
 
-    linc::Logger::append(linker_command, "-o $ -llinc -dynamic-linker /lib64/ld-linux-x86-64.so.2", binary_name);
+    linc::Logger::append(linker_command, "-o $ -llinc -dynamic-linker /lib64/ld-linux-x86-64.so.2", binary_filename);
     return std::system(linker_command.c_str());
 }
 catch(const linc::Exception& e)
@@ -176,6 +223,6 @@ catch(const std::exception& e)
 }
 catch(...)
 {
-    linc::Logger::log(linc::Logger::Type::Error, "[UNKNOWN EXCPETION]");
+    linc::Logger::log(linc::Logger::Type::Error, "[UNKNOWN EXCEPTION]");
     return LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION;
 }

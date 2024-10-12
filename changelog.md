@@ -65,7 +65,9 @@
 - Misc: Refactoring and adjusting codegen for previous changes.
 - Language: Added function pointer types (no function pointers for now).
 - Misc: Cleaned up the type system (removed typing from statements).
-- Misc: Switched from `std::optional<std::unique_ptr>` to just `std::unique_ptr` (`std::nullopt` -> `nullptr`). 
+- Misc: Switched from `std::optional<std::unique_ptr>` to just `std::unique_ptr` (`std::nullopt` -> `nullptr`).
+- Misc: Added dependency checks for `nasm` and `ld` (for lincc).
+- Misc: Made object and assembly output take place in the same directory as the resulting binary.
 
 ## Future plans (in order of priority)
 
