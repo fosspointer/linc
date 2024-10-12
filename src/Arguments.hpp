@@ -81,6 +81,7 @@ public:
     {
         std::vector<std::string> result;
         auto lookup = m_namedArguments.equal_range(short_name);
+        result.reserve(std::distance(lookup.first, lookup.second));
 
         for(auto iterator = lookup.first; iterator != lookup.second; ++iterator)
             result.push_back(iterator->second.value_or(std::string{}));
