@@ -68,6 +68,7 @@
 - Misc: Switched from `std::optional<std::unique_ptr>` to just `std::unique_ptr` (`std::nullopt` -> `nullptr`).
 - Misc: Added dependency checks for `nasm` and `ld` (for lincc).
 - Misc: Made object and assembly output take place in the same directory as the resulting binary.
+- Misc: Reporting is now simpler: `[$]` for categorization was changed to `$`.
 
 ## Future plans (in order of priority)
 

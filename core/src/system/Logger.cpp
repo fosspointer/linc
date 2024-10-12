@@ -15,7 +15,7 @@ static void reprint_line(const std::string& line, std::string_view prompt, std::
 
 namespace linc
 {
-    std::string Logger::s_logFormat = "[$] $";
+    std::string Logger::s_logFormat = "$ $";
     
     std::string Logger::logTypeToString(Type type)
     {
