@@ -92,16 +92,19 @@ namespace linc
                 generateStatement(item.get());
 
             if(auto tail = expression->getTail())
+            {
                 generateExpression(tail);
-            else m_emitter.push(Registers::getPrimary());
+                m_emitter.pop(Registers::getReturn());
+            }
             
-            auto offset = m_emitter.getStackPosition() - stack_position - 1ul;
+            auto offset = m_emitter.getStackPosition() - stack_position;
             if(offset)
             {
                 auto bytes = static_cast<Types::i64>(8ul * offset);
                 m_emitter.binary(bytes > 0l? Emitter::BinaryInstruction::Add: Emitter::BinaryInstruction::Subtract, Registers::getStack(), std::to_string(std::abs(bytes)));
             }
             
+            m_emitter.push(Registers::getReturn());
             m_variables.endScope();
         }
 
@@ -544,13 +547,12 @@ namespace linc
 
                 m_isMain = true;
                 generateExpression(declaration->getBody());
-                m_emitter.pop(Registers::getReturn());
+                m_emitter.pop(Registers::getArgumentName(0));
                 m_isMain = false;
 
                 if(declaration->getReturnType().primitive == Types::Kind::_void)
                     m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(0), std::to_string(0));
-                else m_emitter.pop(Registers::getArgumentName(0));
-                
+                    
                 m_emitter.unary(Emitter::UnaryInstruction::Call, s_systemExit);
                 m_emitter.external(s_systemExit);
                 m_hasMain = true;
