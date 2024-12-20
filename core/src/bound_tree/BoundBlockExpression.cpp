@@ -2,8 +2,10 @@
 
 namespace linc
 {
-    BoundBlockExpression::BoundBlockExpression(std::vector<std::unique_ptr<const BoundStatement>> statements)
-        :BoundExpression(statements.empty()? Types::fromKind(Types::Kind::_void): statements.back()->getType()), m_statements(std::move(statements))
+    BoundBlockExpression::BoundBlockExpression(std::vector<std::unique_ptr<const BoundStatement>> statements, std::unique_ptr<const BoundExpression> tail)
+        :BoundExpression(tail? tail->getType(): Types::fromKind(Types::Kind::_void)),
+        m_statements(std::move(statements)),
+        m_tail(std::move(tail))
     {}
 
     std::unique_ptr<const BoundExpression> BoundBlockExpression::clone() const
@@ -14,7 +16,8 @@ namespace linc
         for(const auto& statement: m_statements)
             statements.push_back(std::move(statement->clone()));
 
-        return std::make_unique<const BoundBlockExpression>(std::move(statements));
+        auto tail = m_tail? m_tail->clone(): nullptr;
+        return std::make_unique<const BoundBlockExpression>(std::move(statements), std::move(tail));
     }
 
     std::string BoundBlockExpression::toStringInner() const

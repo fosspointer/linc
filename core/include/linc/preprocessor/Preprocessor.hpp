@@ -104,14 +104,19 @@ namespace linc
                 if(*directive.value == "include")
                 {
                     auto literal = match(Token::Type::StringLiteral);
-                    auto filepath = (*literal.value)[0ul] == '/'? *literal.value: filepathToDirectory(m_filepath) + "/" + *literal.value;
+                #ifdef LINC_WINDOWS
+                    bool is_absolute = literal.value->starts_with("C:");
+                #else
+                    bool is_absolute = literal.value->starts_with('/');
+                #endif
+                    auto filepath = is_absolute? *literal.value: filepathToDirectory(m_filepath) + "/" + *literal.value;
 
                     if(!Files::exists(filepath))
                     {
                         Reporting::push(Reporting::Report{
                             .type = Reporting::Type::Warning, .stage = Reporting::Stage::Preprocessor,
-                            .message = Logger::format("$::$ Include directive target path '$' does not exist (`$`).",
-                                literal.info.file, literal.info.line, *literal.value, filepath)
+                            .message = Logger::format("$ Include directive target path '$' does not exist (`$`).",
+                                literal.info, *literal.value, filepath)
                         });
                         break;
                     }
@@ -121,7 +126,7 @@ namespace linc
 
                     auto raw_source = Files::read(filepath);
                     auto source = Code::toSource(raw_source, filepath);
-                    Lexer lexer(source);
+                    Lexer lexer(source, false);
                     Preprocessor preprocessor(lexer(), filepath);
                     auto tokens = preprocessor();
 
@@ -152,7 +157,7 @@ namespace linc
                         bool end_parenthesis{false};
 
                         auto argument = consume();
-                        auto delimeter = peek() && peek()->type == Token::Type::ParenthesisRight? (end_parenthesis = true, consume()): match(Token::Type::Comma);
+                        auto delimiter = peek() && peek()->type == Token::Type::ParenthesisRight? (end_parenthesis = true, consume()): match(Token::Type::Comma);
                         arguments.push_back(*argument.value);
                         
                         if(end_parenthesis)
@@ -170,16 +175,14 @@ namespace linc
                 {
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                        .message = Logger::format("$::$ Include guard must be at the beginning of the file.",
-                            directive.info.file, directive.info.line)
+                        .message = Logger::format("$ Include guard must be at the beginning of the file.", directive.info)
                     });
                     continue;
                 }
 
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                    .message = Logger::format("$::$ Invalid preprocessor directive '$'.",
-                        directive.info.file, directive.info.line, *directive.value)
+                    .message = Logger::format("$ Invalid preprocessor directive '$'.", directive.info, *directive.value)
                 });
             }
 
@@ -197,7 +200,7 @@ namespace linc
                     {
                         Reporting::push(Reporting::Report{
                             .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                            .message = Logger::format("$::$ Cannot glue invalid identifier.", identifier.info.file, identifier.info.line)
+                            .message = Logger::format("$ Cannot glue invalid identifier.", identifier.info)
                         });
                         continue;
                     }
@@ -288,7 +291,7 @@ namespace linc
 
         inline Token consume() const
         {
-            Token::Info info = getLastAvailableInfo();
+            Token::Info info = peekInfo();
 
             if(m_index + 1ul >= m_tokens.size())
                 return (++m_index, Token{.type = Token::Type::EndOfFile, .info = info});
@@ -297,7 +300,7 @@ namespace linc
 
         inline Token match(Token::Type type, const std::string& error_message = "") const
         {
-            Token::Info info = getLastAvailableInfo();
+            Token::Info info = peekInfo();
 
             if(peek() && peek()->type == type)
                 return consume();
@@ -308,14 +311,15 @@ namespace linc
 
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                .message = Logger::format("$::$ $", info.file, info.line, complete_message)
+                .span = TextSpan::fromTokenInfo(info),
+                .message = Logger::format("$ $", info, complete_message)
             }, !m_matchFailed);
             m_matchFailed = true;
             
             return Token{.type = type, .info = info};
         }
 
-        [[nodiscard]] inline Token::Info getLastAvailableInfo() const
+        [[nodiscard]] inline Token::Info peekInfo() const
         {
             return m_index < m_tokens.size()? m_tokens[m_index].info: m_tokens.back().info;
         }

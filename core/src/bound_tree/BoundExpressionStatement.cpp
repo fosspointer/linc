@@ -3,7 +3,7 @@
 namespace linc
 {
     BoundExpressionStatement::BoundExpressionStatement(std::unique_ptr<const BoundExpression> expression)
-        :BoundStatement(expression->getType()), m_expression(std::move(expression))
+        :m_expression(std::move(expression))
     {}
 
     std::unique_ptr<const BoundStatement> BoundExpressionStatement::clone() const

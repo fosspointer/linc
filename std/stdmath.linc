@@ -1,30 +1,30 @@
 #guard
-#macro __STD_ABSOLUTE(_type, zero) fn abs_##_type(value: _type): _type if value > zero value else -value#
-#macro __STD_LERP(_type) fn lerp_##_type(start: _type, end: _type, position: f32): _type as _type (as f32(start) * (1f - position)) + as _type (position * as f32 (end))#
-#macro __STD_CLAMP(_type) fn clamp_##_type(value: _type, min: _type, max: _type): _type if value > max max else if value < min min else value#
-#macro __STD_MIN(_type) fn min_##_type(first: _type, second: _type): _type if first < second first else second#
-#macro __STD_MAX(_type) fn max_##_type(first: _type, second: _type): _type if first > second first else second#
+#macro __STD_ABSOLUTE(_type, zero) fn abs_##_type(value: _type) if value > zero value else -value #
+#macro __STD_LERP(_type) fn lerp_##_type(start: _type, end: _type, position: f32) as _type (as f32(start) * (1f - position)) + as _type (position * as f32 (end)) #
+#macro __STD_CLAMP(_type) fn clamp_##_type(value: _type, min: _type, max: _type) if value > max max else if value < min min else value #
+#macro __STD_MIN(_type) fn min_##_type(first: _type, second: _type) if first < second first else second #
+#macro __STD_MAX(_type) fn max_##_type(first: _type, second: _type) if first > second first else second #
 
 #macro __STD_FLOOR(_type, one, zero)
-fn floor_##_type(number: _type): _type
+fn floor_##_type(number: _type)
 {
-    mod: _type = number % one
+    mod: _type = number % one;
     if number >= zero number - mod
     else if mod == zero number
     else number - mod - one
 } #
 
 #macro __STD_CEIL(_type, one, zero)
-fn ceil_##_type(number: _type): _type
+fn ceil_##_type(number: _type)
 {
-    mod: _type = number % one
+    mod: _type = number % one;
     if number <= zero number - mod
     else if mod == zero number
     else number - mod + one
 } #
 
 #macro __STD_ROUND(_type, zero, half)
-fn round_##_type(number: _type): _type
+fn round_##_type(number: _type)
     if number > zero floor_##_type(number + half)
     else ceil_##_type(number - half) #
 
@@ -85,12 +85,12 @@ __STD_CEIL(f64# 1f64# 0f64#)
 __STD_ROUND(f32# 0f32# .5f32#)
 __STD_ROUND(f64# 0f64# .5f64#)
 
-fn floor_i32(number: f32): i32 as i32 (floor_f32(number))
-fn floor_i64(number: f64): i64 as i64 (floor_f64(number))
-fn ceil_i32(number: f32): i32 as i32 (ceil_f32(number))
-fn ceil_i64(number: f64): i64 as i64 (ceil_f64(number))
-fn round_i32(number: f32): i32 as i32 (round_f32(number))
-fn round_i64(number: f64): i64 as i64 (round_f64(number))
+fn floor_i32(number: f32) as i32 (floor_f32(number))
+fn floor_i64(number: f64) as i64 (floor_f64(number))
+fn ceil_i32(number: f32) as i32 (ceil_f32(number))
+fn ceil_i64(number: f64) as i64 (ceil_f64(number))
+fn round_i32(number: f32) as i32 (round_f32(number))
+fn round_i64(number: f64) as i64 (round_f64(number))
 
-piF32: f32 = 3.14159265358979323846264338327950288f32
-piF64: f64 = 3.14159265358979323846264338327950288f64
+piF32 := 3.14159265358979323846264338327950288f32
+piF64 := 3.14159265358979323846264338327950288f64

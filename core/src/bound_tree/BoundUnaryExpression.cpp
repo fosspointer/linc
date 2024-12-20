@@ -29,7 +29,7 @@ namespace linc
         case Kind::Decrement: return "Decrement Operator";
         case Kind::Typeof: return "Typeof Operator";
         case Kind::BitwiseNot: return "Bitwise NOT Operator";
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(BoundUnaryOperator::Kind);
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
         }
     
     }
@@ -66,8 +66,8 @@ namespace linc
             else return Types::invalidType;
         case Kind::UnaryPlus:
             if(Types::isNumeric(operand_type.primitive))
-                return operand_type;
-            else if(operand_type.primitive == Types::Kind::_char)
+                return Types::fromKind(operand_type.primitive);
+            else if(operand_type.primitive == Types::Kind::_char || operand_type.primitive == Types::Kind::_bool)
                 return Types::fromKind(Types::Kind::i32);
             else if(operand_type.primitive == Types::Kind::string)
                 return Types::fromKind(Types::Kind::u64);

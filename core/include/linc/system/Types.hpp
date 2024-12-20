@@ -31,62 +31,90 @@ namespace linc
         public:
             enum class Kind
             {
-                Primitive, Array, Structure
+                Primitive, Array, Structure, Function, Enumeration
             };
 
             using Primitive = Types::Kind;
             using Structure = std::vector<std::pair<std::string, std::unique_ptr<const type>>>;
+            using Enumeration = std::vector<std::pair<std::string, Types::type>>;
+
             struct Array final
             {
-                std::unique_ptr<const type> base_type;
+                std::unique_ptr<const type> baseType;
                 std::optional<std::size_t> count;
+            };
+
+            struct Function final
+            {
+                std::unique_ptr<const type> returnType;
+                std::vector<std::unique_ptr<const type>> argumentTypes;
             };
 
             type(Primitive primitive, bool is_mutable = false)
                 :kind(Kind::Primitive), primitive(primitive), isMutable(is_mutable)
             {}
 
-            type(Structure _structure, bool is_mutable = false)
+            type(const Structure& _structure, bool is_mutable = false)
                 :kind(Kind::Structure), isMutable(is_mutable)
             {
                 new (&structure) std::vector{cloneStructure(&_structure, is_mutable)};
             }
 
+            type(const Enumeration& _enumeration, bool is_mutable = false)
+                :kind(Kind::Enumeration), isMutable(is_mutable)
+            {
+                new (&enumeration) std::vector{_enumeration};
+            }
+
             type(const Array& _array, bool is_mutable = false)
                 :kind(Kind::Array), isMutable(is_mutable)
             {
-                new (&array) Array{.base_type = _array.base_type? _array.base_type->clone(): nullptr, .count = _array.count};
+                new (&array) Array{.baseType = _array.baseType? _array.baseType->clone(): nullptr, .count = _array.count};
+            }
+
+            type(const Function& _function, bool is_mutable = false)
+                :kind(Kind::Function), isMutable(is_mutable)
+            {
+                new (&function) Function{cloneFunction(&_function)};
             }
 
             ~type()
             {
-                if(kind == Kind::Array)
-                    array.~Array();
-                else if(kind == Kind::Structure)
-                    structure.~vector();
+                switch(kind)
+                {
+                case Kind::Array: array.~Array(); break;
+                case Kind::Structure: structure.~vector(); break;
+                case Kind::Function: function.~Function(); break;
+                case Kind::Enumeration: enumeration.~vector(); break;
+                default: break;
+                }
             }
 
             type(const type& other)
-                :isMutable(other.isMutable), kind(other.kind)
+                :kind(other.kind), isMutable(other.isMutable)
             {
                 switch(kind)
                 {
                 case Kind::Primitive: primitive = other.primitive; break;
-                case Kind::Array: new (&array) Array{.base_type = other.array.base_type->clone(), .count = other.array.count}; break;
+                case Kind::Array: new (&array) Array{.baseType = other.array.baseType->clone(), .count = other.array.count}; break;
                 case Kind::Structure: new (&structure) std::vector{cloneStructure(&other.structure, other.isMutable)}; break;
-                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
+                case Kind::Function: new (&function) Function{cloneFunction(&other.function)}; break;
+                case Kind::Enumeration: new (&enumeration) Enumeration{other.enumeration}; break;
+                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
                 }
             }
 
             type(type&& other)
-                :isMutable(other.isMutable), kind(other.kind)
+                :kind(other.kind), isMutable(other.isMutable)
             {
                 switch(kind)
                 {
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{std::move(other.array)}; break;
                 case Kind::Structure: new (&structure) std::vector{std::move(other.structure)}; break;
-                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
+                case Kind::Function: new (&function) Function{std::move(other.function)}; break;
+                case Kind::Enumeration: new (&enumeration) Enumeration{std::move(other.enumeration)}; break;
+                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
                 }
             }
 
@@ -98,9 +126,11 @@ namespace linc
                 switch(kind)
                 {
                 case Kind::Primitive: primitive = other.primitive; break;
-                case Kind::Array: new (&array) Array{.base_type = other.array.base_type->clone(), .count = other.array.count}; break;
+                case Kind::Array: new (&array) Array{.baseType = other.array.baseType->clone(), .count = other.array.count}; break;
                 case Kind::Structure: new (&structure) std::vector{cloneStructure(&other.structure, other.isMutable)}; break;
-                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
+                case Kind::Function: new (&function) Function{cloneFunction(&other.function)}; break;
+                case Kind::Enumeration: new (&enumeration) Enumeration{other.enumeration}; break;
+                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
                 }
                 return *this;
             }
@@ -115,17 +145,21 @@ namespace linc
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{std::move(other.array)}; break;
                 case Kind::Structure: new (&structure) std::vector{std::move(other.structure)}; break;
-                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
+                case Kind::Function: new (&function) Function{std::move(other.function)}; break;
+                case Kind::Enumeration: new (&enumeration) Enumeration{std::move(other.enumeration)}; break;
+                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
                 }
                 return *this;
             }
+
+            std::string toString(bool ignore_mutability = false) const;
 
             std::unique_ptr<const type> clone() const
             {
                 switch(kind)
                 {
                 case Kind::Primitive: return std::make_unique<const type>(primitive, isMutable);
-                case Kind::Array: return std::make_unique<const type>(Array{.base_type = array.base_type->clone(), .count = array.count}, isMutable);
+                case Kind::Array: return std::make_unique<const type>(Array{.baseType = array.baseType->clone(), .count = array.count}, isMutable);
                 case Kind::Structure:
                 {
                     Structure structure_vector;
@@ -134,30 +168,52 @@ namespace linc
                  
                     return std::make_unique<const type>(std::move(structure_vector), isMutable);
                 }
-                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
+                case Kind::Function:
+                {
+                    std::vector<std::unique_ptr<const type>> argument_types;
+                    for(const auto& argument_type: function.argumentTypes)
+                        argument_types.push_back(argument_type->clone());
+                    
+                    return std::make_unique<const type>(Function{.returnType = function.returnType->clone(), .argumentTypes = std::move(argument_types)},
+                        isMutable);
+                }
+                case Kind::Enumeration: return std::make_unique<const type>(enumeration, isMutable);
+                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
                 }
             }
 
-            bool operator==(const type& _other) const
+            bool operator==(const type& other) const
             {
-                if(isMutable != _other.isMutable || kind != _other.kind)
+                if(isMutable != other.isMutable || kind != other.kind)
                     return false;
                 
                 switch(kind)
                 {
-                case Kind::Primitive: return primitive == _other.primitive;
-                case Kind::Array: return *array.base_type == *_other.array.base_type && array.count == _other.array.count;
+                case Kind::Primitive: return primitive == other.primitive;
+                case Kind::Array: return *array.baseType == *other.array.baseType && array.count == other.array.count;
                 case Kind::Structure: 
-                    {
-                        if(structure.size() != _other.structure.size()) return false;
+                {
+                    if(structure.size() != other.structure.size()) return false;
 
-                        for(Structure::size_type i{0ul}; i < structure.size(); ++i)
-                            if(*structure[i].second != *_other.structure[i].second)
-                                return false;
+                    for(Structure::size_type i{0ul}; i < structure.size(); ++i)
+                        if(*structure[i].second != *other.structure[i].second)
+                            return false;
 
-                        return true;
-                    }
-                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
+                    return true;
+                }
+                case Kind::Function:
+                {
+                    if(!function.returnType || !other.function.returnType || *function.returnType != *other.function.returnType
+                    || function.argumentTypes.size() != other.function.argumentTypes.size()) return false;
+
+                    for(decltype(Function::argumentTypes)::size_type i{0ul}; i < function.argumentTypes.size(); ++i)
+                        if(!function.argumentTypes[i] || !other.function.argumentTypes[i] || *function.argumentTypes[i] != *other.function.argumentTypes[i])
+                            return false;
+
+                    return true;
+                }
+                case Kind::Enumeration: return enumeration == other.enumeration;
+                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
                 }
             }
 
@@ -175,7 +231,7 @@ namespace linc
                 case Kind::Primitive: return primitive == other.primitive;
                 case Kind::Array:
                     if(array.count && *array.count == 0ul) return true;
-                    if(!array.base_type->isAssignableTo(*other.array.base_type))
+                    if(!array.baseType->isAssignableTo(*other.array.baseType))
                         return false;
                     else return (array.count && other.array.count && *array.count == *other.array.count) || !other.array.count;
                 case Kind::Structure:
@@ -186,7 +242,9 @@ namespace linc
                         else if(!structure[i].second->isAssignableTo(*other.structure[i].second)) return false;
                 
                     return true;
-                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
+                case Kind::Function: return type(function) == type(other.function);
+                case Kind::Enumeration: return enumeration == other.enumeration;
+                default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
                 }
             }
 
@@ -195,14 +253,16 @@ namespace linc
                 return isAssignableTo(other) || other.isAssignableTo(*this);
             }
 
-            bool isMutable;
+            Kind kind;
             union
             {
                 Primitive primitive;
                 Array array;
                 Structure structure;
+                Function function;
+                Enumeration enumeration;
             };
-            Kind kind;
+            bool isMutable;
 
             static Structure cloneStructure(const Structure* structure, bool is_mutable)
             {
@@ -215,7 +275,17 @@ namespace linc
                     result.push_back(std::pair(type.first, std::move(clone)));
                 }
 
-                return std::move(result);
+                return result;
+            }
+
+            static Function cloneFunction(const Function* function)
+            {
+                std::vector<std::unique_ptr<const Types::type>> argument_types;
+
+                for(const auto& argument_type: function->argumentTypes)
+                    argument_types.push_back(argument_type->clone());
+
+                return Function{.returnType = function->returnType->clone(), .argumentTypes = std::move(argument_types)};
             }
         };
        
@@ -245,15 +315,20 @@ namespace linc
         static type voidType, invalidType;
         
         template <typename To, typename From> 
-        [[nodiscard]] inline static const std::unique_ptr<To> unique_cast_dynamic(std::unique_ptr<From> p)
+        [[nodiscard]] inline static const std::unique_ptr<To> uniqueCastDynamic(std::unique_ptr<From> p)
         {
             std::unique_ptr<To> result(dynamic_cast<To*>(p.get()));
-            p.release();
-            return std::move(result);
+            
+            if(result)
+            {
+                p.release();
+                return result;
+            }
+            return nullptr;
         }
 
         template <typename To, typename From> 
-        [[nodiscard]] inline static const std::unique_ptr<To> unique_cast(std::unique_ptr<From> p)
+        [[nodiscard]] inline static const std::unique_ptr<To> uniqueCast(std::unique_ptr<From> p)
         {
             std::unique_ptr<To> result(static_cast<To*>(p.get()));
             p.release();
@@ -262,7 +337,6 @@ namespace linc
 
         static Variant toVariant(Kind type, const std::string& value);
         static std::string kindToString(Kind kind);
-        static std::string toString(const type& type, bool ignore_mutability = false);
         static type fromKind(Kind kind);
         static Kind kindFromString(const std::string& value);
         static Kind kindFromUserString(const std::string& value);

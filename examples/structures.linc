@@ -1,0 +1,23 @@
+// Demonstration of structures in linc!
+#include `std.linc`
+
+struct Vector2f32 {
+    x: f32 y: f32
+}
+
+struct Player {
+    name: string
+    position: mut Vector2f32
+    xp: mut u32
+}
+
+fn Vector2f32_toString(self: Vector2f32): string
+    '[' + @self.x + ", " + @self.y + ']'
+
+fn Player_getInfo(self: Player): string
+    to_upper(self.name) + " {position: " + Vector2f32_toString(self.position) + ", xp: " + @self.xp + '}'
+
+fn main() {
+    player := Player{.name = "John Doe", .position = Vector2f32{.x = 5f, .y = 3f}, .xp = 2500u};
+    putln(Player_getInfo(player));
+}

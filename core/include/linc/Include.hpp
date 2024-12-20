@@ -9,6 +9,7 @@
 #include <vector>
 #include <array>
 #include <stack>
+#include <deque>
 #include <unordered_map>
 #include <unordered_set>
 #include <fstream>

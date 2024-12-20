@@ -57,7 +57,7 @@ public:
             else if(i >= argument_count - 1)
             {
                 linc::Reporting::push(linc::Reporting::Report{
-                    .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Preprocessor,
+                    .type = linc::Reporting::Type::Error, .stage = linc::Reporting::Stage::Environment,
                     .message = linc::Logger::format("Specified option `$` but didn't provide a value.", full_argument)
                 });
                 break;
@@ -74,13 +74,14 @@ public:
         linc::Logger::println("$ [Usage]\n--help (-h): Display this menu.", m_program);
             
         for(const auto& option: m_options)
-            linc::Logger::println("$ ($): $", findOptionFullName(option.first), option.first, option.second.description);
+            linc::Logger::println("$ (-$): $", findOptionFullName(option.first), option.first, option.second.description);
     }
 
     inline std::vector<std::string> get(char short_name) const
     {
         std::vector<std::string> result;
         auto lookup = m_namedArguments.equal_range(short_name);
+        result.reserve(std::distance(lookup.first, lookup.second));
 
         for(auto iterator = lookup.first; iterator != lookup.second; ++iterator)
             result.push_back(iterator->second.value_or(std::string{}));

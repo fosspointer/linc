@@ -16,6 +16,6 @@ namespace linc
         else if(auto declaration = dynamic_cast<const Declaration*>(this))
             return declaration->clone();
 
-        else throw LINC_EXCEPTION_OUT_OF_BOUNDS(Node);
+        else throw LINC_EXCEPTION_OUT_OF_BOUNDS(this);
     }
 }

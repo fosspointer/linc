@@ -3,6 +3,7 @@
 
 namespace linc
 {
+    /// @brief Base AST expression node.
     class Expression : public Node
     {
     public:

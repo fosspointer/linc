@@ -7,18 +7,18 @@ namespace linc
     class BoundContinueStatement final : public BoundStatement
     {
     public:
-        explicit BoundContinueStatement(Types::u64 scope)
-            :BoundStatement(Types::voidType), m_scope(scope)
+        explicit BoundContinueStatement(std::string_view label_identifier)
+            :m_label(label_identifier)
         {}
 
-        [[nodiscard]] inline Types::u64 getScope() const { return m_scope; }
+        [[nodiscard]] inline const std::string& getLabel() const { return m_label; }
 
         virtual std::unique_ptr<const BoundStatement> clone() const final override
         {
-            return std::make_unique<const BoundContinueStatement>(m_scope);
+            return std::make_unique<const BoundContinueStatement>(m_label);
         }
     private:
         virtual std::string toStringInner() const final override { return "Continue Statement"; }
-        const Types::u64 m_scope;
+        const std::string m_label;
     };
 }

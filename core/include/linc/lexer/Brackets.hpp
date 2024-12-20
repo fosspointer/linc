@@ -4,11 +4,13 @@
 
 namespace linc
 {
+    /// @brief Lexer-token representation of bracket-pairs. 
     class Brackets final
     {
     public:
-        using BracketMap = std::unordered_map<char, Token::Type>; 
+        using BracketMap = std::vector<std::pair<char, Token::Type>>; 
         static Token::Type getBracket(char character);
+        static char getChar(Token::Type token_type);
     private:
         static const BracketMap s_BracketMap;
     };

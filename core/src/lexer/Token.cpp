@@ -1,4 +1,6 @@
 #include <linc/lexer/Token.hpp>
+#include <linc/lexer/Operators.hpp>
+#include <linc/lexer/Brackets.hpp>
 
 namespace linc
 {
@@ -9,7 +11,7 @@ namespace linc
         case Token::NumberBase::Decimal: return 10;
         case Token::NumberBase::Hexadecimal: return 16;
         case Token::NumberBase::Binary: return 2;
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Token::NumberBase);
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(base);
         }
     }
     
@@ -24,18 +26,19 @@ namespace linc
         case Type::KeywordIf: return "If Keyword";
         case Type::KeywordElse: return "Else Keyword";
         case Type::KeywordWhile: return "While Keyword";
-        case Type::KeywordTrue: return "True Keyword Literal";
-        case Type::KeywordFalse: return "False Keyword Literal";
+        case Type::KeywordTrue: return "True Keyword";
+        case Type::KeywordFalse: return "False Keyword";
         case Type::KeywordMutability: return "Mutability Keyword";
         case Type::KeywordFinally: return "Finally Keyword";
         case Type::KeywordAs: return "As Keyword";
         case Type::KeywordFor: return "For Keyword";
         case Type::KeywordIn: return "In Keyword";
         case Type::KeywordExternal: return "External Keyword";
-        case Type::KeywordJump: return "Jump Keyword";
         case Type::KeywordBreak: return "Break Keyword";
         case Type::KeywordContinue: return "Continue Keyword";
         case Type::KeywordStructure: return "Structure Keyword";
+        case Type::KeywordMatch: return "Match Keyword";
+        case Type::KeywordEnumeration: return "Enumeration Keyword";
         case Type::ParenthesisLeft: return "Opening Parenthesis";
         case Type::ParenthesisRight: return "Closing Parenthesis";
         case Type::SquareLeft: return "Opening Square Bracket";
@@ -48,6 +51,10 @@ namespace linc
         case Type::Dot: return "Dot";
         case Type::PreprocessorSpecifier: return "Preprocessor Specifier";
         case Type::GlueSpecifier: return "Glue Specifier";
+        case Type::ColonEquals: return "Colon Equals";
+        case Type::Terminator: return "Terminator";
+        case Type::Arrow: return "Arrow";
+        case Type::DoubleColon: return "Double Colon";
         case Type::OperatorPlus: return "Plus Operator";
         case Type::OperatorMinus: return "Minus Operator";
         case Type::OperatorAsterisk: return "Asterisk Operator";
@@ -92,8 +99,15 @@ namespace linc
         case Type::Identifier: return "Identifier";
         default: 
             return Logger::format("<Unknown Token Type>: $", (int)type);
-            throw LINC_EXCEPTION_OUT_OF_BOUNDS(Token::Type);
+            throw LINC_EXCEPTION_OUT_OF_BOUNDS(type);
         }
+    }
+
+    std::string Token::getDescriptor() const
+    {
+        if(isOperator() || isSymbol()) return Logger::format("`$:#2$:$:#1`", Operators::getString(type), Colors::pop(), Colors::push(Colors::Color::Yellow));
+        else if(isBracket()) return Logger::format("`$:#2$:$:#1`", Brackets::getChar(type), Colors::pop(), Colors::push(Colors::Color::Yellow));
+        else return Logger::format("$:#2$:$:#1", typeToString(type), Colors::pop(), Colors::push(Colors::Color::Cyan));
     }
 
     bool Token::isValid() const
@@ -141,31 +155,11 @@ namespace linc
         case Type::KeywordFor:
         case Type::KeywordIn:
         case Type::KeywordExternal:
-        case Type::KeywordJump:
         case Type::KeywordBreak:
         case Type::KeywordContinue:
         case Type::KeywordStructure:
-            return true;
-        default: return false;
-        }
-    }
-
-    bool Token::isSymbol() const
-    {
-        switch(type)
-        {
-        case Type::ParenthesisLeft:
-        case Type::ParenthesisRight:
-        case Type::SquareLeft:
-        case Type::SquareRight:
-        case Type::BraceLeft:
-        case Type::BraceRight:
-        case Type::Colon:
-        case Type::Comma:
-        case Type::Tilde:
-        case Type::Dot:
-        case Type::PreprocessorSpecifier:
-        case Type::GlueSpecifier:
+        case Type::KeywordMatch:
+        case Type::KeywordEnumeration:
             return true;
         default: return false;
         }
@@ -253,6 +247,40 @@ namespace linc
         case Type::OperatorBitwiseNot:
         case Type::OperatorBitwiseShiftLeft:
         case Type::OperatorBitwiseShiftRight:
+            return true;
+        default: return false;
+        }
+    }
+
+    bool Token::isBracket() const
+    {
+        switch(type)
+        {
+        case Type::ParenthesisLeft:
+        case Type::ParenthesisRight:
+        case Type::SquareLeft:
+        case Type::SquareRight:
+        case Type::BraceLeft:
+        case Type::BraceRight:
+            return true;
+        default: return false;
+        }
+    }
+
+    bool Token::isSymbol() const
+    {
+        switch(type)
+        {
+        case Type::Colon:
+        case Type::Comma:
+        case Type::Tilde:
+        case Type::Dot:
+        case Type::PreprocessorSpecifier:
+        case Type::GlueSpecifier:
+        case Type::ColonEquals:
+        case Type::Terminator:
+        case Type::Arrow:
+        case Type::DoubleColon:
             return true;
         default: return false;
         }

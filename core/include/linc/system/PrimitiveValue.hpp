@@ -39,7 +39,7 @@
         case Kind::String: return m_value_string op other.m_value_string; \
         case Kind::Type: return m_value_type op other.m_value_type; \
         case Kind::Void: return m_value_void op other.m_value_void; \
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind); \
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind); \
         } \
     }
 
@@ -55,7 +55,7 @@
         case Kind::Signed: return m_value_signed op other.m_value_signed; \
         case Kind::Float: return m_value_float op other.m_value_float; \
         case Kind::Double: return m_value_double op other.m_value_double; \
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind); \
+        default: throw LINC_EXCEPTION_ILLEGAL_VALUE(m_kind); \
         } \
     }
 
@@ -68,7 +68,7 @@
         case Kind::Boolean: return m_value_bool op other.m_value_bool; \
         case Kind::Unsigned: return m_value_unsigned op other.m_value_unsigned; \
         case Kind::Signed: return m_value_signed op other.m_value_signed; \
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind); \
+        default: throw LINC_EXCEPTION_ILLEGAL_VALUE(m_kind); \
         } \
     }
 
@@ -77,10 +77,10 @@
     { \
         switch(m_kind) \
         { \
-        case Kind::Boolean: return op m_value_bool; \
+        case Kind::Boolean: return static_cast<bool>(op +m_value_bool); \
         case Kind::Unsigned: return op m_value_unsigned; \
         case Kind::Signed: return op m_value_signed; \
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind); \
+        default: throw LINC_EXCEPTION_ILLEGAL_VALUE(m_kind); \
         } \
     }
 
@@ -93,7 +93,8 @@ return_type operator op() const_keyword \
         case Kind::Signed: return op m_value_signed; \
         case Kind::Float: return op m_value_float; \
         case Kind::Double: return op m_value_double; \
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind); \
+        case Kind::Character: return op m_value_char; \
+        default: throw LINC_EXCEPTION_ILLEGAL_VALUE(m_kind); \
         } \
     }
 
@@ -241,7 +242,7 @@ namespace linc
             case Types::Kind::f64: return 0.0;
             case Types::Kind::string: return Types::string{""};
             case Types::Kind::type: return Types::voidType;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
             }
         }
 
@@ -339,7 +340,7 @@ namespace linc
             case Kind::Float: return m_value_float + other.m_value_float;
             case Kind::Double: return m_value_double + other.m_value_double;
             case Kind::String: return m_value_string + other.m_value_string;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind);
+            default: throw LINC_EXCEPTION_ILLEGAL_VALUE(m_kind);
             }
         }
 
@@ -354,7 +355,7 @@ namespace linc
                 % other.m_value_signed;
             case Kind::Float: return std::fmod(m_value_float, other.m_value_float);
             case Kind::Double: return std::fmod(m_value_double, other.m_value_double);
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind);
+            default: throw LINC_EXCEPTION_ILLEGAL_VALUE(m_kind);
             }
         }
 
@@ -372,7 +373,7 @@ namespace linc
             case Kind::Double: return m_value_double;
             case Kind::String: return m_value_string;
             case Kind::Type: return m_value_type;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
         }
 
@@ -389,7 +390,7 @@ namespace linc
             case Kind::Float: return convert<Types::f32>();
             case Kind::Double: return convert<Types::f64>();
             case Kind::String: return toApplicationString();
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
             }
         }
 
@@ -412,7 +413,7 @@ namespace linc
             case Types::Kind::f32: return convert<Types::f32>();
             case Types::Kind::f64: return convert<Types::f64>();
             case Types::Kind::string: return toApplicationString();
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
             }
         }
 
@@ -430,7 +431,7 @@ namespace linc
             case Kind::Signed: return static_cast<T>(m_value_signed);
             case Kind::Float: return static_cast<T>(m_value_float);
             case Kind::Double: return static_cast<T>(m_value_double);
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind);
+            default: throw LINC_EXCEPTION_ILLEGAL_VALUE(m_kind);
             }
         }
 
@@ -485,8 +486,8 @@ namespace linc
             case Kind::Float: return std::to_string(m_value_float);
             case Kind::Double: return std::to_string(m_value_double);
             case Kind::String: return m_value_string;
-            case Kind::Type: return Types::toString(m_value_type);
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(PrimitiveValue::Kind);
+            case Kind::Type: return m_value_type.toString();
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
         }
 
@@ -504,7 +505,7 @@ namespace linc
             case Kind::Double: result.append(std::to_string(m_value_double)); break;
             case Kind::String: result.append("\"" + printableString(m_value_string) + "\""); break;
             case Kind::Character: result.append("'" + printableChar<'\''>(m_value_char) + "'"); break;
-            case Kind::Type: result.append(Types::toString(m_value_type)); break;
+            case Kind::Type: result.append(m_value_type.toString()); break;
             default: result.append("<invalid_value>");
             }
 
@@ -517,11 +518,11 @@ namespace linc
         static const PrimitiveValue invalidValue, voidValue;
     private:
         PrimitiveValue(Types::_invalid_type value)
-            :m_value_invalid(value), m_kind(Kind::Invalid)
+            :m_kind(Kind::Invalid), m_value_invalid(value)
         {}
 
         PrimitiveValue(Types::_void_type value)
-            :m_value_void(value), m_kind(Kind::Void)
+            :m_kind(Kind::Void), m_value_void(value)
         {}
 
         Colors::Color getColorString() const 
@@ -544,6 +545,7 @@ namespace linc
             }
         }
 
+        Kind m_kind;
         union
         {
             Types::_invalid_type m_value_invalid;
@@ -557,7 +559,6 @@ namespace linc
             Types::string m_value_string;
             Types::type m_value_type;
         };
-        Kind m_kind;
 
         inline static std::string printableString(std::string_view str)
         {
@@ -567,7 +568,7 @@ namespace linc
             for(char character: str)
                 result.append(printableChar<'"'>(character));
 
-            return std::move(result);
+            return result;
         }
 
         template <char QUOTE>

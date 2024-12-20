@@ -5,6 +5,7 @@
 
 namespace linc
 {
+    /// @brief Base AST node.
     class Node
     {
     public:
@@ -13,13 +14,12 @@ namespace linc
         {}
 
         Node(const Token::Info& token_info)
-            :m_info(NodeInfo{.tokenList = {}, .info = token_info})
+            :m_info(NodeInfo{.tokenList = std::vector<Token>{}, .info = token_info})
         {}
 
         virtual ~Node() = default;
-
         [[nodiscard]] inline const Token::Info& getTokenInfo() const { return m_info.info; }
-        [[nodiscard]] inline std::vector<Token>& getTokens() const { return m_info.tokenList; }
+        [[nodiscard]] inline const std::vector<Token>& getTokens() const { return m_info.tokenList; }
         [[nodiscard]] inline const NodeInfo& getInfo() const { return m_info; }
         [[nodiscard]] inline std::string getInfoString() const { return m_info.info.file + ":" + std::to_string(m_info.info.line); }
 

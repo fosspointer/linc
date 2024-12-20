@@ -9,7 +9,7 @@ namespace linc
     {
     public:
         BoundStructureDeclaration(const std::string& name, std::vector<std::unique_ptr<const BoundVariableDeclaration>> fields)
-            :BoundDeclaration(Types::voidType), m_name(name), m_fields(std::move(fields))
+            :m_name(name), m_fields(std::move(fields))
         {}
 
         virtual std::unique_ptr<const BoundDeclaration> clone() const final override
@@ -19,7 +19,7 @@ namespace linc
 
             for(const auto& field: m_fields)
             {
-                auto new_field = Types::unique_cast<const BoundVariableDeclaration>(field->clone());
+                auto new_field = Types::uniqueCast<const BoundVariableDeclaration>(field->clone());
                 fields.push_back(std::move(new_field));
             }
 

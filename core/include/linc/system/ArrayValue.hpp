@@ -1,6 +1,7 @@
 #pragma once
 #include <linc/system/Exception.hpp>
 #include <linc/system/PrimitiveValue.hpp>
+#include <linc/system/Types.hpp>
 #include <linc/Include.hpp>
 #include <cstring>
 #include <cstdlib>
@@ -161,7 +162,7 @@ namespace linc
             case Types::Kind::f64: new (&m_array_f64) std::vector{other.m_array_f64}; break;
             case Types::Kind::string: new (&m_array_string) std::vector{other.m_array_string}; break;
             case Types::Kind::type: new (&m_array_type) std::vector{other.m_array_type}; break;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
         }
 
@@ -198,7 +199,7 @@ namespace linc
             case Types::Kind::f64: new (&m_array_f64) std::vector{std::move(other.m_array_f64)}; break;
             case Types::Kind::string: new (&m_array_string) std::vector{std::move(other.m_array_string)}; break;
             case Types::Kind::type: new (&m_array_type) std::vector{std::move(other.m_array_type)}; break;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
 
             other.m_array_invalid = {std::vector<Types::_invalid_type>{}};
@@ -236,7 +237,7 @@ namespace linc
             case Types::Kind::f64: new (&m_array_f64) std::vector{other.m_array_f64}; break;
             case Types::Kind::string: new (&m_array_string) std::vector{other.m_array_string}; break;
             case Types::Kind::type: new (&m_array_type) std::vector{other.m_array_type}; break;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
 
             return *this;
@@ -276,7 +277,7 @@ namespace linc
             case Types::Kind::f64: new (&m_array_f64) std::vector{std::move(other.m_array_f64)}; break;
             case Types::Kind::string: new (&m_array_string) std::vector{std::move(other.m_array_string)}; break;
             case Types::Kind::type: new (&m_array_type) std::vector{std::move(other.m_array_type)}; break;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
 
             other.m_array_invalid = {std::vector<Types::_invalid_type>{}};
@@ -302,7 +303,7 @@ namespace linc
             case Types::Kind::f64: return ArrayValue(Types::f64{}, count);
             case Types::Kind::string: return ArrayValue(Types::string{}, count);
             case Types::Kind::type: return ArrayValue(Types::voidType, count);
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
             }
         }
 
@@ -311,9 +312,10 @@ namespace linc
             switch(type.kind)
             {
             case Types::type::Kind::Primitive: return fromDefault(type.primitive, count);
-            case Types::type::Kind::Array: return ArrayValue(fromDefault(*type.array.base_type, type.array.count.value_or(0ul)), count);
+            case Types::type::Kind::Array: return ArrayValue(fromDefault(*type.array.baseType, type.array.count.value_or(0ul)), count);
             case Types::type::Kind::Structure: throw LINC_EXCEPTION_INVALID_INPUT("Arrays of structures are not yet implemented in linc");
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::type::Kind);
+            case Types::type::Kind::Function: throw LINC_EXCEPTION_INVALID_INPUT("Arrays of function pointers are not yet implemented in linc");
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(type.kind);
             }
         }
 
@@ -336,7 +338,7 @@ namespace linc
             case Types::Kind::f64: return m_array_f64.size();
             case Types::Kind::string: return m_array_string.size();
             case Types::Kind::type: return m_array_type.size();
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
         }
 
@@ -377,7 +379,7 @@ namespace linc
                 return ArrayValue(result); }
             case Types::Kind::type:{ auto result = m_array_type; result.insert(result.end(), other.m_array_type.begin(), other.m_array_type.end());
                 return ArrayValue(result); }
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
         }
 
@@ -403,7 +405,7 @@ namespace linc
             case Types::Kind::f64: return m_array_f64 == other.m_array_f64;
             case Types::Kind::string: return m_array_string == other.m_array_string;
             case Types::Kind::type: return m_array_type == other.m_array_type;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
         }
 
@@ -418,7 +420,7 @@ namespace linc
 
             switch(m_kind)
             {
-            case Types::Kind::_void: for(const auto& value: m_array__void) result.push_back(PrimitiveValue::voidValue); break;
+            case Types::Kind::_void: for(std::size_t i{0ul}; i < m_array__void.size(); ++i) result.push_back(PrimitiveValue::voidValue); break;
             case Types::Kind::_bool: for(const auto& value: m_array__bool) result.push_back(PrimitiveValue(value)); break;
             case Types::Kind::_char: for(const auto& value: m_array__char) result.push_back(PrimitiveValue(value)); break;
             case Types::Kind::u8: for(const auto& value: m_array_u8) result.push_back(PrimitiveValue(value)); break;
@@ -433,7 +435,7 @@ namespace linc
             case Types::Kind::f64: for(const auto& value: m_array_f64) result.push_back(PrimitiveValue(value)); break;
             case Types::Kind::string: for(const auto& value: m_array_string) result.push_back(PrimitiveValue(value)); break;
             case Types::Kind::type: for(const auto& value: m_array_type) result.push_back(PrimitiveValue(value)); break;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
 
             return result;

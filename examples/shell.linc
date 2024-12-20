@@ -1,0 +1,27 @@
+#include `std.linc`
+
+fn parseI32(str: string): i32 {
+    result: mut i32 = 0i32;
+    negative: mut bool = false;
+
+    if(str[0u64] == '-')
+        negative = true;
+
+    for(index: mut u64 = if negative 1u64 else 0u64 index < +str ++index;)
+        if(+str[index] >= +'0' && +str[index] <= +'9')
+            result = result * 10 + (+str[index] - +'0');
+
+    if(negative)
+        result = -result;
+
+    result
+}
+
+fn main(args: string[]) {
+    result: mut i32 = parseI32(system("date +%H"));
+    
+    if(+args == 3u64)
+        result = parseI32(args[2u64]);
+
+    putln("It is " + if result > 23 || result < 0 "an error!" else if result < 12 "too early" else if result == 12 "just right" else "too late");
+}

@@ -2,10 +2,10 @@
 
 namespace linc
 {
-    BoundFunctionDeclaration::BoundFunctionDeclaration(const Types::type& type, const std::string& name, 
+    BoundFunctionDeclaration::BoundFunctionDeclaration(const Types::type& function_type, const std::string& name, 
         std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments, 
-        std::unique_ptr<const BoundStatement> body)
-        :BoundDeclaration(Types::voidType), m_returnType(type), m_name(name), m_arguments(std::move(arguments)), m_body(std::move(body))
+        std::unique_ptr<const BoundExpression> body)
+        :m_functionType(function_type), m_name(name), m_arguments(std::move(arguments)), m_body(std::move(body))
     {}
 
     std::unique_ptr<const BoundDeclaration> BoundFunctionDeclaration::clone() const
@@ -19,11 +19,11 @@ namespace linc
                     std::nullopt
             ));
 
-        return std::make_unique<const BoundFunctionDeclaration>(getReturnType(), m_name, std::move(arguments), std::move(m_body->clone()));
+        return std::make_unique<const BoundFunctionDeclaration>(getFunctionType(), m_name, std::move(arguments), std::move(m_body->clone()));
     }
 
     std::string BoundFunctionDeclaration::toStringInner() const
     {
-        return Logger::format("Function Declaration (=$) (::$)", PrimitiveValue(m_name), PrimitiveValue(m_returnType));
+        return Logger::format("Function Declaration (=$) (:$)", PrimitiveValue(m_name), PrimitiveValue(m_functionType));
     }
 }

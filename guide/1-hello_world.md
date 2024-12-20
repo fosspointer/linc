@@ -15,7 +15,7 @@ Now let's create your first program in Linc: one that prints the words "Hello, W
 #include `std.linc`
 
 fn main() {
-    println("Hello, World!")
+    println("Hello, World!");
 }
 ```
 
@@ -27,10 +27,12 @@ $ lincenv hello.linc
 
 You should now see the words "Hello, World!" displayed on your screen. You just wrote your first program in Linc. Now, let's break down how it works:
 
-- ```#include `std.linc` ```: This line of code makes the `std` header available to our program, which stands for standard, meaning Linc's **standard library**. Practically, it provides basic utilities for input/output, basic math functions, etc... (in this case, `println` was useed). This header is available to all Linc installs by default, so there's no requirements to be able to use it.
+- ```#include `std.linc` ```: This line of code makes the `std` header available to our program, which stands for standard, meaning Linc's **standard library**. Practically, it provides basic utilities for input/output, basic math functions, etc... (in this case, `println` was used). This header is available to all Linc installs by default, so there's no requirements to be able to use it.
 
 - `fn main() { ... }`: This is a function that defines our 'entry-point'. It's how Linc can know where our program starts and what code needs to execute. For this reason, the name `main` must be used. Functions will be explained more in depth in later lessons.
 
-- `println("Hello, World!")`: This achieves the actual job of printing our "hello world" message. As for the "ln" part, a new-line character is appended to the end of the message, so that any following printing can happen at the beginning of its own line (the code is functionally equivalent to ```print("Hello, World!\n")```, as the new-line character is represented as `\n`).
+- `println("Hello, World!");`: This achieves the actual job of printing our "hello world" message. As for the "ln" part, a new-line character is appended to the end of the message, so that any following printing can happen at the beginning of its own line (the code is functionally equivalent to ```print("Hello, World!\n");```, as the new-line character is represented as `\n`).
+
+- Note that all 'instructions' (called statements) are terminated using a semicolon (`;`).
 
 Next: [Introduction to Variables](2-variables_introduction.md)

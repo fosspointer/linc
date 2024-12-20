@@ -1,41 +1,30 @@
 #pragma once
 #include <linc/bound_tree/BoundExpression.hpp>
-#include <linc/bound_tree/BoundStatement.hpp>
 
 namespace linc
 {
     class BoundIfExpression final : public BoundExpression
     {
     public:
-        BoundIfExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundStatement> body_if_statement, 
-            std::unique_ptr<const BoundStatement> body_else_statement, Types::type type);
-
-        BoundIfExpression(std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundStatement> body_if_statement, Types::type type);
+        BoundIfExpression(Types::type type, std::unique_ptr<const BoundExpression> test_expression, std::unique_ptr<const BoundExpression> if_body, 
+            std::unique_ptr<const BoundExpression> else_body);
 
         [[nodiscard]] inline const BoundExpression* const getTestExpression() const { return m_testExpression.get(); }
-        [[nodiscard]] inline const BoundStatement* const getIfBodyStatement() const { return m_bodyIfStatement.get(); }
-        [[nodiscard]] inline const std::optional<const BoundStatement* const> getElseBodyStatement() const
-        { 
-            if(m_bodyElseStatement.has_value())
-                return m_bodyElseStatement.value().get();
-            else return std::nullopt;
-        }
-        [[nodiscard]] inline const bool hasElse() const { return m_bodyElseStatement.has_value(); }
+        [[nodiscard]] inline const BoundExpression* const getIfBody() const { return m_ifBody.get(); }
+        [[nodiscard]] inline const BoundExpression* const getElseBody() const { return m_elseBody? m_elseBody.get(): nullptr; }
+        [[nodiscard]] inline const bool hasElse() const { return (bool)m_elseBody; }
 
         virtual std::unique_ptr<const BoundExpression> clone() const final override;
 
         inline virtual std::vector<const BoundNode*> getChildren() const final override
         {
-            if(m_bodyElseStatement.has_value())
-                return {m_testExpression.get(), m_bodyIfStatement.get(), m_bodyElseStatement->get()};
+            if(m_elseBody)
+                return {m_testExpression.get(), m_ifBody.get(), m_elseBody.get()};
             else
-                return {m_testExpression.get(), m_bodyIfStatement.get()};
+                return {m_testExpression.get(), m_ifBody.get()};
         }
     private:
         virtual std::string toStringInner() const final override;
-        
-        const std::unique_ptr<const BoundExpression> m_testExpression;
-        const std::unique_ptr<const BoundStatement> m_bodyIfStatement;
-        const std::optional<const std::unique_ptr<const BoundStatement>> m_bodyElseStatement;
+        const std::unique_ptr<const BoundExpression> m_testExpression, m_ifBody, m_elseBody;
     };
 }

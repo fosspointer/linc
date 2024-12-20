@@ -1,8 +1,3 @@
 #guard
-fn println(str: string): void {
-    puts(str + '\n')
-}
-
-fn print(str: string): void {
-    puts(str)
-}
+fn println(str: string) putln(str)
+fn print(str: string) puts(str)

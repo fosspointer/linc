@@ -1,6 +1,9 @@
 #pragma once
+#include <linc/system/ScopeStack.hpp>
+#include <linc/system/StringStack.hpp>
 #include <linc/system/Value.hpp>
 #include <linc/system/PrimitiveValue.hpp>
+#include <linc/system/EnumeratorValue.hpp>
 #include <linc/system/ArrayValue.hpp>
 #include <linc/system/Reporting.hpp>
 #include <linc/system/TextSpan.hpp>

@@ -3,6 +3,7 @@
 
 namespace linc
 {
+    /// @brief Lexer-token representation of escape characters.
     class Escape final 
     {
     public:

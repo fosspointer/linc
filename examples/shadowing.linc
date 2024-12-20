@@ -1,0 +1,14 @@
+fn main() {
+    foo := 5;
+    bar := "hello";
+    putln("outside: foo = " + @foo);
+    putln("outside: bar = " + @bar);
+    {
+        foo := true;
+        bar := 1.618033f;
+        putln("inside: foo = " + @foo);
+        putln("inside: bar = " + @bar);
+    };
+    putln("repeat(should match) - outside: foo = " + @foo);
+    putln("repeat(should match) - outside: bar = " + @bar);
+}

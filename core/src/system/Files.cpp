@@ -13,7 +13,7 @@ namespace linc
     {
         std::filesystem::path filepath = std::filesystem::absolute(filepath_string);
         auto find = s_fileMap.find(filepath);
-        auto mode = write? std::ios::in | std::ios::out: std::ios::in;
+        auto mode = write? std::ios::out: std::ios::in;
 
         if(find != s_fileMap.end())
         {
@@ -35,7 +35,7 @@ namespace linc
         std::ostringstream stream;
         stream << file->rdbuf();
         file->close();
-        return std::move(stream.str());
+        return stream.str();
     }
 
     bool Files::exists(const std::string& filepath_string)

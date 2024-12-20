@@ -7,59 +7,52 @@
 #include <linc/Binder.hpp>
 #include <linc/Generator.hpp>
 
-[[nodiscard]] static std::unique_ptr<const linc::BoundStatement> const evaluate_statement(const std::string& statement_raw)
+[[nodiscard]] static std::unique_ptr<const linc::BoundExpression> const evaluate_expression(const std::string& expression_raw)
 {
     const auto test_path = "testing";
-    auto code = linc::Code::toSource(statement_raw);
-    linc::Lexer lexer(code);
+    auto code = linc::Code::toSource(expression_raw);
+    linc::Lexer lexer(code, true);
     linc::Preprocessor preprocessor(lexer(), test_path);
     linc::Parser parser;
     parser.set(preprocessor(), test_path);
     linc::Binder binder;
     
-    auto statement = parser.parseStatement();
+    auto expression = parser.parseExpression();
 
-    if(!statement)
+    if(!expression)
         return nullptr;
 
-    auto bound_statement = binder.bindStatement(statement.get());
-    
-    bool errors = {false};
-    
-    for(const auto& report: linc::Reporting::getReports())
-        if(report.type == linc::Reporting::Type::Error)
-            errors = true;
-
-    return std::move(bound_statement);
+    auto bound_expression = binder.bindExpression(expression.get());
+    return bound_expression;
 }
 
 
-[[nodiscard]] static linc::Types::type evaluate_and_compare(const std::string& first_statement_raw, const std::string& second_statment_raw)
+[[nodiscard]] static linc::Types::type evaluate_and_compare(const std::string& first_expression_raw, const std::string& second_expression_raw)
 {
-    auto first_statement = evaluate_statement(first_statement_raw);
-    auto second_statement = evaluate_statement(second_statment_raw);
+    auto first_expression = evaluate_expression(first_expression_raw);
+    auto second_expression = evaluate_expression(second_expression_raw);
 
-    if(!first_statement)
+    if(!first_expression)
     {
-        linc::Logger::println("[TEST] Evaluation failed! The first statement evaluated to null.");
+        linc::Logger::println("[TEST] Evaluation failed! The first expression evaluated to null.");
         return linc::Types::invalidType;
     }
 
-    if(!second_statement)
+    if(!second_expression)
     {
-        linc::Logger::println("[TEST] Evaluation failed! The second statement evaluated to null.");
+        linc::Logger::println("[TEST] Evaluation failed! The second expression evaluated to null.");
         return linc::Types::invalidType;
     }
 
-    if(first_statement->getType() != second_statement->getType())
+    if(first_expression->getType() != second_expression->getType())
     {
         linc::Logger::println("[TEST] Type comparison failed! The two statements are not type-equivalent.");
         return linc::Types::invalidType;
     }
 
     linc::Interpreter interpreter;
-    auto first_value = interpreter.evaluateStatement(first_statement.get());
-    auto second_value = interpreter.evaluateStatement(second_statement.get());
+    auto first_value = interpreter.evaluateExpression(first_expression.get());
+    auto second_value = interpreter.evaluateExpression(second_expression.get());
 
     if(first_value != second_value)
     {
@@ -68,7 +61,7 @@
         return linc::Types::invalidType;
     }
 
-    return first_statement->getType();
+    return first_expression->getType();
 
 }
 
@@ -92,7 +85,7 @@ try {
 
     else if(result.primitive != type)
     {
-        linc::Logger::println("[TEST] Type check failed! The statement does not type match the given type (expression evaluated to type '$', but '$' was given).",
+        linc::Logger::println("[TEST] Type check failed! The expression does not type match the given type (expression evaluated to type '$', but '$' was given).",
             linc::Types::kindToString(result.primitive), linc::Types::kindToString(type));
         return EXIT_FAILURE;
     }

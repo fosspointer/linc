@@ -3,6 +3,8 @@
 #include <linc/tree/IdentifierExpression.hpp>
 #include <linc/tree/TypeExpression.hpp>
 #include <linc/tree/VariableDeclaration.hpp>
+#include <linc/tree/NodeListClause.hpp>
+#include <linc/system/Types.hpp>
 
 #define LINC_EXTERNAL_DECLARATION_TOKEN_TYPE_ASSERT(field_name, token_type) \
     if(field_name.type != token_type) \
@@ -18,7 +20,7 @@ namespace linc
     public:
         ExternalDeclaration(const Token& external_keyword, const Token& left_parenthesis, const Token& right_parenthesis, const Token& type_specifier,
             std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const TypeExpression> type,
-            std::vector<std::unique_ptr<const TypeExpression>> arguments)
+            std::unique_ptr<const NodeListClause<TypeExpression>> arguments)
             :Declaration(external_keyword.info), m_externalKeyword(external_keyword), m_leftParenthesis(left_parenthesis),
             m_rightParenthesis(right_parenthesis), m_typeSpecifier(type_specifier), m_identifier(std::move(identifier)), m_actualType(std::move(type)),
             m_arguments(std::move(arguments)) 
@@ -29,26 +31,16 @@ namespace linc
             LINC_EXTERNAL_DECLARATION_TOKEN_TYPE_ASSERT(m_typeSpecifier, Token::Type::Colon);
             
             addTokens(std::vector<Token>{m_externalKeyword, m_leftParenthesis});
-
-            for(const auto& argument: m_arguments)
-                addTokens(argument->getTokens());
-            
+            addTokens(m_arguments->getTokens());
             addTokens(std::vector<Token>{m_rightParenthesis, m_typeSpecifier});
             addTokens(m_actualType->getTokens());
         }
 
         virtual std::unique_ptr<const Declaration> clone() const final override
         {
-            std::vector<std::unique_ptr<const TypeExpression>> arguments;
-
-            for(const auto& argument: m_arguments)
-            {
-                auto type = Types::unique_cast<const TypeExpression>(argument->clone());
-                arguments.push_back(std::move(type));
-            }
-
-            auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
-            auto type = Types::unique_cast<const TypeExpression>(m_actualType->clone());
+            auto arguments = m_arguments->clone(); 
+            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+            auto type = Types::uniqueCast<const TypeExpression>(m_actualType->clone());
 
             return std::make_unique<const ExternalDeclaration>(
                 m_externalKeyword, m_typeSpecifier, m_leftParenthesis, m_rightParenthesis,
@@ -61,11 +53,11 @@ namespace linc
         inline const Token& getRightParenthesis() const { return m_rightParenthesis; }
         inline const IdentifierExpression* const getIdentifier() const { return m_identifier.get(); }
         inline const TypeExpression* const getActualType() const { return m_actualType.get(); }
-        inline const std::vector<std::unique_ptr<const TypeExpression>>& getArguments() const { return m_arguments; }
+        inline const NodeListClause<TypeExpression>* const getArguments() const { return m_arguments.get(); }
     private:
         const Token m_externalKeyword, m_leftParenthesis, m_rightParenthesis, m_typeSpecifier;
         const std::unique_ptr<const IdentifierExpression> m_identifier;
         const std::unique_ptr<const TypeExpression> m_actualType;
-        const std::vector<std::unique_ptr<const TypeExpression>> m_arguments;
+        const std::unique_ptr<const NodeListClause<TypeExpression>> m_arguments;
     };
 }

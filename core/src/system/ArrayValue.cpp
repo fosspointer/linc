@@ -25,7 +25,7 @@ namespace linc
         case Types::Kind::f64: return PrimitiveValue(m_array_f64.at(index)); break;
         case Types::Kind::string: return PrimitiveValue(m_array_string.at(index)); break;
         case Types::Kind::type: return PrimitiveValue(m_array_type.at(index)); break;
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
         }
     }
 
@@ -54,7 +54,7 @@ namespace linc
         case Types::Kind::f64: m_array_f64.at(index) = value.getPrimitive().getF64(); break;
         case Types::Kind::string: m_array_string.at(index) = value.getPrimitive().getString(); break;
         case Types::Kind::type: m_array_type.at(index) = value.getPrimitive().getType(); break;
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
         }
     }
 
@@ -83,7 +83,7 @@ namespace linc
         case Types::Kind::f64: pushF64(value.getPrimitive().getIfF64().value()); break;
         case Types::Kind::string: pushString(value.getPrimitive().getIfString().value()); break;
         case Types::Kind::type: pushType(value.getPrimitive().getIfType().value()); break;
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
         }
     }
 }

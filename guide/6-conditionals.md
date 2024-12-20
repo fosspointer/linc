@@ -15,7 +15,7 @@ fn main() {
         println("You control lightning!")
     else if name == "Poseidon"
         println("You control the sea!")    
-    else println("You are not a god :c") 
+    else println("You are not a god :c");
 }
 ```
 
@@ -25,18 +25,17 @@ In this example, indentation is insignificant (which is always the case in the l
 #include `std.linc`
 
 fn main() {
-    print("Choose an option (y/n): ")
-    option: string = reads()
+    option: string = readln("Choose an option (y/n): ");
 
     if option == "y" || option == "Y" { // remember: `||` is used to denote logical OR (it evaluates to true if at least one of the operands is true)
-        println("you choose yes")
-        println("<insert code that actually does soemthing here>)
+        println("you choose yes");
+        println("<insert code that actually does soemthing here>");
     }
     else if option == "n" || option == "N" { // similarly to before, here we're chaining if expressions
-        println("why did you even choose no?")
-        println("bad idea")    
+        println("why did you even choose no?");
+        println("bad idea");
     }
-    else println("you didn't even follow the instructions properly...")
+    else println("you didn't even follow the instructions properly...");
 }
 ```
 

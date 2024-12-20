@@ -16,10 +16,20 @@ namespace linc
 
     Token::Type Brackets::getBracket(char character)
     {
-        auto find = s_BracketMap.find(character);
-        if(find != s_BracketMap.end())
-            return find->second;
+        for(const auto& pair: s_BracketMap)
+            if(pair.first == character)
+                return pair.second;
 
-        else return Token::Type::InvalidToken;
+        return Token::Type::InvalidToken;
     }
+
+    char Brackets::getChar(Token::Type token_type)
+    {
+        for(const auto& pair: s_BracketMap)
+            if(pair.second == token_type)
+                return pair.first;
+
+        throw LINC_EXCEPTION_ILLEGAL_STATE(token_type);
+    }
+
 }

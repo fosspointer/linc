@@ -1,5 +1,9 @@
 #pragma once
 #include <linc/generator/Interpreter.hpp>
-// #include <linc/generator/GeneratorAMD64.hpp>
-// #include <linc/generator/Generator.hpp>
+#include <linc/generator/ControlFlowExceptions.hpp>
+#include <linc/generator/GeneratorAMD64.hpp>
+#include <linc/generator/Generator.hpp>
+#include <linc/generator/EmitterAMD64.hpp>
+#include <linc/generator/Registers.hpp>
+#include <linc/generator/Target.hpp>
 #include <linc/generator/Optimizer.hpp>

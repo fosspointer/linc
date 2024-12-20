@@ -1,7 +1,7 @@
 #pragma once
-#include <linc/system/Exception.hpp>
-#include <linc/system/Printable.hpp>
 #include <linc/Include.hpp>
+#include <linc/system/Colors.hpp>
+#include <linc/system/Printable.hpp>
 
 namespace linc
 {
@@ -26,14 +26,14 @@ namespace linc
         /// @param str The string to be formatted.
         /// @param args The list of arguments to format with.
         /// @return The resulting string.
-        static std::string format(const std::string& str, const std::vector<Printable>& _args);
+        static std::string format(std::string_view str, const std::vector<Printable>& _args);
 
         /// @brief String formatting utility method, similar to std::format.
         /// @param str The string to be formatted.
         /// @param ...args The variadic argument list to format with.
         /// @return The resulting string.
         template <typename... Args>
-        static inline std::string format(const std::string& str, Args... args)
+        static inline std::string format(std::string_view str, Args... args)
         {
             return format(str, std::vector<Printable>{args...});
         }
@@ -45,14 +45,14 @@ namespace linc
         /// @param str The string to be formatted.
         /// @param ...args The variadic argument list to format with.
         template <typename... Args>
-        inline static void print(const std::string& str, Args... args)
+        inline static void print(std::string_view str, Args... args)
         {
-            fputs(format(Colors::toANSI(Colors::getCurrentColor()) + str, args...).c_str(), stdout);
+            fputs(format(Colors::toANSI(Colors::getCurrentColor()) + std::string{str}, args...).c_str(), stdout);
         }
 
         /// @brief Read string from stdin until return key entered.
         /// @return The resulting string, as read from stdin.
-        static std::string read(const std::string& prompt = "");
+        static std::string read(std::string_view prompt = "");
 
         /// @brief Format a string and append it to the output string. 
         /// @param output_string The output string.
@@ -96,41 +96,14 @@ namespace linc
             std::fputs(format(s_logFormat + '\n', type_string, format(str, args...)).c_str(), getLogTypeFile(type));
         }
     private:
-
-        inline static FILE* getLogTypeFile(Type type)
-        {
-            switch(type)
-            {
-            case Type::Info:
-            case Type::Debug:
-                return stdout;
-            case Type::Warning:
-            case Type::Error:
-                return stderr;
-            default:
-                throw LINC_EXCEPTION_OUT_OF_BOUNDS(Logger::Type);
-            }
-        }
+        static FILE* getLogTypeFile(Type type);
 
         /// @brief Internal utility method to convert a printable value to string and append it, according to its type. 
         /// @param output The string to append the output to.
         /// @param printable The printable value to test.
         /// @param lexical_bool Flag corresponding to whether bools are represented using the keywords 'true' and 'false', instead of 1 and 0 respectively.
         /// @param precision The number of decimal digits to allow precision for.
-        inline static void appendPrintable(std::string& output, Printable& printable, bool lexical_bool, size_t precision)
-        {
-            switch(printable.getType())
-            {
-            case Printable::Type::String: output += printable.getString(); break;
-            case Printable::Type::SignedIntegral: output += printable.signedToString(); break;
-            case Printable::Type::UnsignedIntegral: output += printable.unsignedToString(); break;
-            case Printable::Type::Floating: output += printable.floatingToString(precision); break;
-            case Printable::Type::Nullptr: output += printable.nullptrToString(); break;
-            case Printable::Type::Boolean: output += printable.booleanToString(lexical_bool); break;
-            case Printable::Type::Character: output += printable.characterToString(); break;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Printable::Type);
-            }
-        }
+        static void appendPrintable(std::string& output, class Printable& printable, bool lexical_bool, std::size_t precision);
         static std::string s_logFormat;
     };
 }

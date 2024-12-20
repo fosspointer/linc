@@ -1,78 +1,165 @@
 #include <linc/bound_tree/Binder.hpp>
-#include <linc/Lexer.hpp>
+#include <linc/BoundTree.hpp>
+#include <linc/Tree.hpp>
 #include <linc/system/Internals.hpp>
-
-template <typename T>
-static std::optional<T> parseString(const std::string& str, std::optional<linc::Token::NumberBase> base)
-{
-    using namespace linc;
-    
-    if(str.empty())
-        return static_cast<T>(0);
-
-    char* p;
-    if constexpr(std::is_integral<T>::value)
-    {
-        T result{};
-        bool negative{str[0ul] == '-'};
-
-        for(std::size_t i{negative? 1ul: 0ul}; i < str.size(); ++i)
-            if(linc::Lexer::isDigit(str[i], base.value()))
-            {
-                auto displacement = std::isdigit(str[i])? 0: 39;
-                result = result * static_cast<T>(linc::Token::baseToInt(base.value())) + (str[i] - '0' - displacement);
-            }
-            else
-                return std::nullopt;
-
-        return negative? -result: result;
-    }
-    else if constexpr(std::is_same<T, Types::f32>::value)
-    {
-        Types::f32 value = strtof(str.c_str(), &p);
-        
-        if(*p)
-            return std::nullopt;
-        else return value;
-    }
-    else if constexpr(std::is_same<T, Types::f64>::value)
-    {
-        Types::f64 value = strtod(str.c_str(), &p);
-        
-        if(*p)
-            return std::nullopt;
-        else return value;
-    }
-    else if constexpr(std::is_same<T, Types::_bool>::value)
-    {
-        Types::_bool value = strtoll(str.c_str(), &p, 10);
-        
-        if(str == "false")
-            return false;
-        else if(str == "true")
-            return true;
-        else if(*p)
-            return std::nullopt;
-        else return value;
-    }
-    else if constexpr(std::is_same<T, Types::_char>::value)
-    {
-        Types::_char value = str.empty()? '\0': str.at(0); 
-        return value;
-    }
-    else return std::nullopt;
-}
+#include <linc/Lexer.hpp>
 
 namespace linc
 {
-    BoundProgram Binder::bind(const Program* program)
+    template <typename T>
+    static std::optional<T> parseString(const std::string& str, std::optional<Token::NumberBase> base)
+    {
+        using namespace linc;
+        
+        if(str.empty())
+            return static_cast<T>(0);
+
+        char* p;
+        if constexpr(std::is_integral<T>::value)
+        {
+            T result{};
+            bool negative{str[0ul] == '-'};
+
+            for(std::size_t i{negative? 1ul: 0ul}; i < str.size(); ++i)
+                if(Lexer::isDigit(str[i], base.value()))
+                {
+                    auto displacement = std::isdigit(str[i])? 0: 'A' - '9' - 1;
+                    result = result * static_cast<T>(Token::baseToInt(base.value())) + (str[i] - '0' - displacement);
+                }
+                else
+                    return std::nullopt;
+
+            return negative? -result: result;
+        }
+        else if constexpr(std::is_same<T, Types::f32>::value)
+        {
+            Types::f32 value = strtof(str.c_str(), &p);
+            
+            if(*p)
+                return std::nullopt;
+            else return value;
+        }
+        else if constexpr(std::is_same<T, Types::f64>::value)
+        {
+            Types::f64 value = strtod(str.c_str(), &p);
+            
+            if(*p)
+                return std::nullopt;
+            else return value;
+        }
+        else if constexpr(std::is_same<T, Types::_bool>::value)
+        {
+            Types::_bool value = strtoll(str.c_str(), &p, 10);
+            
+            if(str == "false")
+                return false;
+            else if(str == "true")
+                return true;
+            else if(*p)
+                return std::nullopt;
+            else return value;
+        }
+        else if constexpr(std::is_same<T, Types::_char>::value)
+        {
+            Types::_char value = str.empty()? '\0': str.at(0); 
+            return value;
+        }
+        else return std::nullopt;
+    }
+
+    BoundSymbols::BoundSymbols()
+    {
+        beginScope();
+    }
+
+    void BoundSymbols::clear()
+    {
+        m_scopes = ScopeStack<std::unique_ptr<const BoundDeclaration>>{};
+        m_labels = StringStack{};
+    }
+
+    std::unique_ptr<const BoundDeclaration> BoundSymbols::find(const std::string& name, bool top_only) const
+    {
+        if(auto find = top_only? m_scopes.findTop(name): m_scopes.find(name); find)
+        {
+            if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(find->get()))
+            {
+                if(variable->getName() == name)
+                    return variable->clone();
+            }
+            else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find->get()))
+            {
+                if(function->getName() == name)
+                    return function->clone();
+            }
+            else if(auto external_function = dynamic_cast<const BoundExternalDeclaration*>(find->get()))
+            {
+                if(external_function->getName() == name)
+                    return external_function->clone();
+            }
+            else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(find->get()))
+            {
+                if(structure_declaration->getName() == name)
+                    return structure_declaration->clone();
+            }
+            else if(auto enumeration_declaration = dynamic_cast<const BoundEnumerationDeclaration*>(find->get()))
+            {
+                if(enumeration_declaration->getName() == name)
+                    return enumeration_declaration->clone();
+            }
+            else throw LINC_EXCEPTION_ILLEGAL_STATE(find);
+        }   
+        return nullptr;
+    }
+
+    bool BoundSymbols::push(std::unique_ptr<const BoundDeclaration> symbol)
+    {
+        std::unique_ptr<const BoundDeclaration> find{nullptr};
+        std::string name;
+        
+        if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(symbol.get()))
+        {
+            name = variable->getName();
+            find = this->find(name, true);
+        }
+        else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(symbol.get()))
+        {
+            name = function->getName();
+            find = this->find(name);
+        }
+        else if(auto external_function = dynamic_cast<const BoundExternalDeclaration*>(symbol.get()))
+        {
+            name = external_function->getName();
+            find = this->find(name);
+        }
+        else if(auto structure = dynamic_cast<const BoundStructureDeclaration*>(symbol.get()))
+        {
+            name = structure->getName();
+            find = this->find(name);
+        }
+        else if(auto enumeration = dynamic_cast<const BoundEnumerationDeclaration*>(symbol.get()))
+        {
+            name = enumeration->getName();
+            find = this->find(name);
+        }
+        else throw LINC_EXCEPTION_ILLEGAL_VALUE(symbol);       
+
+        if(!find)
+        {
+            m_scopes.append(name, std::move(symbol));
+            return true;
+        }
+        else return false;
+    }
+
+    BoundProgram Binder::bindProgram(const Program* program)
     {
         BoundProgram bound_program;
 
         for(const auto& declaration: program->declarations)
             bound_program.declarations.push_back(bindDeclaration(declaration.get()));
 
-        return std::move(bound_program);
+        return bound_program;
     }
 
     std::unique_ptr<const BoundNode> Binder::bindNode(const Node* node)
@@ -89,7 +176,7 @@ namespace linc
         else if(auto declaration = dynamic_cast<const Declaration*>(node))
             return bindDeclaration(declaration);
 
-        else throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized node.");
+        else throw LINC_EXCEPTION_INVALID_INPUT("Encountered unrecognized node while binding");
     }
 
     std::unique_ptr<const BoundStatement> Binder::bindStatement(const Statement* statement)
@@ -98,100 +185,111 @@ namespace linc
             return nullptr;
 
         else if(auto declaration_statement = dynamic_cast<const DeclarationStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindDeclarationStatement(declaration_statement));
+            return Types::uniqueCast<const BoundStatement>(bindDeclarationStatement(declaration_statement));
 
         else if(auto expression_statement = dynamic_cast<const ExpressionStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindExpressionStatement(expression_statement));
-
-        else if(auto label_statement = dynamic_cast<const LabelStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindLabelStatement(label_statement));
-
-        else if(auto jump_statement = dynamic_cast<const JumpStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindJumpStatement(jump_statement));
+            return Types::uniqueCast<const BoundStatement>(bindExpressionStatement(expression_statement));
 
         else if(auto return_statement = dynamic_cast<const ReturnStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindReturnStatement(return_statement));
+            return Types::uniqueCast<const BoundStatement>(bindReturnStatement(return_statement));
 
         else if(auto continue_statement = dynamic_cast<const ContinueStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindContinueStatement(continue_statement));
+            return Types::uniqueCast<const BoundStatement>(bindContinueStatement(continue_statement));
 
         else if(auto break_statement = dynamic_cast<const BreakStatement*>(statement))
-            return Types::unique_cast<const BoundStatement>(bindBreakStatement(break_statement));
+            return Types::uniqueCast<const BoundStatement>(bindBreakStatement(break_statement));
 
         throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized statement");
     }
 
     std::unique_ptr<const BoundDeclaration> Binder::bindDeclaration(const Declaration* declaration)
     {
+        if(!declaration)
+            return nullptr;
+
         if(auto variable_declaration = dynamic_cast<const VariableDeclaration*>(declaration))
-            return Types::unique_cast<const BoundDeclaration>(bindVariableDeclaration(variable_declaration));
+            return Types::uniqueCast<const BoundDeclaration>(bindVariableDeclaration(variable_declaration));
+
+        else if(auto direct_variable_declaration = dynamic_cast<const DirectVariableDeclaration*>(declaration))
+            return Types::uniqueCast<const BoundDeclaration>(bindDirectVariableDeclaration(direct_variable_declaration));
 
         else if(auto function_declaration = dynamic_cast<const FunctionDeclaration*>(declaration))
-            return Types::unique_cast<const BoundDeclaration>(bindFunctionDeclaration(function_declaration));
+            return Types::uniqueCast<const BoundDeclaration>(bindFunctionDeclaration(function_declaration));
 
         else if(auto external_declaration = dynamic_cast<const ExternalDeclaration*>(declaration))
-            return Types::unique_cast<const BoundDeclaration>(bindExternalDeclaration(external_declaration));
+            return Types::uniqueCast<const BoundDeclaration>(bindExternalDeclaration(external_declaration));
 
         else if(auto structure_declaration = dynamic_cast<const StructureDeclaration*>(declaration))
-            return Types::unique_cast<const BoundDeclaration>(bindStructureDeclaration(structure_declaration));
+            return Types::uniqueCast<const BoundDeclaration>(bindStructureDeclaration(structure_declaration));
         
+        else if(auto enumeration_declaration = dynamic_cast<const EnumerationDeclaration*>(declaration))
+            return Types::uniqueCast<const BoundDeclaration>(bindEnumerationDeclaration(enumeration_declaration));
+
         throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized declaration");
     }
 
     std::unique_ptr<const BoundExpression> Binder::bindExpression(const Expression* expression)
     {
-        if(auto literal_expression = dynamic_cast<const LiteralExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindLiteralExpression(literal_expression));
+        if(!expression)
+            return nullptr;
+        else if(auto literal_expression = dynamic_cast<const LiteralExpression*>(expression))
+            return Types::uniqueCast<const BoundExpression>(bindLiteralExpression(literal_expression));
         
         else if(auto unary_expression = dynamic_cast<const UnaryExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindUnaryExpression(unary_expression));
+            return Types::uniqueCast<const BoundExpression>(bindUnaryExpression(unary_expression));
         
         else if(auto binary_expression = dynamic_cast<const BinaryExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindBinaryExpression(binary_expression));
+            return Types::uniqueCast<const BoundExpression>(bindBinaryExpression(binary_expression));
         
         else if(auto identifier_expression = dynamic_cast<const IdentifierExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindIdentifierExpression(identifier_expression));
+            return Types::uniqueCast<const BoundExpression>(bindIdentifierExpression(identifier_expression));
 
         else if(auto type_expression = dynamic_cast<const TypeExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindTypeExpression(type_expression));
+            return Types::uniqueCast<const BoundExpression>(bindTypeExpression(type_expression));
         
         else if(auto block_expression = dynamic_cast<const BlockExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindBlockExpression(block_expression));
+            return Types::uniqueCast<const BoundExpression>(bindBlockExpression(block_expression));
 
         else if(auto parenthesis_expression = dynamic_cast<const ParenthesisExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindExpression(parenthesis_expression->getExpression()));
+            return Types::uniqueCast<const BoundExpression>(bindExpression(parenthesis_expression->getExpression()));
 
         else if(auto if_else_expression = dynamic_cast<const IfExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindIfExpression(if_else_expression));
+            return Types::uniqueCast<const BoundExpression>(bindIfExpression(if_else_expression));
 
         else if(auto while_expression = dynamic_cast<const WhileExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindWhileExpression(while_expression));
+            return Types::uniqueCast<const BoundExpression>(bindWhileExpression(while_expression));
+
+        else if(auto match_expression = dynamic_cast<const MatchExpression*>(expression))
+            return Types::uniqueCast<const BoundExpression>(bindMatchExpression(match_expression));
 
         else if(auto for_expression = dynamic_cast<const ForExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindForExpression(for_expression));
+            return Types::uniqueCast<const BoundExpression>(bindForExpression(for_expression));
             
         else if(auto function_call_expression = dynamic_cast<const CallExpression*>(expression))
         {
             if(function_call_expression->isExternal())
-                return Types::unique_cast<const BoundExpression>(bindExternalCallExpression(function_call_expression));
+                return Types::uniqueCast<const BoundExpression>(bindExternalCallExpression(function_call_expression));
 
-            else return Types::unique_cast<const BoundExpression>(bindFunctionCallExpression(function_call_expression));
+            else return Types::uniqueCast<const BoundExpression>(bindFunctionCallExpression(function_call_expression));
         }
 
         else if(auto conversion_expression = dynamic_cast<const ConversionExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindConversionExpression(conversion_expression));
+            return Types::uniqueCast<const BoundExpression>(bindConversionExpression(conversion_expression));
 
         else if(auto array_initializer_expression = dynamic_cast<const ArrayInitializerExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindArrayInitializerExpression(array_initializer_expression));
+            return Types::uniqueCast<const BoundExpression>(bindArrayInitializerExpression(array_initializer_expression));
 
         else if(auto index_expression = dynamic_cast<const IndexExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindIndexExpression(index_expression));
+            return Types::uniqueCast<const BoundExpression>(bindIndexExpression(index_expression));
 
         else if(auto access_exprsesion = dynamic_cast<const AccessExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindAccessExpression(access_exprsesion));
+            return Types::uniqueCast<const BoundExpression>(bindAccessExpression(access_exprsesion));
+        
+        else if(auto namespace_access_expression = dynamic_cast<const EnumeratorExpression*>(expression))
+            return Types::uniqueCast<const BoundExpression>(bindEnumeratorExpression(namespace_access_expression));
 
         else if(auto structure_initializer_expression = dynamic_cast<const StructureInitializerExpression*>(expression))
-            return Types::unique_cast<const BoundExpression>(bindStructureInitializerExpression(structure_initializer_expression));
+            return Types::uniqueCast<const BoundExpression>(bindStructureInitializerExpression(structure_initializer_expression));
 
         throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized expression");
     }
@@ -200,17 +298,27 @@ namespace linc
         const Token::Info& info)
     {
         Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$::$ Undefined binary operator '$' for operands `$` and `$`.",
-                info.file, info.line, BoundBinaryOperator::kindToString(operator_kind), left_type, right_type)});
+            .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+            .span = TextSpan::fromTokenInfo(info),
+            .message = Logger::format("$ Invalid binary operator '$' for operands `$` and `$`.",
+            info, BoundBinaryOperator::kindToString(operator_kind), left_type, right_type)});
+
+        if(left_type.kind == Types::type::Kind::Primitive && right_type.kind == Types::type::Kind::Primitive
+        && Types::isNumeric(left_type.primitive) && Types::isNumeric(right_type.primitive) && left_type.primitive != right_type.primitive){
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Note that Linc does not allow for implicit type conversions between numeric types. "
+                    "Did you forget to do a type-cast?", info, BoundBinaryOperator::kindToString(operator_kind), left_type, right_type)});
+        }
     }
 
     void Binder::reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::type operand_type, const Token::Info& info)
     {
         Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$::$ Undefined unary operator '$' for operand of type `$`.",
-                info.file, info.line, BoundUnaryOperator::kindToString(operator_kind), operand_type)});
+            .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+            .span = TextSpan::fromTokenInfo(info),
+            .message = Logger::format("$ Invalid unary operator '$' for operand of type `$`.",
+            info, BoundUnaryOperator::kindToString(operator_kind), operand_type)});
     }
 
     const std::unique_ptr<const BoundDeclarationStatement> Binder::bindDeclarationStatement(const DeclarationStatement* statement)
@@ -225,73 +333,23 @@ namespace linc
         return std::make_unique<const BoundExpressionStatement>(std::move(expression));
     }
 
-    const std::unique_ptr<const BoundBlockExpression> Binder::bindBlockExpression(const BlockExpression* statement)
+    const std::unique_ptr<const BoundBlockExpression> Binder::bindBlockExpression(const BlockExpression* expression)
     {
         std::vector<std::unique_ptr<const BoundStatement>> statements;
 
         m_boundDeclarations.beginScope();
 
-        for(std::size_t i{0ul}; i < statement->getStatements().size(); ++i)
-        {
-            m_blockIndex = i;
-            statements.push_back(bindStatement(statement->getStatements()[i].get()));
-        }
-        
-        m_blockIndex = -1ul;
+        for(std::size_t i{0ul}; i < expression->getStatements().size(); ++i)
+            statements.push_back(bindStatement(expression->getStatements()[i].get()));
+        auto tail = expression->getTail()? bindExpression(expression->getTail()): nullptr;
         m_boundDeclarations.endScope();
 
-        return std::make_unique<const BoundBlockExpression>(std::move(statements));
-    }
-
-    const std::unique_ptr<const BoundLabelStatement> Binder::bindLabelStatement(const LabelStatement* statement)
-    {
-        auto name = statement->getIdentifier()->getValue();
-
-        if(m_blockIndex == -1ul)
-        {
-            Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot define label '$' outside of scope statement.", 
-                   statement->getInfoString(), statement->getIdentifier()->getValue())
-            });
-            return std::make_unique<const BoundLabelStatement>(name, bindStatement(statement->getNext()), m_blockIndex);
-        }
-        
-        bool is_loop = false;
-        if(auto expression = dynamic_cast<const ExpressionStatement*>(statement->getNext())) 
-            is_loop = dynamic_cast<const WhileExpression*>(expression->getExpression()) 
-                || dynamic_cast<const ForExpression*>(expression->getExpression());
-
-        if(!m_boundDeclarations.pushLabel(name, m_blockIndex, m_boundDeclarations.getScope(), is_loop))
-            Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot redefine label '$'", statement->getInfoString(), name)
-            });
-
-        auto next = bindStatement(statement->getNext());
-        return std::make_unique<const BoundLabelStatement>(name, std::move(next), m_blockIndex);
-    }
-    
-    const std::unique_ptr<const BoundJumpStatement> Binder::bindJumpStatement(const JumpStatement* statement)
-    {
-        const auto& name = statement->getIdentifier()->getValue();
-        const auto find = m_boundDeclarations.findLabel(name);
-
-        if(find == m_boundDeclarations.labelEnd())
-        {
-            Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("Cannot jump to undefined label '$'.", name)
-            });
-            return std::make_unique<const BoundJumpStatement>(-1ul, m_boundDeclarations.getScope());
-        }
-        
-        return std::make_unique<const BoundJumpStatement>(find->second.blockIndex, find->second.scope);
+        return std::make_unique<const BoundBlockExpression>(std::move(statements), std::move(tail));
     }
 
     const std::unique_ptr<const BoundReturnStatement> Binder::bindReturnStatement(const ReturnStatement* statement)
     {
-        auto expression = bindExpression(statement->getExpression());
+        auto expression = statement->getExpression()? bindExpression(statement->getExpression()): nullptr;
         
         if(!m_inFunction)
             Reporting::push(Reporting::Report{
@@ -300,7 +358,14 @@ namespace linc
                     statement->getInfoString())
             });
 
-        else if(!expression->getType().isAssignableTo(m_currentFunctionType))
+        else if(m_currentFunctionType == Types::invalidType)
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Cannot use return statements in functions with implicit return types.",
+                    statement->getInfoString())
+            });
+
+        else if(expression && !expression->getType().isAssignableTo(m_currentFunctionType))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Return statement doesn't match the function's return type (`$` -> `$`).",
@@ -319,24 +384,18 @@ namespace linc
             });
 
         if(!statement->getLabel())
-            return std::make_unique<const BoundContinueStatement>(m_boundDeclarations.getScope());
+            return std::make_unique<const BoundContinueStatement>(std::string{});
         
         auto name = statement->getLabel()->getValue();
         auto find = m_boundDeclarations.findLabel(name);
 
-        if(find == m_boundDeclarations.labelEnd())
+        if(find.empty())
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Undefined label in continue statement.", statement->getInfoString())
             });
-        else if(!find->second.isLoop)
-            Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot continue with label '$', as it does not name a loop.",
-                    statement->getInfoString(), name)
-            });
 
-        return std::make_unique<const BoundContinueStatement>(m_boundDeclarations.getScope());
+        return std::make_unique<const BoundContinueStatement>(find);
     }
     
     const std::unique_ptr<const BoundBreakStatement> Binder::bindBreakStatement(const BreakStatement* statement)
@@ -348,73 +407,94 @@ namespace linc
             });
             
         if(!statement->getLabel())
-            return std::make_unique<const BoundBreakStatement>(m_boundDeclarations.getScope());
+            return std::make_unique<const BoundBreakStatement>(std::string{});
         
         auto name = statement->getLabel()->getValue();
         auto find = m_boundDeclarations.findLabel(name);
 
-        if(find == m_boundDeclarations.labelEnd())
+        if(find.empty())
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Undefined label in break statement.", statement->getInfoString())
             });
-        else if(!find->second.isLoop)
-            Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot break with label '$', as it does not name a loop.",
-                    statement->getInfoString(), name)
-            });
 
-        return std::make_unique<const BoundBreakStatement>(find->second.scope);
+        return std::make_unique<const BoundBreakStatement>(find);
     }
 
     const std::unique_ptr<const BoundVariableDeclaration> Binder::bindVariableDeclaration(const VariableDeclaration* declaration, bool is_argument)
     {
-        auto type = bindTypeExpression(declaration->getType())->getActualType(); 
+        auto type = bindTypeExpression(declaration->getType())->getActualType();
 
         auto name = declaration->getIdentifier()->getIdentifierToken().value.value();
         auto default_value = declaration->getDefaultValue()? std::make_optional(bindExpression(declaration->getDefaultValue()->getExpression())):
             std::nullopt;
 
         auto variable = std::make_unique<const BoundVariableDeclaration>(type, name, std::move(default_value));
-        
+
         if(variable->getDefaultValue() && !variable->getDefaultValue().value()->getType().isAssignableTo(type))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$ Cannot assign expression of type `$` to variable of type `$`", 
+                .message = Logger::format("$ Cannot assign expression of type `$` to variable of type `$`", 
                     declaration->getInfoString(), variable->getDefaultValue().value()->getType(), type)});
 
         else if(!is_argument && !type.isMutable && !default_value)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$ Cannot declare immutable variable '$' without default value.",
+                .message = Logger::format("$ Cannot declare immutable variable '$' without default value.",
+                    declaration->getInfoString(), name)
+            });
+
+        else if(!is_argument && !variable->getDefaultValue() && type.kind == Types::type::Kind::Array && !type.array.count.has_value())
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Cannot automatically infer the size of an array-typed variable with no default value.",
                     declaration->getInfoString(), name)
             });
 
         else if(!m_boundDeclarations.push(variable->clone()))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$ Cannot redeclare symbol '$' as variable of type `$`.", 
-                    declaration->getInfoString(), name, variable->getDefaultValue().value()->getType())});
+                .message = Logger::format("$ Cannot redeclare symbol '$' as variable of type `$`.", 
+                    declaration->getInfoString(), name, variable->getActualType())});
 
-        return std::move(variable);
+        return variable;
+    }
+
+    const std::unique_ptr<const BoundVariableDeclaration> Binder::bindDirectVariableDeclaration(const DirectVariableDeclaration* declaration)
+    {
+        auto value = bindExpression(declaration->getValue());
+        auto type = value->getType();
+        type.isMutable = declaration->getMutabilitySpecifier().has_value(); 
+        auto name = declaration->getIdentifier()->getValue();
+
+        auto variable = std::make_unique<const BoundVariableDeclaration>(type, name, std::move(value));
+
+        if(!m_boundDeclarations.push(variable->clone()))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Cannot redeclare symbol '$' as variable of type `$`.", 
+                    declaration->getInfoString(), name, variable->getActualType())});
+
+        return variable;
     }
 
     const std::unique_ptr<const BoundFunctionDeclaration> Binder::bindFunctionDeclaration(const FunctionDeclaration* declaration)
     {
-        auto return_type = bindTypeExpression(declaration->getReturnType())->getActualType();
+        auto return_type = declaration->getReturnType()? bindTypeExpression(declaration->getReturnType())->getActualType(): Types::invalidType;
         auto name = declaration->getIdentifier()->getValue();
 
         std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments;
+        std::vector<std::unique_ptr<const Types::type>> argument_types;
+        arguments.reserve(declaration->getArguments()->getList().size());
+        argument_types.reserve(declaration->getArguments()->getList().size());
 
         m_boundDeclarations.beginScope();
-
         bool has_default_value{false}, has_error{false};
 
-        for(std::size_t i = 0; i < declaration->getArguments().size(); ++i)
+        for(std::size_t i{0ul}; i < declaration->getArguments()->getList().size(); ++i)
         {
-            const auto& argument = declaration->getArguments()[i];
-            auto bound_argument = bindVariableDeclaration(argument.variable.get(), true);
+            const auto& argument = declaration->getArguments()->getList()[i];
+            auto bound_argument = bindVariableDeclaration(argument.node.get(), true);
 
             if(bound_argument->getDefaultValue().has_value())
                 has_default_value = true;
@@ -438,14 +518,25 @@ namespace linc
             arguments.push_back(std::move(bound_argument));
         }
 
-        m_inFunction = true;
-        m_currentFunctionType = return_type;
-        auto body = bindStatement(declaration->getBody());
-        m_currentFunctionType = Types::voidType;
-        m_inFunction = false;
+        for(const auto& argument: arguments)
+            argument_types.push_back(argument->getActualType().clone());
 
-        auto function = std::make_unique<const BoundFunctionDeclaration>(return_type, name, std::move(arguments), std::move(body));
-        
+        ++m_inFunction;
+        m_currentFunctionType = return_type;
+        auto body = bindExpression(declaration->getBody());
+        if(return_type == Types::invalidType) { return_type = body->getType(); return_type.isMutable = false; }
+        m_currentFunctionType = Types::voidType;
+        --m_inFunction;
+
+        if(return_type.isMutable)
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Warning, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(declaration->getTypeSpecifier().info),
+                .message = Logger::format("$ Mutable modifier is ineffective on function return types.", declaration->getInfoString())});
+
+        auto function_type = Types::type{Types::type::Function{return_type.clone(), std::move(argument_types)}, return_type.isMutable};
+        auto function = std::make_unique<const BoundFunctionDeclaration>(function_type, name, std::move(arguments), std::move(body));
+
         if(!function->getBody()->getType().isAssignableTo(function->getReturnType()))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -460,7 +551,7 @@ namespace linc
                 .message = Logger::format("$ Redefinition of symbol '$' as function declaration.",
                     declaration->getInfoString(), name)});
 
-        return std::move(function);
+        return function;
     }
 
     const std::unique_ptr<const BoundExternalDeclaration> Binder::bindExternalDeclaration(const ExternalDeclaration* declaration)
@@ -469,9 +560,9 @@ namespace linc
         auto actual_type = bindTypeExpression(declaration->getActualType());
         
         std::vector<std::unique_ptr<const BoundTypeExpression>> arguments;
-        for(const auto& argument : declaration->getArguments())
+        for(const auto& argument: declaration->getArguments()->getList())
         {
-            auto type = bindTypeExpression(argument.get());
+            auto type = bindTypeExpression(argument.node.get());
             arguments.push_back(std::move(type));
         }
         
@@ -483,7 +574,7 @@ namespace linc
                 .message = Logger::format("$ Cannot redeclare symbol '$' as external function declaration.", declaration->getInfoString(), name)
             });
 
-        return std::move(external_function);
+        return external_function;
     }
 
     const std::unique_ptr<const BoundStructureDeclaration> Binder::bindStructureDeclaration(const StructureDeclaration* declaration)
@@ -512,7 +603,24 @@ namespace linc
                     declaration->getInfoString(), name)
             });
 
-        return std::move(structure);
+        return structure;
+    }
+
+    const std::unique_ptr<const BoundEnumerationDeclaration> Binder::bindEnumerationDeclaration(const EnumerationDeclaration* declaration)
+    {
+        const auto name = declaration->getIdentifier()->getValue(); 
+
+        auto enumerators = bindNodeListClause(declaration->getEnumerators(), &Binder::bindEnumeratorClause);
+        auto enumeration = std::make_unique<const BoundEnumerationDeclaration>(name, std::move(enumerators));
+    
+        if(!m_boundDeclarations.push(enumeration->clone()))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Redefinition of symbol '$' as enumeration declaration.",
+                    declaration->getInfoString(), name)
+            });
+
+        return enumeration;
     }
  
     const std::unique_ptr<const BoundIdentifierExpression> Binder::bindIdentifierExpression(const IdentifierExpression* expression)
@@ -520,38 +628,126 @@ namespace linc
         auto value = expression->getValue();
         auto find = m_boundDeclarations.find(value);
         
-        if(find == m_boundDeclarations.end())
+        if(!find)
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = linc::Logger::format("$ Undeclared identifier '$'.", expression->getInfoString(), value)});
+                .span = TextSpan::fromTokenInfo(expression->getTokenInfo()),
+                .message = Logger::format("$ Undeclared identifier '$'.", expression->getInfoString(), value)});
 
             return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
         }
-        else if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(find->get()))
+        else if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(find.get()))
             return std::make_unique<const BoundIdentifierExpression>(value, variable->getActualType());
+
+        else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find.get()))
+            return std::make_unique<const BoundIdentifierExpression>(value, function->getFunctionType());
 
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-            .message = linc::Logger::format("$ Cannot reference identifier '$', as it is not a variable.", expression->getInfoString(), value)});
+            .message = Logger::format("$ Cannot reference identifier '$', as it is not a variable.", expression->getInfoString(), value)});
 
         return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
     }
 
+    const std::unique_ptr<const BoundEnumeratorExpression> Binder::bindEnumeratorExpression(const EnumeratorExpression* expression)
+    {
+        std::string match_identifier{};
+        if(!m_matchIdentifiers.empty())
+        {
+            match_identifier = m_matchIdentifiers.top();
+            m_matchIdentifiers.pop();
+        }
+
+        auto name = expression->getEnumerationIdentifier()->getValue();
+        auto find = m_boundDeclarations.find(name);
+        if(!find)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Undeclared identifier '$' does not result to a namespace.", expression->getInfoString(), name)
+            }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
+        else if(auto enumeration = dynamic_cast<const BoundEnumerationDeclaration*>(find.get()); !enumeration)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Cannot namespace-access identifier '$', which is not an enumeration.",
+                    expression->getInfoString(), name)
+            }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
+        
+        auto enumeration = static_cast<const BoundEnumerationDeclaration*>(find.get());
+        auto enumerator_name = expression->getIdentifier()->getValue();
+        auto type = enumeration->getActualType();
+
+        Types::u64 enumerator_index{-1ul};
+        for(std::vector<std::string>::size_type i{0ul}; i < enumeration->getEnumerators()->getList().size(); ++i)
+            if(enumerator_name == enumeration->getEnumerators()->getList()[i]->getName())
+                enumerator_index = i;
+
+        if(expression->getValue() && !match_identifier.empty() && enumerator_index != -1ul)
+        {
+            const auto& enumerator = enumeration->getEnumerators()->getList().at(enumerator_index);
+            if(!m_boundDeclarations.push(std::make_unique<const BoundVariableDeclaration>(
+                enumerator->getActualType(), match_identifier, std::nullopt)))
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .span = TextSpan::fromTokenInfo(expression->getValue()->getTokenInfo()),
+                    .message = Logger::format("$ Cannot redefine identifier '$' as match parameter in enumerator expression",
+                        expression->getValue()->getTokenInfo(), match_identifier)
+                });  
+        }
+        auto value = expression->getValue()? bindExpression(expression->getValue()): nullptr;
+
+        if(enumerator_index == -1ul)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(expression->getIdentifier()->getIdentifierToken().info),
+                .message = Logger::format("$ Invalid enumerator '$' in enumeration '$'",
+                    expression->getTokenInfo(), enumerator_name, name)
+            }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
+        else if(value && !value->getType().isCompatible(enumeration->getEnumerators()->getList()[enumerator_index]->getActualType()))
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(expression->getIdentifier()->getIdentifierToken().info),
+                .message = Logger::format("$ Enumerator type incompatible with declared enumerator '$' in enumeration '$'",
+                    expression->getTokenInfo(), enumerator_name, name)
+            }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
+        else if(!value && !enumeration->getEnumerators()->getList()[enumerator_index]->getActualType().isCompatible(Types::voidType))
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(expression->getIdentifier()->getIdentifierToken().info),
+                .message = Logger::format("$ Cannot omit value for non-void enumerator '$' in enumeration '$'.",
+                    expression->getTokenInfo(), enumerator_name, name)
+            }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
+
+        return std::make_unique<const BoundEnumeratorExpression>(name, enumerator_index, std::move(value), type);
+    }
+
     const std::unique_ptr<const BoundTypeExpression> Binder::bindTypeExpression(const TypeExpression* expression)
     {
-        const auto kind = Types::kindFromUserString(expression->getTypeIdentifier().value.value());
+        const auto kind = expression->getIfIdentifierRoot()? Types::kindFromUserString(expression->getIfIdentifierRoot()->getValue()): Types::Kind::invalid;
         auto specifiers = bindArraySpecifiers(expression->getArraySpecifiers());
 
         if(kind != Types::Kind::invalid)
             return std::make_unique<const BoundTypeExpression>(kind, expression->getMutabilityKeyword().has_value(), std::move(specifiers));
 
+        else if(auto function = expression->getIfFunctionRoot())
+        {
+            auto return_type = bindTypeExpression(function->returnType.get())->getActualType().clone();
+            std::vector<std::unique_ptr<const Types::type>> argument_types;
+            argument_types.reserve(function->argumentTypes->getList().size());
+
+            for(const auto& type: function->argumentTypes->getList())
+                argument_types.push_back(bindTypeExpression(type.node.get())->getActualType().clone());
+
+            return std::make_unique<const BoundTypeExpression>(Types::type::Function{std::move(return_type), std::move(argument_types)}, expression->getMutabilityKeyword().has_value(),
+                std::move(specifiers));
+        }
+
         else
         {
-            auto name = *expression->getTypeIdentifier().value;
+            auto name = expression->getIfIdentifierRoot()->getValue();
             auto find = m_boundDeclarations.find(name);
             
-            if(find == m_boundDeclarations.end())
+            if(!find)
             {
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -560,13 +756,23 @@ namespace linc
                 return std::make_unique<const BoundTypeExpression>(Types::Kind::invalid, expression->getMutabilityKeyword().has_value(),
                     std::move(specifiers));
             }
-            else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(find->get()))
+            else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(find.get()))
             {
                 Types::type::Structure types;
                 types.reserve(structure_declaration->getFields().size());
 
                 for(const auto& field: structure_declaration->getFields())
                     types.push_back(std::pair(field->getName(), field->getActualType().clone()));
+
+                return std::make_unique<const BoundTypeExpression>(std::move(types), expression->getMutabilityKeyword().has_value(), std::move(specifiers));
+            }
+            else if(auto enumeration_declaration = dynamic_cast<const BoundEnumerationDeclaration*>(find.get()))
+            {
+                Types::type::Enumeration types;
+                types.reserve(enumeration_declaration->getEnumerators()->getList().size());
+                
+                for(const auto& enumerator: enumeration_declaration->getEnumerators()->getList())
+                    types.push_back(std::pair(enumerator->getName(), enumerator->getActualType()));
 
                 return std::make_unique<const BoundTypeExpression>(std::move(types), expression->getMutabilityKeyword().has_value(), std::move(specifiers));
             }
@@ -583,75 +789,91 @@ namespace linc
     const std::unique_ptr<const BoundIfExpression> Binder::bindIfExpression(const IfExpression* expression)
     {
         auto test_expression = bindExpression(expression->getTestExpression());
-        auto body_if_statement = bindStatement(expression->getIfBodyStatement());
-        auto _body_else_statement = expression->getElseBodyStatement();
+        auto if_body = bindExpression(expression->getIfBody());
+        auto else_body = expression->getElseBody()? bindExpression(expression->getElseBody()): nullptr;
+        auto type = else_body && if_body->getType() == else_body->getType()? if_body->getType(): Types::voidType; 
 
-        if(_body_else_statement)
-        {
-            auto body_else_statement = bindStatement(_body_else_statement.value());
-            auto type = body_if_statement->getType() == body_else_statement->getType()? body_if_statement->getType(): Types::voidType;
-            return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(body_if_statement),
-                std::move(body_else_statement), type);
-        }
-        else return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(body_if_statement), Types::voidType);
+        return std::make_unique<const BoundIfExpression>(type, std::move(test_expression), std::move(if_body), std::move(else_body));
     }
 
     const std::unique_ptr<const BoundWhileExpression> Binder::bindWhileExpression(const WhileExpression* expression)
     {
-        m_boundDeclarations.beginScope();
         auto test_expression = bindExpression(expression->getTestExpression());
-
-        m_inLoop = true;
-        auto body_statement = bindStatement(expression->getWhileBodyStatement());
-        m_inLoop = false;
+        auto label = expression->getLabel()? expression->getLabel()->identifier->getValue(): std::string{};
         
-        auto type = body_statement->getType();
+        if(!label.empty()) m_boundDeclarations.pushLabel(label);
+        ++m_inLoop;
+        auto while_body = bindExpression(expression->getWhileBody());
+        --m_inLoop;
+        if(!label.empty()) m_boundDeclarations.popLabel();
 
-        auto _body_finally_statement = expression->getFinallyBodyStatement();
-        auto _body_else_statement = expression->getElseBodyStatement();
+        auto else_body = expression->hasElse()? bindExpression(expression->getElseBody()): nullptr;
+        auto finally_body = expression->hasFinally()? bindExpression(expression->getFinallyBody()): nullptr;
+        auto type = while_body->getType();
 
-        if(_body_finally_statement)
+
+        if(else_body && finally_body)
         {
-            auto body_finally_statement = bindStatement(_body_finally_statement.value());
-            auto finally_type = type.isCompatible(body_finally_statement->getType())? type: Types::voidType;
-
-            if(_body_else_statement)
-            {
-                auto body_else_statement = bindStatement(_body_else_statement.value());
-                auto else_type = finally_type.isCompatible(body_else_statement->getType())? finally_type: Types::voidType;
-
-                m_boundDeclarations.endScope();
-                return std::make_unique<const BoundWhileExpression>(else_type, std::move(test_expression), std::move(body_statement), 
-                    std::move(body_finally_statement), std::move(body_else_statement));
-            }
-            else
-            {
-                m_boundDeclarations.endScope();
-                return std::make_unique<const BoundWhileExpression>(finally_type, std::move(test_expression), std::move(body_statement), 
-                    std::move(body_finally_statement));
-            }
+            if(!while_body->getType().isCompatible(finally_body->getType())
+            || !finally_body->getType().isCompatible(else_body->getType())
+            || !else_body->getType().isCompatible(while_body->getType()))
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .message = Logger::format("$ Incompatible typing in while-finally-else expression.", expression->getInfoString())
+                });
         }
-        else if(_body_else_statement)
+        else if(else_body)
         {
-            auto body_else_statement = bindStatement(_body_else_statement.value());
-            auto else_type = type.isCompatible(body_else_statement->getType())? type: Types::voidType;
-
-            m_boundDeclarations.endScope();
-            return std::make_unique<const BoundWhileExpression>(else_type, std::move(test_expression), std::move(body_statement), 
-                std::nullopt, std::move(body_else_statement));
+            if(!while_body->getType().isCompatible(else_body->getType()))
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .message = Logger::format("$ Incompatible typing in while-else expression.", expression->getInfoString())
+                });
         }
+        else if(while_body->getType() != Types::voidType || (finally_body && finally_body->getType() != Types::voidType))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ All typed while expressions must have an else clause.", expression->getInfoString())
+            });
 
-        else
+        return std::make_unique<const BoundWhileExpression>(std::move(label), type, std::move(test_expression), std::move(while_body), std::move(finally_body),
+            std::move(else_body));
+    }
+
+    const std::unique_ptr<const BoundMatchExpression> Binder::bindMatchExpression(const MatchExpression* expression)
+    {
+        auto test_expression = bindExpression(expression->getTestExpression());
+        auto clauses = bindNodeListClause<MatchClause>(expression->getClauses(), &Binder::bindMatchClause);
+        auto type = clauses->getList().empty()? Types::voidType: clauses->getList()[0ul]->getExpression()->getType();
+
+        [&]()
         {
-            m_boundDeclarations.endScope();
-            return std::make_unique<const BoundWhileExpression>(Types::voidType, std::move(test_expression), std::move(body_statement));
-        };
+            for(const auto& clause: clauses->getList())
+            {
+                if(!type.isCompatible(clause->getExpression()->getType()))
+                    type = Types::voidType;
+
+                for(const auto& value: clause->getValues()->getList())
+                    if(!value->getType().isCompatible(test_expression->getType()))
+                    {
+                        Reporting::push(Reporting::Report{
+                            .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                            .span = TextSpan::fromTokenInfo(value->getInfo()),
+                            .message = Logger::format("$ Expression case type incompatible with test expression in match expression.", value->getInfo())
+                        });
+                        return;
+                    }
+            }
+        }();
+
+        return std::make_unique<const BoundMatchExpression>(std::move(test_expression), std::move(clauses), type);
     }
 
     const std::unique_ptr<const BoundForExpression> Binder::bindForExpression(const ForExpression* expression)
     {
         m_boundDeclarations.beginScope();
         const auto& specifier = expression->getSpecifier();
+        auto label = expression->getLabel()? expression->getLabel()->identifier->getValue(): std::string{};
 
         if(auto variable_specifier = std::get_if<const ForExpression::VariableForSpecifier>(&specifier))
         {
@@ -660,19 +882,21 @@ namespace linc
             auto _expression = bindExpression(variable_specifier->expression.get());
             auto statement = bindStatement(variable_specifier->statement.get());\
             
-            m_inLoop = true;
-            auto body = bindStatement(expression->getBody());
-            m_inLoop = false;
+            if(!label.empty()) m_boundDeclarations.pushLabel(label);
+            ++m_inLoop;
+            auto body = bindExpression(expression->getBody());
+            --m_inLoop;
+            if(!label.empty()) m_boundDeclarations.popLabel();
 
             m_boundDeclarations.endScope(); 
-            return std::make_unique<const BoundForExpression>(std::move(variable_declaration), std::move(_expression), std::move(statement), std::move(body));
+            return std::make_unique<const BoundForExpression>(label, std::move(variable_declaration), std::move(_expression), std::move(statement), std::move(body));
         }
         else if(auto range_specifier = std::get_if<const ForExpression::RangeForSpecifier>(&specifier))
         {
             auto array_identifier = bindIdentifierExpression(range_specifier->arrayIdentifier.get());
             auto range_type = Types::type(array_identifier->getType().kind == Types::type::Kind::Primitive
                 && array_identifier->getType().primitive == Types::Kind::string?
-                Types::fromKind(Types::Kind::_char): *array_identifier->getType().array.base_type);
+                Types::fromKind(Types::Kind::_char): *array_identifier->getType().array.baseType);
             auto variable_declaration = std::make_unique<const BoundVariableDeclaration>(range_type, range_specifier->valueIdentifier->getValue(), std::nullopt);
 
             if(!m_boundDeclarations.push(variable_declaration->clone()))
@@ -684,15 +908,16 @@ namespace linc
 
             auto value_identifier = bindIdentifierExpression(range_specifier->valueIdentifier.get());
             
-            m_inLoop = true;
-            auto body = bindStatement(expression->getBody());
-            m_inLoop = false;
+            if(!label.empty()) m_boundDeclarations.pushLabel(label);
+            ++m_inLoop;
+            auto body = bindExpression(expression->getBody());
+            --m_inLoop;
+            if(!label.empty()) m_boundDeclarations.popLabel();
 
             m_boundDeclarations.endScope();
-            return std::make_unique<const BoundForExpression>(std::move(value_identifier), std::move(array_identifier), std::move(body));
-            
+            return std::make_unique<const BoundForExpression>(label, std::move(value_identifier), std::move(array_identifier), std::move(body));
         }
-        else throw LINC_EXCEPTION_OUT_OF_BOUNDS(std::variant);
+        else throw LINC_EXCEPTION_OUT_OF_BOUNDS(specifier);
     }
 
     const std::unique_ptr<const BoundFunctionCallExpression> Binder::bindFunctionCallExpression(const CallExpression* expression)
@@ -702,33 +927,34 @@ namespace linc
         
         auto find = m_boundDeclarations.find(name);
 
-        if(find == m_boundDeclarations.end())
+        if(!find)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot call undeclared function '$'.", expression->getInfoString(), name)});
 
-        else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find->get()); !function)
+        else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find.get()); !function)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot call identifier '$', as it is not a function.", expression->getInfoString(), name)});
 
         else 
         {
-            if(function->getArguments().size() < expression->getArguments().size()
-            || function->getArguments().size() - function->getDefaultArgumentCount() > expression->getArguments().size())
+            const auto& list = expression->getArguments()->getList();
+            if(function->getArguments().size() < list.size()
+            || function->getArguments().size() - function->getDefaultArgumentCount() > list.size())
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("$ Tried to call function '$' with $ arguments, when it takes $ (with $ default arguments).", 
-                        expression->getInfoString(), name, expression->getArguments().size(), function->getArguments().size(),
+                        expression->getInfoString(), name, list.size(), function->getArguments().size(),
                         function->getDefaultArgumentCount())});
 
             using _size = std::vector<std::unique_ptr<const Expression>>::size_type;
 
-            for(_size i = 0ul; i < std::min(expression->getArguments().size(), function->getArguments().size()); i++)
+            for(_size i{0ul}; i < std::min(list.size(), function->getArguments().size()); i++)
             {
-                const auto& argument = expression->getArguments()[i];
+                const auto& argument = list[i];
                 const auto& declared_argument = function->getArguments()[i];
-                auto bound_argument = bindExpression(argument.expression.get());
+                auto bound_argument = bindExpression(argument.node.get());
 
                 if(!declared_argument->getActualType().isCompatible(bound_argument->getType()))
                 {
@@ -748,7 +974,7 @@ namespace linc
                 });
             }
 
-            for(_size i = expression->getArguments().size(); i < function->getArguments().size()
+            for(_size i{list.size()}; i < function->getArguments().size()
                 && i >= function->getArguments().size() - function->getDefaultArgumentCount(); ++i)
             {
                 const auto& declared_argument = function->getArguments()[i];
@@ -759,12 +985,10 @@ namespace linc
                 });
             }
 
-            return std::make_unique<const BoundFunctionCallExpression>(function->getReturnType(), name, std::move(arguments), 
-                std::move(function->getBody()->clone()));
+            return std::make_unique<const BoundFunctionCallExpression>(function->getReturnType(), name, std::move(arguments));
         }
 
-        return std::make_unique<const BoundFunctionCallExpression>(Types::invalidType, name, std::move(arguments),
-            std::make_unique<const BoundExpressionStatement>(std::make_unique<const BoundLiteralExpression>(PrimitiveValue::invalidValue, Types::invalidType)));
+        return std::make_unique<const BoundFunctionCallExpression>(Types::invalidType, name, std::move(arguments));
     }
 
     const std::unique_ptr<const BoundExternalCallExpression> Binder::bindExternalCallExpression(const CallExpression* expression)
@@ -776,21 +1000,22 @@ namespace linc
 
         if(Internals::isInternal(name))
         {
+            const auto& list = expression->getArguments()->getList(); 
             std::vector<std::unique_ptr<const BoundExpression>> arguments;
-            arguments.reserve(expression->getArguments().size());
+            arguments.reserve(list.size());
             
             auto internal = Internals::find(name);
-            if(expression->getArguments().size() != internal->arguments.size())
+            if(list.size() != internal->arguments.size())
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("$ Incorrect number of arguments given to external function '$' (given $ but it requires $).",
-                        expression->getInfoString(), name, expression->getArguments().size(), internal->arguments.size())
+                        expression->getInfoString(), name, list.size(), internal->arguments.size())
                 });
 
-            else for(std::size_t index{0ul}; index < expression->getArguments().size(); ++index)
+            else for(std::size_t index{0ul}; index < list.size(); ++index)
             {
                 const auto& declared_argument_type = internal->arguments[index];
-                auto argument = bindExpression(expression->getArguments()[index].expression.get());
+                auto argument = bindExpression(list[index].node.get());
 
                 if(!argument->getType().isCompatible(declared_argument_type))
                 {
@@ -813,12 +1038,12 @@ namespace linc
 
             return std::make_unique<const BoundExternalCallExpression>(internal->returnType, internal->name, std::move(arguments));
         }
-        else if(find == m_boundDeclarations.end())
+        else if(!find)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot call undeclared external function '$'.", expression->getInfoString(), name)});
 
-        else if(auto external = dynamic_cast<const BoundExternalDeclaration*>(find->get()); !external)
+        else if(auto external = dynamic_cast<const BoundExternalDeclaration*>(find.get()); !external)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot call identifier '$', as it is not an external function.", expression->getInfoString(), name)});
@@ -970,9 +1195,9 @@ namespace linc
         std::vector<std::unique_ptr<const BoundExpression>> values{};
         auto type = Types::voidType;
 
-        for(const auto& value: expression->getValues())
+        for(const auto& value: expression->getValues()->getList())
         {
-            auto bound_value = bindExpression(value.value.get());
+            auto bound_value = bindExpression(value.node.get());
 
             if(type == Types::voidType);
             else if(type != bound_value->getType())
@@ -987,7 +1212,7 @@ namespace linc
         }
 
         return std::make_unique<const BoundArrayInitializerExpression>(std::move(values), Types::type(Types::type::Array{
-            .base_type = type.clone(),
+            .baseType = type.clone(),
             .count = values.size() 
         }));
     }
@@ -1030,7 +1255,7 @@ namespace linc
     }
 
         auto type = array->getType().kind == Types::type::Kind::Primitive && array->getType().primitive == Types::Kind::string?
-            Types::type(Types::Kind::_char, array->getType().isMutable): *array->getType().array.base_type; 
+            Types::type(Types::Kind::_char, array->getType().isMutable): *array->getType().array.baseType; 
         
         return std::make_unique<const BoundIndexExpression>(std::move(array), std::move(index), type);
     }
@@ -1038,7 +1263,6 @@ namespace linc
     const std::unique_ptr<const BoundAccessExpression> Binder::bindAccessExpression(const AccessExpression* expression)
     {
         auto name = expression->getIdentifier()->getValue();
-        auto find = m_boundDeclarations.find(name);
         auto base = bindExpression(expression->getBase());
 
         if(base->getType().kind != Types::type::Kind::Structure)
@@ -1050,7 +1274,7 @@ namespace linc
             
             return std::make_unique<const BoundAccessExpression>(std::move(base), -1ul, Types::invalidType);
         }
-        auto structure = base->getType().structure;
+        auto structure = Types::type{base->getType()}.structure;
 
         for(std::size_t index{0ul}; index < structure.size(); ++index)
             if(structure[index].first == name)
@@ -1082,7 +1306,7 @@ namespace linc
         auto name = expression->getIdentifier()->getValue();
         auto find = m_boundDeclarations.find(name);
 
-        if(find == m_boundDeclarations.end())
+        if(!find)
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -1092,7 +1316,7 @@ namespace linc
             return std::make_unique<const BoundStructureInitializerExpression>(name, std::vector<std::unique_ptr<const BoundExpression>>{},
                 Types::invalidType);
         }
-        else if(!dynamic_cast<const BoundStructureDeclaration*>(find->get()))
+        else if(!dynamic_cast<const BoundStructureDeclaration*>(find.get()))
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -1104,7 +1328,7 @@ namespace linc
         }
 
         std::vector<std::unique_ptr<const BoundExpression>> fields{};
-        auto structure = static_cast<const BoundStructureDeclaration*>(find->get());
+        auto structure = static_cast<const BoundStructureDeclaration*>(find.get());
         fields.reserve(structure->getFields().size());
 
         if(structure->getFields().size() != expression->getArguments().size())
@@ -1137,5 +1361,31 @@ namespace linc
             fields.push_back(std::move(bound_value));
         }
         return std::make_unique<const BoundStructureInitializerExpression>(name, std::move(fields), structure->getActualType());
+    }
+
+    const std::unique_ptr<const BoundMatchClause> Binder::bindMatchClause(const MatchClause* expression)
+    {
+        m_boundDeclarations.beginScope();
+        
+        for(const auto& value: expression->getValues()->getList())
+        {
+            auto enumerator = dynamic_cast<const EnumeratorExpression*>(value.node.get());
+            if(!enumerator || !enumerator->getValue()) continue;
+            auto identifier = dynamic_cast<const IdentifierExpression*>(enumerator->getValue());
+            if(!identifier || m_boundDeclarations.find(identifier->getValue())) continue;
+            m_matchIdentifiers.push(identifier->getValue());
+        }
+
+        auto values = bindNodeListClause<Expression>(expression->getValues(), &Binder::bindExpression);
+        auto result_expression = bindExpression(expression->getExpression());
+        m_boundDeclarations.endScope();
+        return std::make_unique<const BoundMatchClause>(std::move(result_expression), std::move(values));
+    }
+
+    const std::unique_ptr<const BoundEnumeratorClause> Binder::bindEnumeratorClause(const EnumeratorClause* expression)
+    {
+        auto actual_type = bindTypeExpression(expression->getActualType())->getActualType();
+        auto name = expression->getIdentifier()->getValue();
+        return std::make_unique<const BoundEnumeratorClause>(actual_type, name, expression->getTokenInfo());
     }
 }

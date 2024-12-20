@@ -22,14 +22,15 @@ namespace linc
             std::unique_ptr<const BoundIdentifierExpression> valueIdentifier, arrayIdentifier;
         };
 
-        BoundForExpression(std::unique_ptr<const BoundVariableDeclaration> declaration, std::unique_ptr<const BoundExpression> expression,
-            std::unique_ptr<const BoundStatement> statement, std::unique_ptr<const BoundStatement> body);
+        BoundForExpression(std::string_view label, std::unique_ptr<const BoundVariableDeclaration> declaration, std::unique_ptr<const BoundExpression> expression,
+            std::unique_ptr<const BoundStatement> statement, std::unique_ptr<const BoundExpression> body);
 
-        BoundForExpression(std::unique_ptr<const BoundIdentifierExpression> value_identifier,
-            std::unique_ptr<const BoundIdentifierExpression> array_identifier, std::unique_ptr<const BoundStatement> body);
+        BoundForExpression(std::string_view label, std::unique_ptr<const BoundIdentifierExpression> value_identifier,
+            std::unique_ptr<const BoundIdentifierExpression> array_identifier, std::unique_ptr<const BoundExpression> body);
 
+        [[nodiscard]] inline const std::string& getLabel() const { return m_label; }
         [[nodiscard]] inline const std::variant<const BoundVariableForSpecifier, const BoundRangeForSpecifier>& getSpecifier() const { return m_specifier; }
-        [[nodiscard]] inline const BoundStatement* const getBody() const { return m_body.get(); }
+        [[nodiscard]] inline const BoundExpression* const getBody() const { return m_body.get(); }
 
         virtual std::unique_ptr<const BoundExpression> clone() const final override;
         
@@ -39,7 +40,8 @@ namespace linc
         }
     private:
         virtual std::string toStringInner() const final override;
+        const std::string m_label;
         const std::variant<const BoundVariableForSpecifier, const BoundRangeForSpecifier> m_specifier;
-        const std::unique_ptr<const BoundStatement> m_body;
+        const std::unique_ptr<const BoundExpression> m_body;
     };
 }

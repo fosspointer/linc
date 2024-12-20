@@ -8,37 +8,71 @@ namespace linc
     {
     public:
         Optimizer() = delete;
+
+        static std::unique_ptr<const BoundNode> optimizeNode(const BoundNode* node);
+        
+        static std::unique_ptr<const BoundExpression> optimizeBlockExpression(const BoundBlockExpression* expression)
+        {
+            std::vector<std::unique_ptr<const linc::BoundStatement>> statements;
+            statements.reserve(expression->getStatements().size());
+
+            for(const auto& statement: expression->getStatements())
+                statements.push_back(optimizeStatement(statement.get()));
+
+            auto tail = expression->getTail()? optimizeExpression(expression->getTail()): nullptr;
+            return std::make_unique<const BoundBlockExpression>(std::move(statements), std::move(tail));
+        }
+
+        static std::unique_ptr<const BoundExpression> optimizeIfExpression(const BoundIfExpression* expression)
+        {
+            auto test_expression = optimizeExpression(expression->getTestExpression());
+
+            if(auto literal = dynamic_cast<const BoundLiteralExpression*>(test_expression.get()))
+            {
+                if(literal->getValue().getBool())
+                    return expression->getIfBody()->clone();
+                else if(auto else_body = expression->getElseBody())
+                    return else_body->clone();
+                else return std::make_unique<const BoundBlockExpression>(std::vector<std::unique_ptr<const BoundStatement>>{}, nullptr);
+            }
+            auto if_body = optimizeExpression(expression->getIfBody());
+            auto else_body = expression->hasElse()? optimizeExpression(expression->getElseBody()): nullptr;
+            return std::make_unique<const BoundIfExpression>(expression->getType(), std::move(test_expression), std::move(if_body),
+                std::move(else_body));
+        }
+
+        static std::unique_ptr<const BoundExpression> optimizeForExpression(const BoundForExpression* expression)
+        {
+            const auto& specifier = expression->getSpecifier();
+            if(auto variable_specifier = std::get_if<0ul>(&specifier))
+            {
+                auto body = optimizeExpression(expression->getBody());
+                auto variable_declaration = optimizeVariableDeclaration(variable_specifier->variableDeclaration.get());
+                auto _expression = variable_specifier->expression->clone();
+                auto statement = variable_specifier->statement->clone();
+                return std::make_unique<const BoundForExpression>(expression->getLabel(), std::move(variable_declaration), std::move(_expression), std::move(statement), std::move(body));
+            }
+            auto body = optimizeExpression(expression->getBody());
+            auto array_identifier = Types::uniqueCast<const BoundIdentifierExpression>(std::get<1ul>(expression->getSpecifier()).arrayIdentifier->clone());
+            auto value_identifier = Types::uniqueCast<const BoundIdentifierExpression>(std::get<1ul>(expression->getSpecifier()).valueIdentifier->clone());
+            return std::make_unique<const BoundForExpression>(expression->getLabel(), std::move(value_identifier), std::move(array_identifier), std::move(body));
+        }
+        
         static std::unique_ptr<const BoundExpression> optimizeExpression(const BoundExpression* expression)
         {
             if(auto if_expression = dynamic_cast<const BoundIfExpression*>(expression))
+                return optimizeIfExpression(if_expression);
+
+            else if(auto while_expression = dynamic_cast<const BoundWhileExpression*>(expression))
             {
-                auto test_expression = optimizeExpression(if_expression->getTestExpression());
+                auto test = optimizeExpression(while_expression->getTestExpression());
+                auto while_body = optimizeExpression(while_expression->getWhileBody());
+                auto finally_body = while_expression->hasFinally()? optimizeExpression(while_expression->getFinallyBody()): nullptr;
+                auto else_body = while_expression->hasElse()? optimizeExpression(while_expression->getElseBody()): nullptr;
+                auto label = while_expression->getLabel();
 
-                if(auto literal = dynamic_cast<const BoundLiteralExpression*>(test_expression.get()))
-                {
-                    if(literal->getValue().getBool())
-                    {
-                        std::vector<std::unique_ptr<const BoundStatement>> statement;
-                        statement.push_back(if_expression->getIfBodyStatement()->clone());
-                        return std::make_unique<const BoundBlockExpression>(std::move(statement));
-                    }
-                    else if(auto else_body_statement = if_expression->getElseBodyStatement())
-                    {
-                        std::vector<std::unique_ptr<const BoundStatement>> statement;
-                        statement.push_back(else_body_statement.value()->clone());
-                        return std::make_unique<const BoundBlockExpression>(std::move(statement));
-                    }
-                    else return std::make_unique<const BoundBlockExpression>(std::vector<std::unique_ptr<const BoundStatement>>{});
-                }
-                auto if_body = optimizeStatement(if_expression->getIfBodyStatement());
-
-                if(auto _else_body = if_expression->getElseBodyStatement())
-                {
-                    auto else_body = optimizeStatement(_else_body.value());
-                    return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(if_body), std::move(else_body), if_expression->getType());
-                }
-
-                else return std::make_unique<const BoundIfExpression>(std::move(test_expression), std::move(if_body), if_expression->getType());
+                return std::make_unique<const BoundWhileExpression>(label, while_expression->getType(), std::move(test), std::move(while_body),
+                    std::move(finally_body), std::move(else_body));
             }
             else if(auto unary_expression = dynamic_cast<const BoundUnaryExpression*>(expression))
             {
@@ -88,6 +122,15 @@ namespace linc
                 
                 else return std::make_unique<const BoundBinaryExpression>(binary_expression->getOperator()->clone(), std::move(left), std::move(right));
             }
+            else if(auto block_expression = dynamic_cast<const BoundBlockExpression*>(expression))
+            {
+                std::vector<std::unique_ptr<const BoundStatement>> statements;
+                for(const auto& statement: block_expression->getStatements())
+                    statements.push_back(optimizeStatement(statement.get()));
+                auto tail = block_expression->getTail()? optimizeExpression(block_expression->getTail()): nullptr;
+
+                return std::make_unique<const BoundBlockExpression>(std::move(statements), std::move(tail));
+            }
 
             return expression->clone();
         }
@@ -103,26 +146,50 @@ namespace linc
             return statement->clone();
         }
         
+        static std::unique_ptr<const BoundVariableDeclaration> optimizeVariableDeclaration(const BoundVariableDeclaration* declaration)
+        {
+            auto value = declaration->getDefaultValue()? std::make_optional(optimizeExpression(declaration->getDefaultValue().value()))
+                :std::nullopt;
+
+            return std::make_unique<const BoundVariableDeclaration>(declaration->getActualType(), declaration->getName(), std::move(value));
+        }
+
         static std::unique_ptr<const BoundDeclaration> optimizeDeclaration(const BoundDeclaration* declaration)
         {
             if(auto variable_declaration = dynamic_cast<const BoundVariableDeclaration*>(declaration))
-            {
-                auto value = variable_declaration->getDefaultValue()? std::make_optional(optimizeExpression(variable_declaration->getDefaultValue().value()))
-                    :std::nullopt;
+                return optimizeVariableDeclaration(std::move(variable_declaration));
 
-                return std::make_unique<const BoundVariableDeclaration>(variable_declaration->getActualType(), variable_declaration->getName(), std::move(value));
+            else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
+            {
+                auto body = optimizeExpression(function_declaration->getBody());
+                std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments;
+                std::vector<std::unique_ptr<const Types::type>> argument_types;
+                arguments.reserve(function_declaration->getArguments().size());
+                argument_types.reserve(function_declaration->getArguments().size());
+
+                for(const auto& argument: function_declaration->getArguments())
+                {
+                    auto optimized_argument = Types::uniqueCast<const BoundVariableDeclaration>(optimizeDeclaration(argument.get()));
+                    arguments.push_back(std::move(optimized_argument));
+                }
+
+                for(const auto& argument: arguments)
+                    argument_types.push_back(argument->getActualType().clone());
+
+                auto function_type = Types::type{Types::type::Function{function_declaration->getReturnType().clone(), std::move(argument_types)}};
+                return std::make_unique<const BoundFunctionDeclaration>(function_type, function_declaration->getName(), std::move(arguments), std::move(body));
             }
             return declaration->clone();
         }
 
-        static std::unique_ptr<const BoundProgram> optimizeProgram(const BoundProgram* program)
+        static BoundProgram optimizeProgram(BoundProgram& program)
         {
             std::vector<std::unique_ptr<const BoundDeclaration>> declarations;
             
-            for(const auto& declaration: program->declarations)
+            for(const auto& declaration: program.declarations)
                 declarations.push_back(optimizeDeclaration(declaration.get()));
 
-            return std::make_unique<const BoundProgram>(std::move(declarations));
+            return BoundProgram{.declarations = std::move(declarations)};
         }
     private:
         static PrimitiveValue optimizeConstantUnaryExpression(BoundUnaryOperator::Kind kind, const PrimitiveValue& operand, const Types::type& type)
@@ -134,6 +201,7 @@ namespace linc
             case BoundUnaryOperator::Kind::LogicalNot: return !operand.getBool();
             case BoundUnaryOperator::Kind::UnaryPlus: return +operand;
             case BoundUnaryOperator::Kind::UnaryMinus: return -operand;
+            case BoundUnaryOperator::Kind::BitwiseNot: return ~operand;
             default: return PrimitiveValue::invalidValue;
             }
         }

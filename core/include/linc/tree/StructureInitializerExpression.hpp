@@ -1,5 +1,6 @@
 #pragma once
 #include <linc/tree/Expression.hpp>
+#include <linc/system/Types.hpp>
 #include <linc/tree/IdentifierExpression.hpp>
 
 namespace linc
@@ -39,7 +40,7 @@ namespace linc
 
             for(const auto& argument: m_arguments)
             {
-                auto identifier = Types::unique_cast<const IdentifierExpression>(argument.identifier->clone());
+                auto identifier = Types::uniqueCast<const IdentifierExpression>(argument.identifier->clone());
                 arguments.push_back(Argument{
                     .accessSpecifier = argument.accessSpecifier,
                     .equalitySpecifier = argument.equalitySpecifier,
@@ -48,7 +49,7 @@ namespace linc
                     .value = argument.value->clone()});
             }
 
-            auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
+            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
             return std::make_unique<const StructureInitializerExpression>(m_leftBrace, std::move(identifier), std::move(arguments));
         }
 

@@ -1,0 +1,11 @@
+// Command line arguments in linc!
+#include `std.linc`
+
+fn main(args: string[]) {
+    index: mut u64;
+    for(argument in args) {
+        puts('#' + @index + ": " + argument + '\n');
+        ++index;
+    };
+    {}
+}

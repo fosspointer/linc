@@ -6,9 +6,9 @@ Now that you've learnt the basics of how conditional logic works in Linc (utiliz
 #include `std.linc`
 
 fn main() {
-    println("print #0")
-    println("print #1")
-    println("print #2")
+    println("print #0");
+    println("print #1");
+    println("print #2");
     ...
 }
 ```
@@ -19,12 +19,12 @@ The above, however, can quickly become quite a cumbersome approach. What if you 
 #include `std.linc`
 
 fn main() {
-    counter: mut u32 = 0u // Here, an unsigned number is used, since counts/amounts cannot be negative
+    counter: mut u32 = 0u; // Here, an unsigned number is used, since counts/amounts cannot be negative
     
     while counter < 15u32 {
-        println("print #" + @counter) // Similar to the above example (except that the counter variable is now used)
-        ++counter // Increase the counter variable by 1
-    }
+        println("print #" + @counter); // Similar to the above example (except that the counter variable is now used)
+        ++counter; // Increase the counter variable by 1
+    };
 }
 ```
 
@@ -36,8 +36,8 @@ This uses a while loop to execute the actual printing code, while limiting the a
 
 fn main() {
     // This is functionally equivalent to the counter seen above
-    for(counter: mut u32 = 0u counter < 15u32 ++counter)
-        println("print #" + @counter)
+    for(counter: mut u32 = 0u counter < 15u32 ++counter;)
+        println("print #" + @counter);
 }
 ```
 

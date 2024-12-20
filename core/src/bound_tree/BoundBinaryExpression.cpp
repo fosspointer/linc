@@ -41,7 +41,7 @@ namespace linc
         case Kind::BitwiseXor: return "Bitwise XOR Operator";
         case Kind::BitwiseShiftLeft: return "Left-Shift Operator";
         case Kind::BitwiseShiftRight: return "Right-Shift Operator";
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(BoundBinaryOperator::Kind);
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
         }
     }
 
@@ -52,12 +52,12 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("Cannot call operator '$' on incompatible operand pair. ('$' and '$')",
-                    kindToString(kind), Types::toString(left_type), Types::toString(right_type))
+                    kindToString(kind), left_type.toString(), right_type.toString())
             });
             return Types::invalidType;
         }
         else if(kind == Kind::Equals || kind == Kind::NotEquals)
-            return Types::fromKind(Types::Kind::_bool);
+            return left_type.isCompatible(right_type)? Types::fromKind(Types::Kind::_bool): Types::invalidType;
         else if(kind == Kind::Assignment)
             return left_type.isMutable && left_type.isAssignableTo(right_type)? left_type: Types::invalidType;
         else if(left_type.kind == Types::type::Kind::Array)
@@ -67,14 +67,14 @@ namespace linc
             case Kind::Addition:
                 if(left_type.kind == right_type.kind)
                     return Types::type(Types::type::Array{
-                        .base_type = std::make_unique<const Types::type>(*left_type.array.base_type),
+                        .baseType = std::make_unique<const Types::type>(*left_type.array.baseType),
                         .count = left_type.array.count && right_type.array.count? std::make_optional(*left_type.array.count + *right_type.array.count): std::nullopt
                     });
                 else return Types::invalidType;
             case Kind::AdditionAssignment:
                 if(left_type.isAssignableTo(right_type) && left_type.isMutable)
                     return Types::type(Types::type::Array{
-                        .base_type = std::make_unique<const Types::type>(*left_type.array.base_type),
+                        .baseType = std::make_unique<const Types::type>(*left_type.array.baseType),
                         .count = left_type.array.count && right_type.array.count? std::make_optional(*left_type.array.count + *right_type.array.count): std::nullopt
                     });
             default: return Types::invalidType;
@@ -90,14 +90,14 @@ namespace linc
             && (right_type.primitive == Types::Kind::_char || right_type.primitive == Types::Kind::string))
                 return Types::fromKind(Types::Kind::string);
             else if(Types::isNumeric(left_type.primitive) && left_type.primitive == right_type.primitive)
-                return right_type;
+                return Types::fromKind(right_type.primitive);
             else return Types::invalidType;
         case Kind::Subtraction:
         case Kind::Multiplication:
         case Kind::Division:
         case Kind::Modulo:
             if(Types::isNumeric(left_type.primitive) && left_type.primitive == right_type.primitive)
-                return right_type;
+                return Types::fromKind(right_type.primitive);
             else return Types::invalidType;
         case Kind::LogicalAnd:
         case Kind::LogicalOr:
@@ -126,7 +126,7 @@ namespace linc
         case Kind::AdditionAssignment:
             if((left_type.primitive == Types::Kind::_char || left_type.primitive == Types::Kind::string)
             && (right_type.primitive == Types::Kind::_char || right_type.primitive == Types::Kind::string) && left_type.isMutable)
-                return Types::fromKind(Types::Kind::string);
+                return Types::type(Types::Kind::string, true);
         case Kind::SubtractionAssignment:
         case Kind::MultiplicationAssignment:
         case Kind::DivisionAssignment:
@@ -142,7 +142,7 @@ namespace linc
 
             if(!Types::isNumeric(left_type.primitive) || left_type.primitive != right_type.primitive)
                 return Types::invalidType;
-            else return left_type;
+            else return Types::type(left_type.primitive, true);
         case Kind::BitwiseAnd:
         case Kind::BitwiseOr:
         case Kind::BitwiseXor:
@@ -155,9 +155,9 @@ namespace linc
             else return Types::invalidType;
         case Kind::BitwiseShiftLeft:
         case Kind::BitwiseShiftRight:
-            if(Types::isIntegral(left_type.primitive) && Types::isIntegral(right_type.primitive))
+            if(Types::isIntegral(left_type.primitive) && right_type.primitive == Types::Kind::u8)
                 return Types::fromKind(left_type.primitive);
-            else Types::invalidType;
+            else return Types::invalidType;
         default: return Types::invalidType;
         }
     }

@@ -11,7 +11,9 @@ namespace linc
     public:
         /// @brief Initialize a lexer object.
         /// @param source_code The actual source code to be tokenized.
-        explicit Lexer(const Code::Source& source_code);
+        /// @param initialize_source Whether to initialize the source code representation used for reporting errors. To be used for files that directly
+        /// go through language analysis, i.e. not via include directives.
+        explicit Lexer(const Code::Source& source_code, bool initialize_source);
         
         /// @brief Process the source code given to the lexer and output its tokenized form.
         /// @return The list of tokens that correspond to the original source code.
@@ -31,9 +33,9 @@ namespace linc
             switch(base)
             {
             case Token::NumberBase::Decimal: return std::isdigit(c);
-            case Token::NumberBase::Hexadecimal: return std::string("01234567890abcdef").contains(c);
+            case Token::NumberBase::Hexadecimal: return std::string("01234567890ABCDEF").contains(c);
             case Token::NumberBase::Binary: return c == '0' || c == '1';
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Token::NumberBase);
+            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(base);
             }
         }
     private:        

@@ -5,21 +5,6 @@
 #define LINC_OPERATOR_ASSOCIATIVITY_MAP_PAIR(first, second) std::pair<linc::Token::Type, linc::Operators::Associativity>(first, second)
 #define LINC_OPERATOR_PRECEDENCE_MAP_PAIR(first, second) std::pair<linc::Token::Type, std::uint16_t>(first, second)
 
-struct UnaryOperator
-{
-    linc::Token::Type operatorToken;
-    linc::Types::Kind operandType;
-    linc::Types::Kind returnType;
-};
-
-struct BinaryOperator
-{
-    linc::Token::Type operatorToken;
-    linc::Types::Kind leftType;
-    linc::Types::Kind rightType;
-    linc::Types::Kind returnType;
-};
-
 namespace linc
 {
     const Operators::OperatorPrecedenceMap Operators::s_binaryOperatorPrecedenceMap = {
@@ -94,6 +79,10 @@ namespace linc
         LINC_OPERATOR_MAP_PAIR(",", Token::Type::Comma),
         LINC_OPERATOR_MAP_PAIR("#", Token::Type::PreprocessorSpecifier),
         LINC_OPERATOR_MAP_PAIR("##", Token::Type::GlueSpecifier),
+        LINC_OPERATOR_MAP_PAIR(":=", Token::Type::ColonEquals),
+        LINC_OPERATOR_MAP_PAIR(";", Token::Type::Terminator),
+        LINC_OPERATOR_MAP_PAIR("=>", Token::Type::Arrow),
+        LINC_OPERATOR_MAP_PAIR("::", Token::Type::DoubleColon),
         LINC_OPERATOR_MAP_PAIR("+", Token::Type::OperatorPlus),
         LINC_OPERATOR_MAP_PAIR("++", Token::Type::OperatorIncrement),
         LINC_OPERATOR_MAP_PAIR("--", Token::Type::OperatorDecrement),
@@ -125,18 +114,22 @@ namespace linc
         LINC_OPERATOR_MAP_PAIR("!!", Token::Type::OperatorBitwiseNot)
     };
 
-    Token::Type Operators::get(const std::string& operator_string)
+    Token::Type Operators::getToken(const std::string& operator_string)
     {
-        auto find = s_operatorMap.find(operator_string);
-        
-        if(find != s_operatorMap.end())
-            return find->second;
-
-        Reporting::push(Reporting::Report{
-            .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-            .message = linc::Logger::format("Expected operator, found invalid character sequence '$'.", operator_string)});
+        for(const auto& pair: s_operatorMap)
+            if(pair.first == operator_string)
+                return pair.second;
         
         return Token::Type::InvalidToken;
+    }
+
+    std::string Operators::getString(Token::Type operator_token_type)
+    {
+        for(const auto& pair: s_operatorMap)
+            if(pair.second == operator_token_type)
+                return pair.first;
+
+        throw LINC_EXCEPTION_ILLEGAL_STATE(operator_token_type);
     }
 
     auto Operators::getAssociativity(Token::Type operator_token_type) -> Associativity {

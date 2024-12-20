@@ -1,6 +1,7 @@
 #pragma once
 #include <linc/tree/Expression.hpp>
 #include <linc/tree/IdentifierExpression.hpp>
+#include <linc/system/Types.hpp>
 #include <linc/Include.hpp>
 
 namespace linc
@@ -18,7 +19,7 @@ namespace linc
 
         virtual std::unique_ptr<const Expression> clone() const final override
         {
-            auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
+            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
             return std::make_unique<const AccessExpression>(m_accessToken, m_base->clone(), std::move(identifier));
         }
 

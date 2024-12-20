@@ -9,14 +9,14 @@ namespace linc
     {
     public:
         BoundReturnStatement(std::unique_ptr<const BoundExpression> expression)
-            :BoundStatement(expression->getType()), m_expression(std::move(expression))
+            :m_expression(std::move(expression))
         {}
 
         [[nodiscard]] const BoundExpression* const getExpression() const { return m_expression.get(); }
 
         virtual std::unique_ptr<const BoundStatement> clone() const final override
         {
-            return std::make_unique<const BoundReturnStatement>(m_expression->clone());
+            return std::make_unique<const BoundReturnStatement>(m_expression? m_expression->clone(): nullptr);
         }
     private:
         virtual std::string toStringInner() const final override

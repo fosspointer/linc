@@ -1,0 +1,23 @@
+// The fibonacci number sequence demonstrated using linc!
+
+#include `std.linc`
+
+fn display_fibonacci(count: u8) {
+    first: mut u32 = 0u32;
+    second: mut u32 = 1u32;
+
+    number_of_fibonacci: u8 = for (index: mut u8 = 0u8 index < count ++index;)
+    {
+        first = (first + second);
+        second = (first - second);
+        
+        println("#" + @(index + 1u8) + ": " + @first);
+        index
+    };
+
+    println("The fibonacci number count displayed was " + @number_of_fibonacci + '.');
+}
+
+fn main() {
+    display_fibonacci(20u8);
+}

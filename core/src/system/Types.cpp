@@ -68,7 +68,7 @@ namespace linc
         case Kind::_char: return static_cast<_char>(value.at(0));
         case Kind::_bool: return parseBoolean(value);
         case Kind::string: return value.c_str();
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
         }
     }
 
@@ -92,29 +92,42 @@ namespace linc
         case Kind::string: return "string";
         case Kind::_void: return "void";
         case Kind::type: return "type";
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(Types::Kind);
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
         }
     }
 
-    std::string Types::toString(const type& type, bool ignore_mutability)
+    std::string Types::type::toString(bool ignore_mutability) const
     {
         std::string result;
-        if(type.isMutable && !ignore_mutability)
+        if(isMutable && !ignore_mutability && kind != type::Kind::Function)
             result.append("mut ");
 
-        switch(type.kind)
+        switch(kind)
         {
-        case type::Kind::Primitive: result.append(kindToString(type.primitive)); break;
+        case type::Kind::Primitive: result.append(kindToString(primitive)); break;
         case type::Kind::Array:
-            result.append(toString(*type.array.base_type, true));
-            result.append(type.array.count? "[" + std::to_string(*type.array.count) + "]": "[]");
+            result.append(array.baseType->toString(true));
+            result.append(array.count? "[" + std::to_string(*array.count) + "]": "[]");
             break;
         case type::Kind::Structure:
             result.push_back('{');
-            for(type::Structure::size_type i{0ul}; i < type.structure.size(); ++i)
-                result.append((i == 0ul? "": ", ") + type.structure[i].first + ": " + toString(*type.structure[i].second));
+            for(type::Structure::size_type i{0ul}; i < structure.size(); ++i)
+                result.append((i == 0ul? "": ", ") + structure[i].first + ": " + structure[i].second->toString());
             result.push_back('}');
             break;
+        case type::Kind::Function:
+            result.append("fn(");
+            for(decltype(type::Function::argumentTypes)::size_type i{0ul}; i < function.argumentTypes.size(); ++i)
+                result.append((i == 0ul? "": ", ") + function.argumentTypes[i]->toString());
+            result.append("): " + function.returnType->toString());
+            break;
+        case type::Kind::Enumeration:
+            result.append("enum(");
+            for(type::Enumeration::size_type i{0ul}; i < enumeration.size(); ++i)
+                result.append((i == 0ul? "": ", ") + enumeration[i].first);
+            result.push_back(')');
+            break;
+        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
         }   
 
         return result;

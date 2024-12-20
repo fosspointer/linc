@@ -1,0 +1,26 @@
+// Enumerations and match expressions in linc!
+#include `std.linc`
+
+struct Vector2f {
+    x: f32 y: f32
+}
+
+enum Choice {
+    None, Scalar(f32), Vector(Vector2f)
+}
+
+fn printValue(value: Choice) {
+    putln(match value {
+        Choice::None => "None!",
+        Choice::Scalar(scalar) => "Scalar: " + @scalar,
+        Choice::Vector(vector) => "Vector: [" + @vector.x + ", " + @vector.y + ']'
+    });
+}
+
+fn main() {
+    printValue(Choice::None);
+    printValue(Choice::Scalar(5f));
+    printValue(Choice::Scalar(2f));
+    printValue(Choice::Vector(Vector2f{.x = 1.618f, .y = 3.14159f}));
+    printValue(Choice::Vector(Vector2f{.x = 0f, .y = 0f}));
+}

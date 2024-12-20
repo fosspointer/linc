@@ -3,6 +3,7 @@
 #include <linc/tree/Declaration.hpp>
 #include <linc/tree/IdentifierExpression.hpp>
 #include <linc/tree/TypeExpression.hpp>
+#include <linc/system/Types.hpp>
 
 namespace linc
 {
@@ -61,8 +62,8 @@ namespace linc
 
         virtual std::unique_ptr<const Declaration> clone() const final override
         {
-            auto type = Types::unique_cast<const TypeExpression>(m_type->clone());
-            auto identifier = Types::unique_cast<const IdentifierExpression>(m_identifier->clone());
+            auto type = Types::uniqueCast<const TypeExpression>(m_type->clone());
+            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
 
             return std::make_unique<const VariableDeclaration>(
                 m_typeSpecifier, std::move(type), std::move(identifier),

@@ -1,6 +1,4 @@
 #pragma once
-#include <linc/system/Value.hpp>
-#include <linc/system/Types.hpp>
 #include <linc/Include.hpp>
 
 namespace linc
@@ -9,9 +7,11 @@ namespace linc
     concept HasStringMethod = requires(const T& member){
         member.toString();
     };
-
+    
     template <typename T>
-    concept CanStringCast = std::convertible_to<T, std::string>;
+    concept HasCStringMethod = requires(const T& member){
+        member.c_str();
+    };
 
     class Printable final
     {
@@ -23,19 +23,21 @@ namespace linc
 
         template <HasStringMethod T>
         Printable(const T& value)
-            :m_string(value.toString()), m_type(Type::String)
+            :Printable(value.toString())
         {}
 
-        template <CanStringCast T>
+        template <HasCStringMethod T>
         Printable(const T& value)
-            :m_string((std::string)value), m_type(Type::String)
-        {}
-
-        Printable(const Types::type& type)
-            :m_string(PrimitiveValue(type).toString()), m_type(Type::String)
+            :Printable(value.c_str())
         {}
 
         Printable(const std::string& str)
+            :m_type(Type::String)
+        {
+            new (&m_string) std::string{str};
+        }
+
+        Printable(std::string_view str)
             :m_type(Type::String)
         {
             new (&m_string) std::string{str};
@@ -97,6 +99,10 @@ namespace linc
 
         Printable(char value)
             :m_character(value), m_type(Type::Character)
+        {}
+
+        Printable(const void* value)
+            :m_string(value? s_pointerLiteral: s_nullPointerLiteral), m_type(Type::String)
         {}
 
         Printable(const Printable& other)
@@ -198,7 +204,7 @@ namespace linc
 
         std::string nullptrToString() const
         {
-            return "nullptr";
+            return s_nullPointerLiteral;
         }
 
         std::string booleanToString(bool lexical_bool) const
@@ -231,9 +237,8 @@ namespace linc
             std::string m_string;
             bool m_boolean;
             char m_character;
-            PrimitiveValue m_primitiveValue;
-            ArrayValue m_arrayValue;
         };
         Type m_type;
+        constexpr static auto s_pointerLiteral{"pointer"}, s_nullPointerLiteral{"nullptr"};
     };
 }

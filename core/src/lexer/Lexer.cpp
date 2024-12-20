@@ -13,10 +13,11 @@
 
 namespace linc
 {
-    Lexer::Lexer(const Code::Source& source_code)
+    Lexer::Lexer(const Code::Source& source_code, bool initialize_source)
         :m_sourceCode(source_code)
     {
-        Reporting::setSource(m_sourceCode);
+        if(initialize_source)
+            Reporting::setSource(m_sourceCode);
     }
 
     auto Lexer::operator()() const -> std::vector<Token>
@@ -36,7 +37,9 @@ namespace linc
             else tokenizeOperators(tokens, value_buffer);
         }
 
-        tokens.push_back(Token{.type = Token::Type::EndOfFile, .info = Token::Info{.file = m_sourceCode.back().file, .line = m_lineIndex, .characterIndex = {}}});
+        auto info = !m_sourceCode.empty()? Token::Info{.file = m_sourceCode.back().file, .line = m_sourceCode.back().line,
+            .characterStart = m_sourceCode.back().text.size() - 1ul, .characterEnd = m_sourceCode.back().text.size() - 1ul}: Token::Info{};
+        tokens.push_back(Token{.type = Token::Type::EndOfFile, .info = info});
 
         m_lineIndex = m_characterIndex = {};
         return tokens;
@@ -128,7 +131,7 @@ namespace linc
         if(digitHandle(peek().value(), &decimal_count, base) 
             || (peek().value() == '-' && peek(1ul).has_value() && digitPeek(peek(1ul).value(), base)))
         {
-            Token::Info info = peek()? peek()->getInfo(): Token::Info{.file = {}, .line = {}, .characterIndex = {}};
+            Token::Info info = peek()? peek()->getInfo(): Token::Info{};
 
             do
             {
@@ -151,6 +154,7 @@ namespace linc
                 return true;
             }
 
+            info.characterEnd = info.characterStart + value_buffer.size();
             if(type_string.empty())
             {
                 if(decimal_count == 0)
@@ -167,7 +171,7 @@ namespace linc
             {
                 tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer, .numberBase = base, .info = info});
                 return true;
-            }
+            };
 
             switch(type)
             {
@@ -205,8 +209,8 @@ namespace linc
                     
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                        .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = info.characterIndex, .spanEnd = m_characterIndex},
-                        .message = Logger::format("$::$ Unmatched double-quote.", info.file, info.line)});
+                        .span = TextSpan{.lineStart = m_lineIndex + 1ul, .lineEnd = m_lineIndex + 1ul, .spanStart = info.characterStart, .spanEnd = m_characterIndex, .file = info.file},
+                        .message = Logger::format("$ Unmatched double-quote.", info)});
                     
                     return true;
                 }
@@ -240,8 +244,8 @@ namespace linc
                     
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                        .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = m_characterIndex - 1ul, .spanEnd = m_characterIndex},
-                        .message = Logger::format("$::$ Unmatched include-directory literal.", info.file, info.line)});
+                        .span = TextSpan{.lineStart = m_lineIndex + 1ul, .lineEnd = m_lineIndex + 1ul, .spanStart = m_characterIndex - 1ul, .spanEnd = m_characterIndex},
+                        .message = Logger::format("$ Unmatched include-directory literal.", info)});
                     
                     return true;
                 }
@@ -269,8 +273,8 @@ namespace linc
             {
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                    .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = start_index, .spanEnd = m_characterIndex},
-                    .message = Logger::format("$::$ Include path does not exist.", info.file, info.line, value_buffer)
+                    .span = TextSpan{.lineStart = m_lineIndex + 1ul, .lineEnd = m_lineIndex + 1ul, .spanStart = start_index, .spanEnd = m_characterIndex},
+                    .message = Logger::format("$ Include path does not exist.", info, value_buffer)
                 });
                 tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer, .info = info});
             }
@@ -292,8 +296,8 @@ namespace linc
                     
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                        .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = info.characterIndex, .spanEnd = m_characterIndex},
-                        .message = Logger::format("$::$ Unmatched single-quote.", info.file, info.line)});
+                        .span = TextSpan{.lineStart = m_lineIndex + 1ul, .lineEnd = m_lineIndex + 1ul, .spanStart = info.characterStart, .spanEnd = m_characterIndex, .file = info.file},
+                        .message = Logger::format("$ Unmatched single-quote.", info)});
                     
                     return true;
                 }
@@ -311,8 +315,8 @@ namespace linc
             {
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                    .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = m_characterIndex - 2ul, .spanEnd = m_characterIndex},
-                    .message = Logger::format("$::$ Character literal cannot be empty.", info.file, info.line)
+                    .span = TextSpan{.lineStart = m_lineIndex + 1ul, .lineEnd = m_lineIndex + 1ul, .spanStart = m_characterIndex - 2ul, .spanEnd = m_characterIndex},
+                    .message = Logger::format("$ Character literal cannot be empty.", info)
                 });
                 tokens.push_back(Token{.type = Token::Type::CharacterLiteral, .value = "\0", .info = info});
                 return true;
@@ -320,8 +324,8 @@ namespace linc
             else if(value_buffer.size() > 1ul)
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                    .span = TextSpan{.lineIndex = m_lineIndex, .spanStart = info.characterIndex + 1ul, .spanEnd = m_characterIndex - 1ul},
-                    .message = Logger::format("$::$ More than one character in character literal.", info.file, info.line)
+                    .span = TextSpan{.lineStart = m_lineIndex + 1ul, .lineEnd = m_lineIndex + 1ul, .spanStart = info.characterStart + 1ul, .spanEnd = m_characterIndex - 1ul},
+                    .message = Logger::format("$ More than one character in character literal.", info)
                 });
 
             tokens.push_back(Token{.type = Token::Type::CharacterLiteral, .value = std::to_string(value_buffer[0ul]), .info = info});
@@ -341,6 +345,7 @@ namespace linc
                 value_buffer.push_back(consume());
             } while (peek() && peek()->getInfo().line == info.line && (std::isalnum(peek().value()) || peek().value() == '_'));
 
+            info.characterEnd = info.characterStart + value_buffer.size();
             auto token_type = Keywords::get(value_buffer);
             
             if(token_type == Token::Type::KeywordTrue || token_type == Token::Type::KeywordFalse)
@@ -370,17 +375,21 @@ namespace linc
     void Lexer::tokenizeOperators(std::vector<Token>& tokens, std::string& value_buffer) const
     {
         std::string symbol;
-        Token::Info info;
+        Token::Info info = peek()->getInfo();
 
-        while(peek() && isSymbol(peek().value()))
-        {
-            info = peek()->getInfo();
-            symbol.push_back(consume());
-        }
+        while(peek() && isSymbol(peek().value())) symbol.push_back(consume());
+        info.characterEnd = info.characterStart + symbol.size();
 
         if(!symbol.empty())
         {
-            auto token_type = Operators::get(symbol);
+            auto token_type = Operators::getToken(symbol);
+            
+            if(token_type == Token::Type::InvalidToken)
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
+                    .span = TextSpan::fromTokenInfo(info),
+                    .message = linc::Logger::format("$ Expected operator, found invalid character sequence.", info)});
+
             tokens.push_back(Token{.type = token_type, .value = token_type == Token::Type::InvalidToken? std::make_optional(symbol): std::nullopt, .info = info});
         }
         else 
