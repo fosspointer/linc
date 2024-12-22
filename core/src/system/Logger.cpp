@@ -195,7 +195,7 @@ namespace linc
                 {
                     [&]()
                     {
-                        while (str[++i] == ':')
+                        while(str[++i] == ':')
                         {
                             switch(str[++i])
                             {

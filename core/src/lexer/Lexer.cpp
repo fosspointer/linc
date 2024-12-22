@@ -141,7 +141,9 @@ namespace linc
             while(peek() && peek()->getInfo().line == info.line && isalnum(peek().value()))
                 type_string.push_back(consume());
 
-            if(value_buffer.size() == 1ul && value_buffer[0ul] == '.')
+            if(!value_buffer.empty() && value_buffer[0ul] == '.' && 
+                (value_buffer.size() == 1ul || !isDigit(value_buffer[1ul], base)))
+
             {
                 m_characterIndex = character_index;
                 m_lineIndex = line_index;
@@ -159,7 +161,7 @@ namespace linc
             {
                 if(decimal_count == 0)
                     tokens.push_back(Token{.type = Token::Type::I32Literal, .value = value_buffer, .numberBase = base, .info = info});
-                else if(decimal_count == 1 && base != Token::NumberBase::Decimal)
+                else if(decimal_count == 1 && base == Token::NumberBase::Decimal)
                     tokens.push_back(Token{.type = Token::Type::F32Literal, .value = value_buffer, .numberBase = base, .info = info});
                 else
                     tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer, .numberBase = base, .info = info});
