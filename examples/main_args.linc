@@ -3,9 +3,8 @@
 
 fn main(args: string[]) {
     index: mut u64;
-    for(argument in args) {
+    for argument in args {
         puts('#' + @index + ": " + argument + '\n');
         ++index;
     };
-    {}
 }

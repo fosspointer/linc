@@ -5,17 +5,13 @@ fn format(str: mut string, args: string[]): string {
     index mut := 0u64;
     str += @0c;
 
-    for(i: mut u64 = 0u64 i < +str - 1u64 ++i;)
-    {
-        if(str[i] == '$')
-        {
-            if(i < +str - 2u64 && str[i + 1u64] == '$')
-            {
+    for i mut := 0u64; i < +str - 1u64; ++i {
+        if str[i] == '$' {
+            if i < +str - 2u64 && str[i + 1u64] == '$' {
                 output += '$';
                 ++i;
             }    
-            else
-            {
+            else {
                 if index >= +args { puts("Error: Argument '$' not found.\n"); return ""; };
                 output += args[index];
                 ++index;

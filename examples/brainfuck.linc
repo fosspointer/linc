@@ -8,7 +8,7 @@ fn interpret(input: string) {
     current_char: mut char;
     loop: mut u32 = 0u;
 
-    for(i: mut u64 = 0u64 i < +input ++i;) {
+    for i mut := 0u64; i < +input; ++i {
         current_char = input[i];
 
         match current_char {
