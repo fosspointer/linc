@@ -130,7 +130,7 @@ namespace linc
         {
             if(auto variable_declaration = dynamic_cast<const BoundVariableDeclaration*>(declaration))
             {
-                auto value = variable_declaration->getDefaultValue()? evaluateExpression(*variable_declaration->getDefaultValue()):
+                auto value = variable_declaration->getDefaultValue()? evaluateExpression(variable_declaration->getDefaultValue()):
                     Value::fromDefault(variable_declaration->getActualType());
                 m_variables.append(variable_declaration->getName(), value);
 
@@ -190,15 +190,10 @@ namespace linc
             else if(auto for_expression = dynamic_cast<const BoundForExpression*>(expression))
             {
                 beginScope();
-                const auto& specifier = for_expression->getSpecifier();
+                const auto& clause = for_expression->getForClause();
 
-                if(auto variable_specifier = std::get_if<const BoundForExpression::BoundVariableForSpecifier>(&specifier))
-                {
-                    evaluateDeclaration(variable_specifier->variableDeclaration.get());
-                    Value return_value = PrimitiveValue::voidValue;
-
-                    for(;evaluateExpression(variable_specifier->expression.get()).getPrimitive().getBool();
-                        evaluateStatement(variable_specifier->statement.get()))
+                auto loop = [this, &for_expression](Value& return_value, std::function<bool()> condition, std::function<void()> end){
+                    for(;condition(); end())
                     {
                         try
                         {
@@ -208,52 +203,77 @@ namespace linc
                         {
                             if(for_expression->getLabel() == break_exception.label || break_exception.label.empty())
                                 break;
-                            else throw break_exception;
+                            else throw (endScope(), break_exception);
                         }
                         catch(const ContinueException& continue_exception)
                         {
                             if(for_expression->getLabel() == continue_exception.label || continue_exception.label.empty())
                                 continue;
-                            else throw continue_exception;
+                            else throw (endScope(), continue_exception);
                         }
                     }
-                    endScope();
-                    return return_value;
-                }
-                else if(auto range_specifier = std::get_if<const BoundForExpression::BoundRangeForSpecifier>(&specifier))
+                };
+
+                if(auto legacy_clause = clause->getIfFirst())
                 {
-                    auto variable = m_variables.get(range_specifier->arrayIdentifier->getValue());
-                    auto type = range_specifier->arrayIdentifier->getType();
-                    std::size_t count{};
-                    ArrayValue array(Types::voidType, 0ul);
+                    evaluateDeclaration(legacy_clause->getDeclaration());
+                    Value return_value = Value::fromDefault(for_expression->getBody()->getType());
 
-                    if(type.kind == Types::type::Kind::Primitive && type.primitive == Types::Kind::string)
-                    {
-                        auto string = variable->getPrimitive().getString();
-
-                        count = string.size();
-                        array = ArrayValue(std::vector<char>(string.c_str(), string.c_str() + count));
-                    }
-                    else if(type.kind == Types::type::Kind::Array)
-                    {
-                        count = variable->getArray().getCount();
-                        array = variable->getArray();
-                    }
-                    else return (endScope(), PrimitiveValue::invalidValue);
-                    Value return_value{PrimitiveValue::voidValue};
-                    
-                    m_variables.append(range_specifier->valueIdentifier->getValue(), PrimitiveValue::voidValue);
-
-                    for(std::size_t i{0ul}; i < count; ++i)
-                    {
-                        *m_variables.get(range_specifier->valueIdentifier->getValue()) = array.get(i);
-                        return_value = evaluateExpression(for_expression->getBody());
-                    }
+                    loop(return_value, [&](){ return evaluateExpression(legacy_clause->getTestExpression()).getPrimitive().getBool(); },
+                        [&](){ evaluateExpression(legacy_clause->getEndExpression()); });
 
                     endScope();
                     return return_value;
                 }
-                else return (endScope(), PrimitiveValue::invalidValue);
+
+                auto ranged_clause = clause->getSecond();
+                auto name = ranged_clause->getIdentifier()->getValue();
+                auto expression_type = ranged_clause->getExpression()->getType();
+                auto iterable = evaluateExpression(ranged_clause->getExpression());
+                if(expression_type.kind == Types::type::Kind::Structure)
+                {
+                    auto begin = iterable.getStructure().at(0ul);
+                    auto end = iterable.getStructure().at(1ul);
+                    auto reverse = iterable.getStructure().at(2ul).getPrimitive().getBool();
+                    Value return_value = Value::fromDefault(for_expression->getBody()->getType());
+
+                    if(reverse)
+                    {
+                        --end;
+                        m_variables.append(name, end);
+                        loop(return_value, [&](){ return *m_variables.get(name) >= begin; }, [&](){ --(*m_variables.get(name)); });
+                    }
+                    else
+                    {
+                        m_variables.append(name, begin);
+                        loop(return_value, [&](){ return *m_variables.get(name) != end; }, [&](){ ++(*m_variables.get(name)); });
+                    }
+                    
+                    endScope();
+                    return return_value;
+                }
+                
+                if(expression_type.kind == Types::type::Kind::Primitive && expression_type.primitive == Types::type::Primitive::string)
+                {
+                    auto string = iterable.getPrimitive().getString();
+                    auto c_string = string.c_str();
+                    
+                    Value return_value = Value::fromDefault(Types::fromKind(Types::Kind::_char));
+                    m_variables.append(name, PrimitiveValue(c_string[0ul]));
+                    loop(return_value, [&](){ return *c_string; }, [&](){ ++c_string; *m_variables.get(name) = PrimitiveValue(*c_string); });
+
+                    endScope();
+                    return return_value;
+                }
+
+                auto array = iterable.getArray();
+                Value return_value = Value::fromDefault(*expression_type.array.baseType);
+                std::size_t i{0ul};
+                m_variables.append(name, array.getCount() == 0ul? PrimitiveValue::voidValue: array.get(0ul));
+                loop(return_value, [&](){ auto test = i < array.getCount(); if(test) *m_variables.get(name) = array.get(i); return test; }, [&](){ ++i; });
+                
+                endScope();
+                return return_value;
             }
             else if(auto while_expression = dynamic_cast<const BoundWhileExpression*>(expression))
             {
@@ -427,7 +447,7 @@ namespace linc
             }
             else if(auto unary_expression = dynamic_cast<const BoundUnaryExpression*>(expression))
             {
-                Value result = PrimitiveValue::fromDefault(unary_expression->getType().primitive);
+                Value result = Value::fromDefault(unary_expression->getType());
                 
                 if(unary_expression->getOperator()->getKind() == BoundUnaryOperator::Kind::Typeof)
                     return PrimitiveValue(unary_expression->getOperand()->getType());
@@ -459,7 +479,13 @@ namespace linc
                     else result = operand;
                     break;
                 case BoundUnaryOperator::Kind::UnaryMinus:
-                    result = -operand;
+                    if(auto structure = operand.getIfStructure())
+                    {
+                        structure->at(2ul) = PrimitiveValue{!structure->at(2ul).getPrimitive().getBool()};
+                        result = Value{*structure};
+                        break;
+                    }
+                    else result = -operand;
                     break;
                 case BoundUnaryOperator::Kind::LogicalNot:
                     result = PrimitiveValue(!operand.getPrimitive().getBool());
@@ -724,6 +750,12 @@ namespace linc
                 auto name = m_enumerations.get(enumerator_expression->getEnumerationName())->at(enumerator_expression->getEnumeratorIndex()).first;
 
                 return EnumeratorValue(name, index, std::move(value));
+            }
+            else if(auto range_expression = dynamic_cast<const BoundRangeExpression*>(expression))
+            {
+                auto begin = evaluateExpression(range_expression->getBegin());
+                auto end = evaluateExpression(range_expression->getEnd());
+                return Value(std::vector<Value>{begin, end, PrimitiveValue{false}});
             }
             else
             {

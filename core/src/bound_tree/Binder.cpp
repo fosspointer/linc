@@ -291,6 +291,9 @@ namespace linc
         else if(auto structure_initializer_expression = dynamic_cast<const StructureInitializerExpression*>(expression))
             return Types::uniqueCast<const BoundExpression>(bindStructureInitializerExpression(structure_initializer_expression));
 
+        else if(auto range_expression = dynamic_cast<const RangeExpression*>(expression))
+            return Types::uniqueCast<const BoundExpression>(bindRangeExpression(range_expression));            
+
         throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized expression");
     }
 
@@ -312,7 +315,7 @@ namespace linc
         }
     }
 
-    void Binder::reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::type operand_type, const Token::Info& info)
+    void Binder:: reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::type operand_type, const Token::Info& info)
     {
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -426,18 +429,17 @@ namespace linc
         auto type = bindTypeExpression(declaration->getType())->getActualType();
 
         auto name = declaration->getIdentifier()->getIdentifierToken().value.value();
-        auto default_value = declaration->getDefaultValue()? std::make_optional(bindExpression(declaration->getDefaultValue()->getExpression())):
-            std::nullopt;
+        auto default_value = declaration->getDefaultValue().has_value()? bindExpression(declaration->getDefaultValue()->getExpression()): nullptr;
 
         auto variable = std::make_unique<const BoundVariableDeclaration>(type, name, std::move(default_value));
 
-        if(variable->getDefaultValue() && !variable->getDefaultValue().value()->getType().isAssignableTo(type))
+        if(variable->getDefaultValue() && !variable->getDefaultValue()->getType().isAssignableTo(type))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot assign expression of type `$` to variable of type `$`", 
-                    declaration->getInfoString(), variable->getDefaultValue().value()->getType(), type)});
+                    declaration->getInfoString(), variable->getDefaultValue()->getType(), type)});
 
-        else if(!is_argument && !type.isMutable && !default_value)
+        else if(!is_argument && !type.isMutable && !variable->getDefaultValue())
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot declare immutable variable '$' without default value.",
@@ -496,7 +498,7 @@ namespace linc
             const auto& argument = declaration->getArguments()->getList()[i];
             auto bound_argument = bindVariableDeclaration(argument.node.get(), true);
 
-            if(bound_argument->getDefaultValue().has_value())
+            if(bound_argument->getDefaultValue())
                 has_default_value = true;
             else if(has_default_value)
             {
@@ -686,7 +688,7 @@ namespace linc
         {
             const auto& enumerator = enumeration->getEnumerators()->getList().at(enumerator_index);
             if(!m_boundDeclarations.push(std::make_unique<const BoundVariableDeclaration>(
-                enumerator->getActualType(), match_identifier, std::nullopt)))
+                enumerator->getActualType(), match_identifier, nullptr)))
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .span = TextSpan::fromTokenInfo(expression->getValue()->getTokenInfo()),
@@ -872,52 +874,16 @@ namespace linc
     const std::unique_ptr<const BoundForExpression> Binder::bindForExpression(const ForExpression* expression)
     {
         m_boundDeclarations.beginScope();
-        const auto& specifier = expression->getSpecifier();
         auto label = expression->getLabel()? expression->getLabel()->identifier->getValue(): std::string{};
+        auto clause = bindForClause(expression->getClause());
+        
+        if(!label.empty()) m_boundDeclarations.pushLabel(label);
+        ++m_inLoop;
+        auto body = bindExpression(expression->getBody());
+        --m_inLoop;
+        if(!label.empty()) m_boundDeclarations.popLabel();
 
-        if(auto variable_specifier = std::get_if<const ForExpression::VariableForSpecifier>(&specifier))
-        {
-            auto variable_declaration = bindVariableDeclaration(variable_specifier->variableDeclaration.get());
-
-            auto _expression = bindExpression(variable_specifier->expression.get());
-            auto statement = bindStatement(variable_specifier->statement.get());\
-            
-            if(!label.empty()) m_boundDeclarations.pushLabel(label);
-            ++m_inLoop;
-            auto body = bindExpression(expression->getBody());
-            --m_inLoop;
-            if(!label.empty()) m_boundDeclarations.popLabel();
-
-            m_boundDeclarations.endScope(); 
-            return std::make_unique<const BoundForExpression>(label, std::move(variable_declaration), std::move(_expression), std::move(statement), std::move(body));
-        }
-        else if(auto range_specifier = std::get_if<const ForExpression::RangeForSpecifier>(&specifier))
-        {
-            auto array_identifier = bindIdentifierExpression(range_specifier->arrayIdentifier.get());
-            auto range_type = Types::type(array_identifier->getType().kind == Types::type::Kind::Primitive
-                && array_identifier->getType().primitive == Types::Kind::string?
-                Types::fromKind(Types::Kind::_char): *array_identifier->getType().array.baseType);
-            auto variable_declaration = std::make_unique<const BoundVariableDeclaration>(range_type, range_specifier->valueIdentifier->getValue(), std::nullopt);
-
-            if(!m_boundDeclarations.push(variable_declaration->clone()))
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                    .message = Logger::format("$ Cannot redefine symbol '$' as ranged for loop identifier.", 
-                        expression->getInfoString(), range_specifier->valueIdentifier->getValue())
-                });
-
-            auto value_identifier = bindIdentifierExpression(range_specifier->valueIdentifier.get());
-            
-            if(!label.empty()) m_boundDeclarations.pushLabel(label);
-            ++m_inLoop;
-            auto body = bindExpression(expression->getBody());
-            --m_inLoop;
-            if(!label.empty()) m_boundDeclarations.popLabel();
-
-            m_boundDeclarations.endScope();
-            return std::make_unique<const BoundForExpression>(label, std::move(value_identifier), std::move(array_identifier), std::move(body));
-        }
-        else throw LINC_EXCEPTION_OUT_OF_BOUNDS(specifier);
+        return std::make_unique<const BoundForExpression>(label, std::move(clause), std::move(body));
     }
 
     const std::unique_ptr<const BoundFunctionCallExpression> Binder::bindFunctionCallExpression(const CallExpression* expression)
@@ -981,7 +947,7 @@ namespace linc
                 
                 arguments.push_back(BoundFunctionCallExpression::Argument{
                     .name = declared_argument->getName(),
-                    .value = declared_argument->getDefaultValue().value()->clone()
+                    .value = declared_argument->getDefaultValue()->clone()
                 });
             }
 
@@ -1363,11 +1329,45 @@ namespace linc
         return std::make_unique<const BoundStructureInitializerExpression>(name, std::move(fields), structure->getActualType());
     }
 
-    const std::unique_ptr<const BoundMatchClause> Binder::bindMatchClause(const MatchClause* expression)
+    const std::unique_ptr<const BoundRangeExpression> Binder::bindRangeExpression(const RangeExpression* expression)
+    {
+        auto begin_expression = bindExpression(expression->getBeginExpression());
+        auto end_expression = bindExpression(expression->getEndExpression());
+        
+        auto structure = Types::type::Structure{};
+        structure.reserve(3ul);
+        structure.push_back(std::make_pair(std::string("begin"), begin_expression->getType().clone()));
+        structure.push_back(std::make_pair(std::string("end"), end_expression->getType().clone()));
+        structure.push_back(std::make_pair(std::string("reverse"), Types::fromKind(Types::Kind::_bool).clone()));
+
+        if(!begin_expression->getType().isCompatible(end_expression->getType()))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfoRange(expression->getBeginExpression()->getTokenInfo(),
+                    expression->getEndExpression()->getTokenInfo()),
+                .message = Logger::format("$ Expressions of incompatible types given in range expression (`$` and `$`).",
+                    expression->getTokenInfo(), begin_expression->getType(), end_expression->getType())
+            });
+
+        auto begin_type_mutable = begin_expression->getType();
+        begin_type_mutable.isMutable = true;
+
+        if(BoundUnaryOperator(BoundUnaryOperator::Kind::Increment, begin_type_mutable).getReturnType() == Types::invalidType)
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(expression->getTokenInfo()),
+                .message = Logger::format("$ Increment check failed; range expression does not constitute a valid iterator.",
+                    expression->getTokenInfo())
+            });
+
+        return std::make_unique<const BoundRangeExpression>(std::move(begin_expression), std::move(end_expression), Types::type(structure));
+    }
+
+    const std::unique_ptr<const BoundMatchClause> Binder::bindMatchClause(const MatchClause* clause)
     {
         m_boundDeclarations.beginScope();
         
-        for(const auto& value: expression->getValues()->getList())
+        for(const auto& value: clause->getValues()->getList())
         {
             auto enumerator = dynamic_cast<const EnumeratorExpression*>(value.node.get());
             if(!enumerator || !enumerator->getValue()) continue;
@@ -1376,16 +1376,73 @@ namespace linc
             m_matchIdentifiers.push(identifier->getValue());
         }
 
-        auto values = bindNodeListClause<Expression>(expression->getValues(), &Binder::bindExpression);
-        auto result_expression = bindExpression(expression->getExpression());
+        auto values = bindNodeListClause<Expression>(clause->getValues(), &Binder::bindExpression);
+        auto result_expression = bindExpression(clause->getExpression());
         m_boundDeclarations.endScope();
         return std::make_unique<const BoundMatchClause>(std::move(result_expression), std::move(values));
     }
 
-    const std::unique_ptr<const BoundEnumeratorClause> Binder::bindEnumeratorClause(const EnumeratorClause* expression)
+    const std::unique_ptr<const BoundEnumeratorClause> Binder::bindEnumeratorClause(const EnumeratorClause* clause)
     {
-        auto actual_type = bindTypeExpression(expression->getActualType())->getActualType();
-        auto name = expression->getIdentifier()->getValue();
-        return std::make_unique<const BoundEnumeratorClause>(actual_type, name, expression->getTokenInfo());
+        auto actual_type = bindTypeExpression(clause->getActualType())->getActualType();
+        auto name = clause->getIdentifier()->getValue();
+        return std::make_unique<const BoundEnumeratorClause>(actual_type, name, clause->getTokenInfo());
+    }
+
+    const std::unique_ptr<const BoundVariantClause<BoundLegacyForClause, BoundRangedForClause>> Binder::bindForClause(const VariantClause<class LegacyForClause, class RangedForClause>* clause)
+    {
+        if(auto value = clause->getIfFirst())
+        {
+            auto declaration = bindDeclaration(value->getDeclaration());
+            auto test_expression = bindExpression(value->getTestExpression());
+            auto end_expression = bindExpression(value->getEndExpression());
+            auto legacy_for_clause = std::make_unique<const BoundLegacyForClause>(std::move(declaration), std::move(test_expression), std::move(end_expression));
+            return std::make_unique<const BoundForExpression::ForClause>(std::move(legacy_for_clause));
+        }
+
+        auto value = clause->getSecond();
+        auto name = value->getIdentifier()->getValue();
+        auto expression = bindExpression(value->getExpression());
+        
+        Types::type type{Types::invalidType};
+        if(expression->getType().kind == Types::type::Kind::Array)
+            type = *expression->getType().array.baseType;
+        else if(expression->getType().kind == Types::type::Kind::Primitive && expression->getType().primitive == Types::type::Primitive::string)
+            type = Types::type::Primitive::_char;
+        else if(expression->getType().kind == Types::type::Kind::Structure && expression->getType().structure.size() == 3ul)
+        {
+            auto begin_type_mutable = *expression->getType().structure[0ul].second;
+            begin_type_mutable.isMutable = true;
+
+            if(begin_type_mutable.isCompatible(*expression->getType().structure[1ul].second)
+            && BoundUnaryOperator(BoundUnaryOperator::Kind::Increment, begin_type_mutable).getReturnType() != Types::invalidType
+            && *expression->getType().structure[2ul].second == Types::fromKind(Types::Kind::_bool))
+            {
+                type = begin_type_mutable;
+            }
+            else Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(value->getTokenInfo()),
+                .message = Logger::format("$ Structure given to ranged for clause is not a valid iterator (has incompatible element types or is not incrementable).",
+                    value->getTokenInfo())
+            });
+        }
+        else Reporting::push(Reporting::Report{
+            .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+            .span = TextSpan::fromTokenInfo(value->getTokenInfo()),
+            .message = Logger::format("$ Expression given to ranged for clause is not iterable.", value->getTokenInfo())
+        });
+        auto variable_declaration = std::make_unique<const BoundVariableDeclaration>(type, name, nullptr);
+
+        if(!m_boundDeclarations.push(variable_declaration->clone()))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(clause->getTokenInfo()),
+                .message = Logger::format("$ Cannot redeclare identifier `$` as ranged for identifier.", clause->getTokenInfo(), name)
+            });
+        
+        auto identifier = bindIdentifierExpression(value->getIdentifier());
+        auto ranged_for_clause = std::make_unique<const BoundRangedForClause>(std::move(identifier), std::move(expression));
+        return std::make_unique<const BoundForExpression::ForClause>(std::move(ranged_for_clause));
     }
 }

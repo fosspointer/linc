@@ -23,7 +23,7 @@ namespace linc
             std::vector<std::unique_ptr<const BoundVariableDeclaration>>::size_type count{};
             
             for(const auto& argument: m_arguments)
-                if(argument->getDefaultValue().has_value())
+                if(argument->getDefaultValue())
                     ++count;
             
             return count;

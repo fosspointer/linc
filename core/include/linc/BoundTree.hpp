@@ -20,6 +20,7 @@
 #include <linc/bound_tree/BoundIndexExpression.hpp>
 #include <linc/bound_tree/BoundAccessExpression.hpp>
 #include <linc/bound_tree/BoundEnumeratorExpression.hpp>
+#include <linc/bound_tree/BoundRangeExpression.hpp>
 #include <linc/bound_tree/BoundDeclaration.hpp>
 #include <linc/bound_tree/BoundVariableDeclaration.hpp>
 #include <linc/bound_tree/BoundFunctionDeclaration.hpp>
@@ -35,4 +36,7 @@
 #include <linc/bound_tree/BoundNodeListClause.hpp>
 #include <linc/bound_tree/BoundMatchClause.hpp>
 #include <linc/bound_tree/BoundEnumeratorClause.hpp>
+#include <linc/bound_tree/BoundVariantClause.hpp>
+#include <linc/bound_tree/BoundRangedForClause.hpp>
+#include <linc/bound_tree/BoundLegacyForClause.hpp>
 #include <linc/bound_tree/BoundProgram.hpp>

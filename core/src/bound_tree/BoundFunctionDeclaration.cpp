@@ -14,9 +14,7 @@ namespace linc
         for(const auto& argument: m_arguments)
             arguments.push_back(std::make_unique<const BoundVariableDeclaration>(
                 argument->getActualType(), argument->getName(),
-                    argument->getDefaultValue().has_value()? 
-                    std::make_optional(std::move(argument->getDefaultValue().value()->clone())):
-                    std::nullopt
+                    argument->getDefaultValue()? argument->getDefaultValue()->clone(): nullptr
             ));
 
         return std::make_unique<const BoundFunctionDeclaration>(getFunctionType(), m_name, std::move(arguments), std::move(m_body->clone()));

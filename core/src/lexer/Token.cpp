@@ -55,6 +55,7 @@ namespace linc
         case Type::Terminator: return "Terminator";
         case Type::Arrow: return "Arrow";
         case Type::DoubleColon: return "Double Colon";
+        case Type::RangeSpecifier: return "Range Specifier";
         case Type::OperatorPlus: return "Plus Operator";
         case Type::OperatorMinus: return "Minus Operator";
         case Type::OperatorAsterisk: return "Asterisk Operator";
@@ -281,6 +282,7 @@ namespace linc
         case Type::Terminator:
         case Type::Arrow:
         case Type::DoubleColon:
+        case Type::RangeSpecifier:
             return true;
         default: return false;
         }

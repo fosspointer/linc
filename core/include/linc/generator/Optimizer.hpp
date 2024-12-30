@@ -43,19 +43,23 @@ namespace linc
 
         static std::unique_ptr<const BoundExpression> optimizeForExpression(const BoundForExpression* expression)
         {
-            const auto& specifier = expression->getSpecifier();
-            if(auto variable_specifier = std::get_if<0ul>(&specifier))
+            const auto& clause = expression->getForClause();
+            if(auto value = clause->getIfFirst())
             {
+                auto declaration = optimizeDeclaration(value->getDeclaration());
+                auto test_expression = optimizeExpression(value->getTestExpression());
+                auto end_expression = optimizeExpression(value->getEndExpression());
+                auto legacy_for_clause = std::make_unique<const BoundLegacyForClause>(std::move(declaration), std::move(test_expression), std::move(end_expression));
                 auto body = optimizeExpression(expression->getBody());
-                auto variable_declaration = optimizeVariableDeclaration(variable_specifier->variableDeclaration.get());
-                auto _expression = variable_specifier->expression->clone();
-                auto statement = variable_specifier->statement->clone();
-                return std::make_unique<const BoundForExpression>(expression->getLabel(), std::move(variable_declaration), std::move(_expression), std::move(statement), std::move(body));
+                return std::make_unique<const BoundForExpression>(expression->getLabel(), std::make_unique<const BoundForExpression::ForClause>(std::move(legacy_for_clause)), std::move(body));
             }
+            
+            auto value = clause->getSecond();
+            auto iterated_expression = optimizeExpression(value->getExpression());
+            auto identifier = Types::uniqueCast<const BoundIdentifierExpression>(value->getIdentifier()->clone());
+            auto ranged_for_clause = std::make_unique<const BoundRangedForClause>(std::move(identifier), std::move(iterated_expression));
             auto body = optimizeExpression(expression->getBody());
-            auto array_identifier = Types::uniqueCast<const BoundIdentifierExpression>(std::get<1ul>(expression->getSpecifier()).arrayIdentifier->clone());
-            auto value_identifier = Types::uniqueCast<const BoundIdentifierExpression>(std::get<1ul>(expression->getSpecifier()).valueIdentifier->clone());
-            return std::make_unique<const BoundForExpression>(expression->getLabel(), std::move(value_identifier), std::move(array_identifier), std::move(body));
+            return std::make_unique<const BoundForExpression>(expression->getLabel(), std::make_unique<const BoundForExpression::ForClause>(std::move(ranged_for_clause)), std::move(body));
         }
         
         static std::unique_ptr<const BoundExpression> optimizeExpression(const BoundExpression* expression)
@@ -148,9 +152,7 @@ namespace linc
         
         static std::unique_ptr<const BoundVariableDeclaration> optimizeVariableDeclaration(const BoundVariableDeclaration* declaration)
         {
-            auto value = declaration->getDefaultValue()? std::make_optional(optimizeExpression(declaration->getDefaultValue().value()))
-                :std::nullopt;
-
+            auto value = declaration->getDefaultValue()? optimizeExpression(declaration->getDefaultValue()): nullptr;
             return std::make_unique<const BoundVariableDeclaration>(declaration->getActualType(), declaration->getName(), std::move(value));
         }
 

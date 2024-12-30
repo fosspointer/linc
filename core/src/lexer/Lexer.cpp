@@ -61,17 +61,17 @@ namespace linc
         return std::string("!@#$%^&*-=+~`|<>:/.,;`").contains(c);
     }
 
-    bool Lexer::digitHandle(char c, size_t* decimal_count, Token::NumberBase base)
+    bool Lexer::digitHandle(char c, char next, size_t* decimal_count, Token::NumberBase base)
     {
-        if(c == '.')
+        if(c == '.' && next != '.')
             return ++(*decimal_count);
         
         else return isDigit(c, base);
     }
 
-    bool Lexer::digitPeek(char c, Token::NumberBase base)
+    bool Lexer::digitPeek(char c, char next, Token::NumberBase base)
     {
-        return isDigit(c, base) || c == '.';
+        return isDigit(c, base) || (c == '.' && next != '.');
     }
 
     bool Lexer::hasDigit(std::string_view str, Token::NumberBase base)
@@ -128,15 +128,15 @@ namespace linc
             if(base_opt) { consume(); consume(); base = base_opt.value(); }
         }
 
-        if(digitHandle(peek().value(), &decimal_count, base) 
-            || (peek().value() == '-' && peek(1ul).has_value() && digitPeek(peek(1ul).value(), base)))
+        if(digitHandle(peek().value(), peek(1ul)? peek(1ul).value(): '\0', &decimal_count, base) 
+            || (peek().value() == '-' && peek(1ul).has_value() && digitPeek(peek(1ul).value(), peek(2ul)? peek(2ul).value(): '\0', base)))
         {
             Token::Info info = peek()? peek()->getInfo(): Token::Info{};
 
             do
             {
                 value_buffer.push_back(consume());
-            } while(peek() && peek()->getInfo().line == info.line && digitHandle(peek().value(), &decimal_count, base));
+            } while(peek() && peek()->getInfo().line == info.line && digitHandle(peek().value(), peek(1ul)? peek(1ul).value(): '\0', &decimal_count, base));
 
             while(peek() && peek()->getInfo().line == info.line && isalnum(peek().value()))
                 type_string.push_back(consume());
@@ -159,9 +159,9 @@ namespace linc
             info.characterEnd = info.characterStart + value_buffer.size();
             if(type_string.empty())
             {
-                if(decimal_count == 0)
+                if(decimal_count == 0ul)
                     tokens.push_back(Token{.type = Token::Type::I32Literal, .value = value_buffer, .numberBase = base, .info = info});
-                else if(decimal_count == 1 && base == Token::NumberBase::Decimal)
+                else if(decimal_count == 1ul && base == Token::NumberBase::Decimal)
                     tokens.push_back(Token{.type = Token::Type::F32Literal, .value = value_buffer, .numberBase = base, .info = info});
                 else
                     tokens.push_back(Token{.type = Token::Type::InvalidToken, .value = value_buffer, .numberBase = base, .info = info});

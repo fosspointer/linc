@@ -20,7 +20,7 @@ namespace linc
     private:
         virtual std::string toStringInner() const final override
         {
-            return "Read Shell Expression";
+            return "Shell Expression";
         }
 
         const std::unique_ptr<const BoundExpression> m_expression;

@@ -14,6 +14,10 @@ namespace linc
     class BoundNodeListClause;
     template <typename T>
     class NodeListClause;
+    template <typename FIRST, typename SECOND>
+    class VariantClause;
+    template <typename FIRST, typename SECOND>
+    class BoundVariantClause;
 
     /// @brief Management class for 'registering' and scoping symbols.
     class BoundSymbols final
@@ -112,8 +116,10 @@ namespace linc
         [[nodiscard]] const std::unique_ptr<const class BoundIndexExpression> bindIndexExpression(const class IndexExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundAccessExpression> bindAccessExpression(const class AccessExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundStructureInitializerExpression> bindStructureInitializerExpression(const class StructureInitializerExpression* expression);
-        [[nodiscard]] const std::unique_ptr<const class BoundMatchClause> bindMatchClause(const class MatchClause* expression);
-        [[nodiscard]] const std::unique_ptr<const class BoundEnumeratorClause> bindEnumeratorClause(const class EnumeratorClause* expression);
+        [[nodiscard]] const std::unique_ptr<const class BoundRangeExpression> bindRangeExpression(const class RangeExpression* expression);
+        [[nodiscard]] const std::unique_ptr<const class BoundMatchClause> bindMatchClause(const class MatchClause* clause);
+        [[nodiscard]] const std::unique_ptr<const class BoundEnumeratorClause> bindEnumeratorClause(const class EnumeratorClause* clause);
+        [[nodiscard]] const std::unique_ptr<const class BoundVariantClause<class BoundLegacyForClause, class BoundRangedForClause>> bindForClause(const class VariantClause<class LegacyForClause, class RangedForClause>* clause);
         [[nodiscard]] BoundUnaryOperator::Kind bindUnaryOperatorKind(Token::Type token_type);
         [[nodiscard]] BoundBinaryOperator::Kind bindBinaryOperatorKind(Token::Type token_type);
         [[nodiscard]] BoundTypeExpression::BoundArraySpecifiers bindArraySpecifiers(const std::vector<TypeExpression::ArraySpecifier>& specifiers);

@@ -504,18 +504,18 @@ namespace linc
 
         void generateVariableDeclaration(const BoundVariableDeclaration* declaration)
         {
-            const auto& default_value = declaration->getDefaultValue();
+            const auto* default_value = declaration->getDefaultValue();
             const auto& name = declaration->getName();
 
             if(m_variables.getScopeSize() == 1ul)
             {
                 auto size = getRegisterOperandSize(declaration->getActualType().primitive);
-                if(auto literal = dynamic_cast<const BoundLiteralExpression*>(*default_value); literal && default_value)
+                if(auto literal = dynamic_cast<const BoundLiteralExpression*>(default_value); literal && default_value)
                 {
-                    auto value = static_cast<const BoundLiteralExpression*>(*default_value)->getValue();
+                    auto value = static_cast<const BoundLiteralExpression*>(default_value)->getValue();
                     std::string label_name;
 
-                    switch(default_value.value()->getType().primitive)
+                    switch(default_value->getType().primitive)
                     {
                     case Types::Kind::string: label_name = m_emitter.defineStringLiteral(value.getString(), declaration->getActualType().isMutable); break;
                     default: label_name = m_emitter.defineNumeral(value.getU64(), size); break;
@@ -530,7 +530,7 @@ namespace linc
             }
 
             if(default_value)
-                generateExpression(*default_value);
+                generateExpression(default_value);
             else m_emitter.push(std::to_string(0));
 
             m_variables.append(name, m_emitter.getStackPosition());

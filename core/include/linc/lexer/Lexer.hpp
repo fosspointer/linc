@@ -125,10 +125,10 @@ namespace linc
         [[nodiscard]] static bool isSymbol(char c);
 
         /// @brief Utility method used to determine the type of a number literal (between floating point and integral).
-        [[nodiscard]] static bool digitHandle(char c, size_t* decimal_count, Token::NumberBase base);
+        [[nodiscard]] static bool digitHandle(char c, char next, size_t* decimal_count, Token::NumberBase base);
 
         /// @brief Check if a given character is valid within a 'stem' of a number literal (i.e. it is either a digit or a decimal-point).
-        [[nodiscard]] static bool digitPeek(char c, Token::NumberBase base);
+        [[nodiscard]] static bool digitPeek(char c, char next, Token::NumberBase base);
 
         /// @brief  Check whether a given string view contains at least one digit.
         [[nodiscard]] static bool hasDigit(std::string_view str, Token::NumberBase base);

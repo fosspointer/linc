@@ -83,6 +83,7 @@ namespace linc
         LINC_OPERATOR_MAP_PAIR(";", Token::Type::Terminator),
         LINC_OPERATOR_MAP_PAIR("=>", Token::Type::Arrow),
         LINC_OPERATOR_MAP_PAIR("::", Token::Type::DoubleColon),
+        LINC_OPERATOR_MAP_PAIR("..", Token::Type::RangeSpecifier),
         LINC_OPERATOR_MAP_PAIR("+", Token::Type::OperatorPlus),
         LINC_OPERATOR_MAP_PAIR("++", Token::Type::OperatorIncrement),
         LINC_OPERATOR_MAP_PAIR("--", Token::Type::OperatorDecrement),

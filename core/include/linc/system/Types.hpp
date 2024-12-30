@@ -36,7 +36,7 @@ namespace linc
 
             using Primitive = Types::Kind;
             using Structure = std::vector<std::pair<std::string, std::unique_ptr<const type>>>;
-            using Enumeration = std::vector<std::pair<std::string, Types::type>>;
+            using Enumeration = std::vector<std::pair<std::string, type>>;
 
             struct Array final
             {

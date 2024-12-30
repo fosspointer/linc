@@ -10,6 +10,9 @@ namespace linc
 {
     template <typename T>
     struct NodeListClause;
+
+    template <typename FIRST, typename SECOND>
+    struct VariantClause;
     
     /// @brief Class responsible for the parsing stage of compilation. Parses a list of tokens into AST nodes.
     class Parser final 
@@ -71,6 +74,15 @@ namespace linc
 
         /// @brief Parse the following tokens as an enumerator clause.
         std::unique_ptr<const class EnumeratorClause> parseEnumeratorClause() const;
+
+        /// @brief Parse the following tokens as a for clause.
+        std::unique_ptr<const class VariantClause<class LegacyForClause, class RangedForClause>> parseForClause() const;
+
+        /// @brief Parse the following tokens as a legacy for clause. 
+        std::unique_ptr<const class LegacyForClause> parseLegacyForClause() const;
+
+        /// @brief Parse the following tokens as a ranged for clause. 
+        std::unique_ptr<const class RangedForClause> parseRangedForClause() const;
 
         /// @brief Parse the following tokens as an optional loop identifier.
         std::optional<class LoopLabel> parseLoopLabel() const;
@@ -153,6 +165,9 @@ namespace linc
         
         /// @brief Parse the following tokens as an AST type expression.
         std::unique_ptr<const class TypeExpression> parseTypeExpression() const;
+
+        /// @brief Parse the following tokens as an AST range expression.
+        std::unique_ptr<const class Expression> parseRangeExpression() const;
 
         /// @brief Require the next token to be an EOF token (used when appropriate).
         inline auto parseEndOfFile() const { return match(Token::Type::EndOfFile); }

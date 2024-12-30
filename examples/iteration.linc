@@ -1,0 +1,29 @@
+// Iteration in linc!
+
+fn main() {
+    // Print the individual letters in a string
+    for letter in "qwerty" {
+        putc(letter);
+        putc('\n');
+    };
+    putc('\n');
+
+    // Iterate an array
+    for number in [-1f, 3.14159f, 1.618f] {
+        putln("I like " + @number);
+    };
+    putc('\n');
+
+    // Iterate from 0 to 5
+    for i in 0..5 {
+        putln(@i + ": hello world");
+    };
+    putc('\n');
+
+    // Iterate from 0 to 5 (in reverse)
+    for i in -(0..5) {
+        putln(@i + ": hello world (but backwards)");
+    };
+    putc('\n');
+
+}

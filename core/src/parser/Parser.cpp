@@ -73,6 +73,66 @@ namespace linc
         return std::make_unique<const EnumeratorClause>(left_parenthesis, right_parenthesis, std::move(identifier), std::move(actual_type));
     }
 
+    std::unique_ptr<const VariantClause<LegacyForClause, RangedForClause>> Parser::parseForClause() const
+    {
+        if(peek()->isIdentifier() && peek(1ul)->type == Token::Type::KeywordIn)
+            return std::make_unique<const VariantClause<LegacyForClause, RangedForClause>>(parseRangedForClause());
+        else return std::make_unique<const VariantClause<LegacyForClause, RangedForClause>>(parseLegacyForClause());
+    }
+
+    std::unique_ptr<const LegacyForClause> Parser::parseLegacyForClause() const
+    {
+        auto info = peekInfo();
+        auto declaration = parseDeclaration();
+        auto first_terminator = match(Token::Type::Terminator);
+        auto test_expression = parseExpression();
+        auto second_terminator = match(Token::Type::Terminator);
+        auto end_expression = parseExpression();
+
+        if(!declaration)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfo(info),
+                .message = Logger::format("$ Invalid identifier in legacy for clause.", info)
+            }), nullptr);
+        else if(!test_expression)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfo(first_terminator.info),
+                .message = Logger::format("$ Invalid test expression in legacy for clause.", first_terminator.info)
+            }), nullptr);
+        else if(!end_expression)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfo(second_terminator.info),
+                .message = Logger::format("$ Invalid end expression in legacy for clause.", second_terminator.info)
+            }), nullptr);
+
+        return std::make_unique<const LegacyForClause>(first_terminator, second_terminator, std::move(declaration), std::move(test_expression), std::move(end_expression));
+    }
+
+    std::unique_ptr<const RangedForClause> Parser::parseRangedForClause() const
+    {
+        auto identifier = parseIdentifierExpression();
+        auto in_keyword = match(Token::Type::KeywordIn);
+        auto expression = parseExpression();
+
+        if(!identifier)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfo(in_keyword.info),
+                .message = Logger::format("$ Invalid identifier in ranged for clause.", in_keyword.info)
+            }), nullptr);
+        else if(!expression)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfo(peekInfo()),
+                .message = Logger::format("$ Invalid expression in ranged for clause.", peekInfo())
+            }), nullptr);
+
+        return std::make_unique<const RangedForClause>(in_keyword, std::move(identifier), std::move(expression));
+    }
+
     std::optional<LoopLabel> Parser::parseLoopLabel() const
     {
         if(peek()->type != Token::Type::Tilde) return std::nullopt;
@@ -133,7 +193,7 @@ namespace linc
         if(peek()->isUnaryOperator() && Operators::getUnaryPrecedence(peek()->type) > parent_precedence)
         {
             const auto _operator = consume();
-            const auto operand = parseModifierExpression();
+            const auto operand = parseRangeExpression();
             if(!operand)
             {
                 Reporting::push(Reporting::Report{
@@ -145,7 +205,7 @@ namespace linc
             }
             expression = std::make_unique<const UnaryExpression>(_operator, operand->clone());
         }
-        else expression = parseModifierExpression();
+        else expression = parseRangeExpression();
 
         while(peek()->isBinaryOperator())
         {
@@ -253,6 +313,24 @@ namespace linc
             return std::make_unique<const LiteralExpression>(consume());
         
         return nullptr;
+    }
+
+    std::unique_ptr<const Expression> Parser::parseRangeExpression() const
+    {
+        auto root = parseModifierExpression();
+        auto has_range_specifier = peek()->type == Token::Type::RangeSpecifier;
+        if(!has_range_specifier)
+            return root;
+        auto range_specifier = consume();
+        auto end_expression = parseModifierExpression();
+        if(!end_expression)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfoRange(range_specifier.info, peekInfo()),
+                .message = Logger::format("$ Invalid end expression in range.", peekInfo())
+            }), nullptr);
+        
+        return std::make_unique<const RangeExpression>(range_specifier, std::move(root), std::move(end_expression));
     }
 
     std::unique_ptr<const Expression> Parser::parseModifierExpression() const
@@ -419,36 +497,10 @@ namespace linc
             return nullptr;
 
         auto for_keyword = consume();
-        auto left_parenthesis = match(Token::Type::ParenthesisLeft);
-
-        if(peek()->isIdentifier() && peek(1ul)->type == Token::Type::KeywordIn)
-        {
-            auto value_identifier = parseIdentifierExpression();
-            auto in_keyword = consume();
-            auto array_identifier = parseIdentifierExpression();
-
-            if(!array_identifier || !value_identifier)
-                return nullptr;
-
-            auto right_parenthesis = match(Token::Type::ParenthesisRight);
-            auto body = parseExpression();
-
-            return std::make_unique<const ForExpression>(std::move(label), for_keyword, left_parenthesis, right_parenthesis,
-                in_keyword, std::move(value_identifier), std::move(array_identifier), std::move(body));
-        }
-
-        auto declaration = parseVariableDeclaration();
-        auto expression = parseExpression();
-        auto statement = parseStatement();
-
-        if(!declaration || !expression || !statement)
-            return nullptr;
-
-        auto right_parenthesis = match(Token::Type::ParenthesisRight);
+        auto clause = parseForClause();
         auto body = parseExpression();
 
-        return std::make_unique<const ForExpression>(std::move(label), for_keyword, left_parenthesis, right_parenthesis,
-            std::move(declaration), std::move(expression), std::move(statement), std::move(body));
+        return std::make_unique<const ForExpression>(std::move(label), for_keyword, std::move(clause), std::move(body));
     }
 
     std::unique_ptr<const WhileExpression> Parser::parseWhileExpression(std::optional<LoopLabel> label) const

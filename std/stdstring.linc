@@ -13,20 +13,20 @@ fn to_upper_char(ch: char)
 fn to_lower(str: string) {
     res: mut string;
 
-    for(ch in str) res += to_lower_char(ch);
+    for ch in str res += to_lower_char(ch);
     res
 }
 
 fn to_upper(str: string) {
     res: mut string;
 
-    for(ch in str)
+    for ch in str
         res += to_upper_char(ch);
     res
 }
 
 fn contains_char(str: string, ch: char): bool {
-    for(test in str)
+    for test in str
         if test == ch { return true; };
     false
 }
@@ -40,7 +40,7 @@ fn is_alnum(ch: char)
 
 fn substr(str: string, start: STD_SIZE, end: STD_SIZE = -1u64) {
     res: mut string;
-    for(i: mut STD_SIZE = start i <= end && i < +str ++i;)
+    for i: mut STD_SIZE = start; i <= end && i < +str; ++i
         res += str[i];
     res
 }

@@ -47,7 +47,17 @@ namespace linc
             else return Types::invalidType;
         }
         else if(operand_type.kind == Types::type::Kind::Structure)
-            return Types::invalidType;
+        {
+            if(operand_type.structure.size() != 3ul || operator_kind != Kind::UnaryMinus)
+                return Types::invalidType; 
+
+            auto begin_type_mutable = *operand_type.structure[0ul].second;
+            begin_type_mutable.isMutable = true;
+            if(begin_type_mutable.isCompatible(*operand_type.structure[1ul].second)
+                && BoundUnaryOperator(BoundUnaryOperator::Kind::Increment, begin_type_mutable).getReturnType() != Types::invalidType
+                && *operand_type.structure[2ul].second == Types::fromKind(Types::Kind::_bool))
+                return operand_type;
+        }
 
         switch(operator_kind)
         {

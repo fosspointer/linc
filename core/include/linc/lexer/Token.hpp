@@ -36,7 +36,7 @@ namespace linc
 
             // Symbols
             ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, Colon, Comma, Tilde, Dot, PreprocessorSpecifier,
-            GlueSpecifier, ColonEquals, Terminator, Arrow, DoubleColon,
+            GlueSpecifier, ColonEquals, Terminator, Arrow, DoubleColon, RangeSpecifier,
             
             // Arithmetic operators
             OperatorPlus, OperatorMinus, OperatorAsterisk, OperatorSlash, OperatorPercent,
