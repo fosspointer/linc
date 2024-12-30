@@ -883,6 +883,7 @@ namespace linc
         --m_inLoop;
         if(!label.empty()) m_boundDeclarations.popLabel();
 
+        m_boundDeclarations.endScope();
         return std::make_unique<const BoundForExpression>(label, std::move(clause), std::move(body));
     }
 

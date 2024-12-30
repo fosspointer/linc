@@ -212,6 +212,7 @@ namespace linc
                             else throw (endScope(), continue_exception);
                         }
                     }
+                    endScope();
                 };
 
                 if(auto legacy_clause = clause->getIfFirst())
@@ -222,7 +223,6 @@ namespace linc
                     loop(return_value, [&](){ return evaluateExpression(legacy_clause->getTestExpression()).getPrimitive().getBool(); },
                         [&](){ evaluateExpression(legacy_clause->getEndExpression()); });
 
-                    endScope();
                     return return_value;
                 }
 
@@ -249,7 +249,6 @@ namespace linc
                         loop(return_value, [&](){ return *m_variables.get(name) != end; }, [&](){ ++(*m_variables.get(name)); });
                     }
                     
-                    endScope();
                     return return_value;
                 }
                 
@@ -262,7 +261,6 @@ namespace linc
                     m_variables.append(name, PrimitiveValue(c_string[0ul]));
                     loop(return_value, [&](){ return *c_string; }, [&](){ ++c_string; *m_variables.get(name) = PrimitiveValue(*c_string); });
 
-                    endScope();
                     return return_value;
                 }
 
@@ -272,7 +270,6 @@ namespace linc
                 m_variables.append(name, array.getCount() == 0ul? PrimitiveValue::voidValue: array.get(0ul));
                 loop(return_value, [&](){ auto test = i < array.getCount(); if(test) *m_variables.get(name) = array.get(i); return test; }, [&](){ ++i; });
                 
-                endScope();
                 return return_value;
             }
             else if(auto while_expression = dynamic_cast<const BoundWhileExpression*>(expression))
