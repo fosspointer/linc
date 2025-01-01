@@ -19,9 +19,9 @@ fn interpret(input: string) {
             '.' => putc(as mut char(tape[position])),
             ',' => tape[position] = as u8 (readc()),
             '[' => {
-                if(tape[position] == 0u8) {
+                if tape[position] == 0u8 {
                     loop = 1u;
-                    while(loop > 0u) {
+                    while loop > 0u {
                         current_char = input[++i];
                         if current_char == '[' {
                             ++loop;
@@ -32,9 +32,9 @@ fn interpret(input: string) {
                 };
             },
             ']' => {
-                if(tape[position] != 0u8) {
+                if tape[position] != 0u8 {
                     loop = 1u;
-                    while(loop > 0u) {
+                    while loop > 0u {
                         current_char = input[--i];
                         if current_char == '[' {
                             --loop;

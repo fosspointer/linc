@@ -385,7 +385,7 @@ try
         {
             auto result = interpreter.evaluateNode(program.get());
             if((result.getIfPrimitive() && result.getPrimitive().getKind() != linc::PrimitiveValue::Kind::Invalid)
-            || (result.getIfArray() && result.getArray().getKind() != linc::Types::Kind::invalid)
+            || (result.getIfArray() && !result.getArray().getType().isCompatible(linc::Types::fromKind(linc::Types::Kind::invalid)))
             || result.getIfStructure() || result.getIfEnumerator())
                 linc::Logger::println("-> $", result);
             else success = false;

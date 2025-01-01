@@ -358,21 +358,21 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Return statement used outside of function scope.",
-                    statement->getInfoString())
+                    statement->getTokenInfo())
             });
 
         else if(m_currentFunctionType == Types::invalidType)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot use return statements in functions with implicit return types.",
-                    statement->getInfoString())
+                    statement->getTokenInfo())
             });
 
         else if(expression && !expression->getType().isAssignableTo(m_currentFunctionType))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Return statement doesn't match the function's return type (`$` -> `$`).",
-                    statement->getInfoString(), expression->getType(), m_currentFunctionType)
+                    statement->getTokenInfo(), expression->getType(), m_currentFunctionType)
             });
 
         return std::make_unique<const BoundReturnStatement>(std::move(expression));
@@ -383,7 +383,7 @@ namespace linc
         if(!m_inLoop)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot use continue statement outside of a loop.", statement->getInfoString())
+                .message = Logger::format("$ Cannot use continue statement outside of a loop.", statement->getTokenInfo())
             });
 
         if(!statement->getLabel())
@@ -395,7 +395,7 @@ namespace linc
         if(find.empty())
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Undefined label in continue statement.", statement->getInfoString())
+                .message = Logger::format("$ Undefined label in continue statement.", statement->getTokenInfo())
             });
 
         return std::make_unique<const BoundContinueStatement>(find);
@@ -406,7 +406,7 @@ namespace linc
         if(!m_inLoop)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot use break statement outside of a loop.", statement->getInfoString())
+                .message = Logger::format("$ Cannot use break statement outside of a loop.", statement->getTokenInfo())
             });
             
         if(!statement->getLabel())
@@ -418,7 +418,7 @@ namespace linc
         if(find.empty())
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Undefined label in break statement.", statement->getInfoString())
+                .message = Logger::format("$ Undefined label in break statement.", statement->getTokenInfo())
             });
 
         return std::make_unique<const BoundBreakStatement>(find);
@@ -437,27 +437,27 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot assign expression of type `$` to variable of type `$`", 
-                    declaration->getInfoString(), variable->getDefaultValue()->getType(), type)});
+                    declaration->getTokenInfo(), variable->getDefaultValue()->getType(), type)});
 
         else if(!is_argument && !type.isMutable && !variable->getDefaultValue())
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot declare immutable variable '$' without default value.",
-                    declaration->getInfoString(), name)
+                    declaration->getTokenInfo(), name)
             });
 
         else if(!is_argument && !variable->getDefaultValue() && type.kind == Types::type::Kind::Array && !type.array.count.has_value())
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot automatically infer the size of an array-typed variable with no default value.",
-                    declaration->getInfoString(), name)
+                    declaration->getTokenInfo(), name)
             });
 
         else if(!m_boundDeclarations.push(variable->clone()))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot redeclare symbol '$' as variable of type `$`.", 
-                    declaration->getInfoString(), name, variable->getActualType())});
+                    declaration->getTokenInfo(), name, variable->getActualType())});
 
         return variable;
     }
@@ -475,7 +475,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot redeclare symbol '$' as variable of type `$`.", 
-                    declaration->getInfoString(), name, variable->getActualType())});
+                    declaration->getTokenInfo(), name, variable->getActualType())});
 
         return variable;
     }
@@ -505,7 +505,7 @@ namespace linc
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("$ Function argument with default value cannot be followed by non-default-value argument.",
-                        declaration->getInfoString())
+                        declaration->getTokenInfo())
                 });
 
                 Reporting::push(Reporting::Report{
@@ -534,7 +534,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Warning, .stage = Reporting::Stage::ABT,
                 .span = TextSpan::fromTokenInfo(declaration->getTypeSpecifier().info),
-                .message = Logger::format("$ Mutable modifier is ineffective on function return types.", declaration->getInfoString())});
+                .message = Logger::format("$ Mutable modifier is ineffective on function return types.", declaration->getTokenInfo())});
 
         auto function_type = Types::type{Types::type::Function{return_type.clone(), std::move(argument_types)}, return_type.isMutable};
         auto function = std::make_unique<const BoundFunctionDeclaration>(function_type, name, std::move(arguments), std::move(body));
@@ -543,7 +543,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Function '$' declared with return type `$`, but it evaluates to type `$`.",
-                    declaration->getInfoString(), name, function->getReturnType(), function->getBody()->getType())});
+                    declaration->getTokenInfo(), name, function->getReturnType(), function->getBody()->getType())});
         
         m_boundDeclarations.endScope();
 
@@ -551,7 +551,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Redefinition of symbol '$' as function declaration.",
-                    declaration->getInfoString(), name)});
+                    declaration->getTokenInfo(), name)});
 
         return function;
     }
@@ -573,7 +573,7 @@ namespace linc
         if(!m_boundDeclarations.push(external_function->clone()))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot redeclare symbol '$' as external function declaration.", declaration->getInfoString(), name)
+                .message = Logger::format("$ Cannot redeclare symbol '$' as external function declaration.", declaration->getTokenInfo(), name)
             });
 
         return external_function;
@@ -602,7 +602,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Redefinition of symbol '$' as structure declaration.",
-                    declaration->getInfoString(), name)
+                    declaration->getTokenInfo(), name)
             });
 
         return structure;
@@ -619,7 +619,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Redefinition of symbol '$' as enumeration declaration.",
-                    declaration->getInfoString(), name)
+                    declaration->getTokenInfo(), name)
             });
 
         return enumeration;
@@ -635,7 +635,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .span = TextSpan::fromTokenInfo(expression->getTokenInfo()),
-                .message = Logger::format("$ Undeclared identifier '$'.", expression->getInfoString(), value)});
+                .message = Logger::format("$ Undeclared identifier '$'.", expression->getTokenInfo(), value)});
 
             return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
         }
@@ -647,7 +647,7 @@ namespace linc
 
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-            .message = Logger::format("$ Cannot reference identifier '$', as it is not a variable.", expression->getInfoString(), value)});
+            .message = Logger::format("$ Cannot reference identifier '$', as it is not a variable.", expression->getTokenInfo(), value)});
 
         return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
     }
@@ -666,13 +666,13 @@ namespace linc
         if(!find)
             return (Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Undeclared identifier '$' does not result to a namespace.", expression->getInfoString(), name)
+                .message = Logger::format("$ Undeclared identifier '$' does not result to a namespace.", expression->getTokenInfo(), name)
             }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
         else if(auto enumeration = dynamic_cast<const BoundEnumerationDeclaration*>(find.get()); !enumeration)
             return (Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot namespace-access identifier '$', which is not an enumeration.",
-                    expression->getInfoString(), name)
+                    expression->getTokenInfo(), name)
             }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
         
         auto enumeration = static_cast<const BoundEnumerationDeclaration*>(find.get());
@@ -753,7 +753,7 @@ namespace linc
             {
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                    .message = Logger::format("$ Undeclared identifier '$' does not result to a type.", expression->getInfoString(), name)
+                    .message = Logger::format("$ Undeclared identifier '$' does not result to a type.", expression->getTokenInfo(), name)
                 });
                 return std::make_unique<const BoundTypeExpression>(Types::Kind::invalid, expression->getMutabilityKeyword().has_value(),
                     std::move(specifiers));
@@ -781,7 +781,7 @@ namespace linc
             
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Identifier '$' does not refer to a type.", expression->getInfoString(), name)
+                .message = Logger::format("$ Identifier '$' does not refer to a type.", expression->getTokenInfo(), name)
             });
 
             return std::make_unique<const BoundTypeExpression>(Types::Kind::invalid, expression->getMutabilityKeyword().has_value(), std::move(specifiers));
@@ -821,7 +821,7 @@ namespace linc
             || !else_body->getType().isCompatible(while_body->getType()))
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                    .message = Logger::format("$ Incompatible typing in while-finally-else expression.", expression->getInfoString())
+                    .message = Logger::format("$ Incompatible typing in while-finally-else expression.", expression->getTokenInfo())
                 });
         }
         else if(else_body)
@@ -829,13 +829,13 @@ namespace linc
             if(!while_body->getType().isCompatible(else_body->getType()))
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                    .message = Logger::format("$ Incompatible typing in while-else expression.", expression->getInfoString())
+                    .message = Logger::format("$ Incompatible typing in while-else expression.", expression->getTokenInfo())
                 });
         }
         else if(while_body->getType() != Types::voidType || (finally_body && finally_body->getType() != Types::voidType))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ All typed while expressions must have an else clause.", expression->getInfoString())
+                .message = Logger::format("$ All typed while expressions must have an else clause.", expression->getTokenInfo())
             });
 
         return std::make_unique<const BoundWhileExpression>(std::move(label), type, std::move(test_expression), std::move(while_body), std::move(finally_body),
@@ -897,12 +897,12 @@ namespace linc
         if(!find)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot call undeclared function '$'.", expression->getInfoString(), name)});
+                .message = Logger::format("$ Cannot call undeclared function '$'.", expression->getTokenInfo(), name)});
 
         else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find.get()); !function)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot call identifier '$', as it is not a function.", expression->getInfoString(), name)});
+                .message = Logger::format("$ Cannot call identifier '$', as it is not a function.", expression->getTokenInfo(), name)});
 
         else 
         {
@@ -912,7 +912,7 @@ namespace linc
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("$ Tried to call function '$' with $ arguments, when it takes $ (with $ default arguments).", 
-                        expression->getInfoString(), name, list.size(), function->getArguments().size(),
+                        expression->getTokenInfo(), name, list.size(), function->getArguments().size(),
                         function->getDefaultArgumentCount())});
 
             using _size = std::vector<std::unique_ptr<const Expression>>::size_type;
@@ -927,12 +927,12 @@ namespace linc
                 {
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                        .message = Logger::format("$ Invalid argument type in function '$'.", expression->getInfoString(), name)});
+                        .message = Logger::format("$ Invalid argument type in function '$'.", expression->getTokenInfo(), name)});
                     
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
                         .message = Logger::format("$ Argument $ called with type `$`, expected `$`.",
-                            expression->getInfoString(), i, bound_argument->getType(), declared_argument->getActualType())});
+                            expression->getTokenInfo(), i, bound_argument->getType(), declared_argument->getActualType())});
                 }
 
                 else arguments.push_back(BoundFunctionCallExpression::Argument{
@@ -976,7 +976,7 @@ namespace linc
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("$ Incorrect number of arguments given to external function '$' (given $ but it requires $).",
-                        expression->getInfoString(), name, list.size(), internal->arguments.size())
+                        expression->getTokenInfo(), name, list.size(), internal->arguments.size())
                 });
 
             else for(std::size_t index{0ul}; index < list.size(); ++index)
@@ -989,7 +989,7 @@ namespace linc
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                         .message = Logger::format("$ Incorrect type for external function argument $ (expected `$`, got `$`).",
-                            expression->getInfoString(), index + 1ul, PrimitiveValue(declared_argument_type), PrimitiveValue(argument->getType()))
+                            expression->getTokenInfo(), index + 1ul, PrimitiveValue(declared_argument_type), PrimitiveValue(argument->getType()))
                     });
 
                     Reporting::push(Reporting::Report{
@@ -1008,12 +1008,12 @@ namespace linc
         else if(!find)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot call undeclared external function '$'.", expression->getInfoString(), name)});
+                .message = Logger::format("$ Cannot call undeclared external function '$'.", expression->getTokenInfo(), name)});
 
         else if(auto external = dynamic_cast<const BoundExternalDeclaration*>(find.get()); !external)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot call identifier '$', as it is not an external function.", expression->getInfoString(), name)});
+                .message = Logger::format("$ Cannot call identifier '$', as it is not an external function.", expression->getTokenInfo(), name)});
 
         return std::make_unique<const BoundExternalCallExpression>(Types::invalidType, name, std::move(arguments));
     }
@@ -1062,7 +1062,7 @@ namespace linc
         default:
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Unrecognized literal expression.", expression->getInfoString())});
+                .message = Logger::format("$ Unrecognized literal expression.", expression->getTokenInfo())});
         return std::make_unique<const BoundLiteralExpression>(PrimitiveValue::invalidValue, Types::invalidType);
         }
     }
@@ -1151,7 +1151,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Invalid conversion expression to type `$` (from `$`).",
-                    expression->getInfoString(), target_type, inner_expression->getType())
+                    expression->getTokenInfo(), target_type, inner_expression->getType())
             });
 
         return std::make_unique<const BoundConversionExpression>(std::move(inner_expression), std::move(conversion));
@@ -1171,7 +1171,7 @@ namespace linc
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("$ All members of an array initializer must be of the same type.",
-                        expression->getInfoString())
+                        expression->getTokenInfo())
                 });
             type = bound_value->getType();
             
@@ -1194,7 +1194,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Incompatible type in array indexing: expected `$`, found `$`.",
-                    expression->getInfoString(), Types::fromKind(Types::Kind::u64), index->getType())
+                    expression->getTokenInfo(), Types::fromKind(Types::Kind::u64), index->getType())
             });
             return std::make_unique<const BoundIndexExpression>(std::move(array), std::move(index), Types::invalidType);
         }
@@ -1206,7 +1206,7 @@ namespace linc
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Warning, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("$ Accessing out of bounds array index $ (array has $ elements).",
-                        expression->getInfoString(), value, PrimitiveValue(*array->getType().array.count))
+                        expression->getTokenInfo(), value, PrimitiveValue(*array->getType().array.count))
                 });
         }
 
@@ -1215,7 +1215,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot index non-array non-string operand.",
-                    expression->getInfoString())
+                    expression->getTokenInfo())
             });
             
             return std::make_unique<const BoundIndexExpression>(std::move(array), std::move(index), Types::invalidType);
@@ -1236,7 +1236,7 @@ namespace linc
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot access field '$' of non-structure typed operand.", expression->getInfoString(), name)
+                .message = Logger::format("$ Cannot access field '$' of non-structure typed operand.", expression->getTokenInfo(), name)
             });
             
             return std::make_unique<const BoundAccessExpression>(std::move(base), -1ul, Types::invalidType);
@@ -1249,7 +1249,7 @@ namespace linc
 
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-            .message = Logger::format("$ Accessing undefined field '$' in structure.", expression->getInfoString(), name)
+            .message = Logger::format("$ Accessing undefined field '$' in structure.", expression->getTokenInfo(), name)
         });
 
         return std::make_unique<const BoundAccessExpression>(std::move(base), -1ul, Types::invalidType);
@@ -1278,7 +1278,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Cannot use undefined identifier $ as a structure initializer, as it does not name a type.",
-                    expression->getInfoString(), PrimitiveValue(name))
+                    expression->getTokenInfo(), PrimitiveValue(name))
             });
             return std::make_unique<const BoundStructureInitializerExpression>(name, std::vector<std::unique_ptr<const BoundExpression>>{},
                 Types::invalidType);
@@ -1288,7 +1288,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Identifier $ in structure initializer is not a structure type.",
-                    expression->getInfoString(), PrimitiveValue(name))
+                    expression->getTokenInfo(), PrimitiveValue(name))
             });
             return std::make_unique<const BoundStructureInitializerExpression>(name, std::vector<std::unique_ptr<const BoundExpression>>{},
                 Types::invalidType);
@@ -1303,7 +1303,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Structure initializer's types do not align with structure $ (expected size: $, got $).",
-                    expression->getInfoString(), PrimitiveValue(name))
+                    expression->getTokenInfo(), PrimitiveValue(name))
             });
             return std::make_unique<const BoundStructureInitializerExpression>(name, std::vector<std::unique_ptr<const BoundExpression>>{},
                 Types::invalidType);
@@ -1319,7 +1319,7 @@ namespace linc
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("$ Structure's and initializer's corresponding field names do not match (expected $, got $).",
-                        expression->getInfoString(), PrimitiveValue(structure->getFields()[i]->getName()), PrimitiveValue(field_name))
+                        expression->getTokenInfo(), PrimitiveValue(structure->getFields()[i]->getName()), PrimitiveValue(field_name))
                 });
                 return std::make_unique<const BoundStructureInitializerExpression>(name, std::vector<std::unique_ptr<const BoundExpression>>{},
                     Types::invalidType);

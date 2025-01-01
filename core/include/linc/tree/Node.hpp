@@ -21,7 +21,6 @@ namespace linc
         [[nodiscard]] inline const Token::Info& getTokenInfo() const { return m_info.info; }
         [[nodiscard]] inline const std::vector<Token>& getTokens() const { return m_info.tokenList; }
         [[nodiscard]] inline const NodeInfo& getInfo() const { return m_info; }
-        [[nodiscard]] inline std::string getInfoString() const { return m_info.info.file + ":" + std::to_string(m_info.info.line); }
 
         inline void setLineNumber(size_t line_number) const { m_info.info.line = line_number; }
         inline void setTokens(std::vector<Token> tokens) const { m_info.tokenList = std::move(tokens); }

@@ -1,13 +1,13 @@
-// #macro MIN(a, b) (if (a) < (b) (a) else (b))#
-// #macro MAX(a, b) (if (a) > (b) (a) else (b))#
-// #macro SAY_HELLO(msg, msg_punctuation) putln("Hello '" + msg + '\'' + msg_punctuation)#
+// #macro MIN(a, b) (if (a) < (b) (a) else (b)) #
+// #macro MAX(a, b) (if (a) > (b) (a) else (b)) #
+// #macro SAY_HELLO(msg, msg_punctuation) putln("Hello '" + msg + '\'' + msg_punctuation); #
 
-// #macro SOME_WEIRD_MACRO(a) puts("hello world '" + @a + "\\")#
+// #macro SOME_WEIRD_MACRO(a) putln("hello world '" + @a + "\\"); #
 
 // fn main() {
-//     SOME_WEIRD_MACRO("haha!"#);
-//     SAY_HELLO("Mark"# '!'#);
-//     SAY_HELLO("Macrus"# "..."#);
+//     SOME_WEIRD_MACRO("haha!"#)
+//     SAY_HELLO("Mark"# '!'#)
+//     SAY_HELLO("Marcus"# "..."#)
 //     putln("min: " + @MIN(-12# 56#));
 //     putln("max: " + @MAX(-12# 56#));
 // }

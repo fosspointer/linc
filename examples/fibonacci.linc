@@ -6,8 +6,7 @@ fn display_fibonacci(count: u8) {
     first: mut u32 = 0u32;
     second: mut u32 = 1u32;
 
-    number_of_fibonacci: u8 = for (index: mut u8 = 0u8 index < count ++index;)
-    {
+    number_of_fibonacci: u8 = for index in 0u8..count {
         first = (first + second);
         second = (first - second);
         

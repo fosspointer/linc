@@ -456,7 +456,7 @@ namespace linc
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
                 .span = TextSpan::fromTokenInfo(info),
-                .message = Logger::format("$ Invalid check expression in `if` conditional.", info)
+                .message = Logger::format("$ Invalid test expression in `if` conditional.", info)
             });
             return nullptr;
         }
@@ -470,6 +470,12 @@ namespace linc
             });
             return nullptr;
         }
+        if(auto parenthesis = dynamic_cast<const ParenthesisExpression*>(test_expression.get()))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Warning, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfoRange(parenthesis->getLeftParenthesis().info, parenthesis->getRightParenthesis().info),
+                .message = Logger::format("$ Unnecessary parenthesis in if test expression.", info)
+            });
 
         if(peek() && peek()->type == Token::Type::KeywordElse)
         {
@@ -524,6 +530,12 @@ namespace linc
                 .span = TextSpan::fromTokenInfoRange(while_keyword.info, peekInfo()),
                 .message = Logger::format("$ Invalid body in while expression.", while_keyword.info)
             }), nullptr);
+        else if(auto parenthesis = dynamic_cast<const ParenthesisExpression*>(test_expression.get()))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Warning, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfoRange(parenthesis->getLeftParenthesis().info, parenthesis->getRightParenthesis().info),
+                .message = Logger::format("$ Unnecessary parenthesis in while test expression.", test_expression->getTokenInfo())
+            });
         
         auto has_finally = peek() && peek()->type == Token::Type::KeywordFinally;
         auto finally_keyword = has_finally? std::make_optional(consume()): std::nullopt;
@@ -978,7 +990,15 @@ namespace linc
         }
         
         if(peek()->type == Token::Type::Terminator)
+        {
+            if(auto parenthesis = dynamic_cast<const ParenthesisExpression*>(expression.get()))
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Warning, .stage = Reporting::Stage::Parser,
+                    .span = TextSpan::fromTokenInfoRange(parenthesis->getLeftParenthesis().info, parenthesis->getRightParenthesis().info),
+                    .message = Logger::format("$ Unnecessary parenthesis in expression statement.", expression->getTokenInfo())
+                });
             return std::make_unique<const ExpressionStatement>(consume(), std::move(expression));
+        }
 
         else return std::move(expression);
     }

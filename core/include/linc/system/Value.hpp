@@ -220,6 +220,7 @@ namespace linc
         inline const PrimitiveValue& getPrimitive() const { return m_primitive; }
         inline const ArrayValue& getArray() const { return m_array; }
         inline const std::vector<Value>& getStructure() const { return m_structure; }
+        inline const EnumeratorValue& getEnumerator() const { return m_enumerator; }
 
         inline PrimitiveValue& getPrimitive() { return m_primitive; }
         inline ArrayValue& getArray() { return m_array; }

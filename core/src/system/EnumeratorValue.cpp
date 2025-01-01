@@ -15,6 +15,22 @@ namespace linc
         :m_name(std::move(other.m_name)), m_index(other.m_index), m_value(std::move(other.m_value))
     {}
 
+    EnumeratorValue& EnumeratorValue::operator=(const EnumeratorValue& other)
+    {
+        m_name = other.m_name;
+        m_index = other.m_index;
+        m_value = std::make_unique<Value>(*other.m_value);
+        return *this;
+    }
+
+    EnumeratorValue& EnumeratorValue::operator=(EnumeratorValue&& other)
+    {
+        m_name = std::move(other.m_name);
+        m_index = other.m_index;
+        m_value = std::move(other.m_value);
+        return *this;
+    }
+
     bool EnumeratorValue::operator==(const EnumeratorValue& other) const
     {
         return m_name == other.m_name && m_index == other.m_index && *m_value == *other.m_value;

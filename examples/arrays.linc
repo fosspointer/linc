@@ -9,6 +9,6 @@ fn main(): void {
         "Or to take arms against a sea of troubles",
         "And by opposing end them"];
 
-    for(line in poem)
+    for line in poem
         putln(line);
 }

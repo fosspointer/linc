@@ -7,17 +7,39 @@ struct Vector2f32 {
 
 struct Player {
     name: string
-    position: mut Vector2f32
-    xp: mut u32
+    health: mut u64
 }
 
-fn Vector2f32_toString(self: Vector2f32): string
-    '[' + @self.x + ", " + @self.y + ']'
+fn parseU64(str: string) {
+    result: mut u64 = 0u64;
 
-fn Player_getInfo(self: Player): string
-    to_upper(self.name) + " {position: " + Vector2f32_toString(self.position) + ", xp: " + @self.xp + '}'
+    for index in 0u64..(+str)
+        if +str[index] >= +'0' && +str[index] <= +'9'
+            result = result * 10u64 + as u64(+str[index] - +'0');
+
+    result
+}
+
+fn getPosessiveNumeral(number: u64): string {
+    match number % 10u64 {
+        1u64 => { return "st"; },
+        2u64 => { return "nd"; },
+        3u64 => { return "rd"; }
+    };
+    "th"
+}
 
 fn main() {
-    player := Player{.name = "John Doe", .position = Vector2f32{.x = 5f, .y = 3f}, .xp = 2500u};
-    putln(Player_getInfo(player));
+    players: mut Player[3u64];
+    for i in 0u64..(+players) {
+        num := i + 1u64;
+        players[i] = Player{
+            .name = readln(@num + getPosessiveNumeral(num) + " player's name: "),
+            .health = parseU64(readln(@num + getPosessiveNumeral(num) + " player's health: "))};
+    };
+
+    for player in players
+        putln("Player " + @player.name + " has " + @player.health + " hp!");
+
+    for i in 15u64..35u64 putln(@i + getPosessiveNumeral(i));
 }

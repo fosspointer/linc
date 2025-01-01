@@ -212,7 +212,6 @@ namespace linc
                             else throw (endScope(), continue_exception);
                         }
                     }
-                    endScope();
                 };
 
                 if(auto legacy_clause = clause->getIfFirst())
@@ -223,6 +222,7 @@ namespace linc
                     loop(return_value, [&](){ return evaluateExpression(legacy_clause->getTestExpression()).getPrimitive().getBool(); },
                         [&](){ evaluateExpression(legacy_clause->getEndExpression()); });
 
+                    endScope();
                     return return_value;
                 }
 
@@ -241,7 +241,24 @@ namespace linc
                     {
                         --end;
                         m_variables.append(name, end);
-                        loop(return_value, [&](){ return *m_variables.get(name) >= begin; }, [&](){ --(*m_variables.get(name)); });
+                        loop(return_value, [&](){ return *m_variables.get(name) != begin; }, [&](){ --(*m_variables.get(name)); });
+                        if(*m_variables.get(name) == begin)
+                        {
+                            try
+                            {
+                                return_value = evaluateExpression(for_expression->getBody());
+                            }
+                            catch(const BreakException& break_exception)
+                            {
+                                if(for_expression->getLabel() == break_exception.label || break_exception.label.empty());
+                                else throw (endScope(), break_exception);
+                            }
+                            catch(const ContinueException& continue_exception)
+                            {
+                                if(for_expression->getLabel() == continue_exception.label || continue_exception.label.empty());
+                                else throw (endScope(), continue_exception);
+                            }
+                        }
                     }
                     else
                     {
@@ -249,6 +266,7 @@ namespace linc
                         loop(return_value, [&](){ return *m_variables.get(name) != end; }, [&](){ ++(*m_variables.get(name)); });
                     }
                     
+                    endScope();
                     return return_value;
                 }
                 
@@ -260,7 +278,8 @@ namespace linc
                     Value return_value = Value::fromDefault(Types::fromKind(Types::Kind::_char));
                     m_variables.append(name, PrimitiveValue(c_string[0ul]));
                     loop(return_value, [&](){ return *c_string; }, [&](){ ++c_string; *m_variables.get(name) = PrimitiveValue(*c_string); });
-
+                    
+                    endScope();
                     return return_value;
                 }
 
@@ -270,6 +289,7 @@ namespace linc
                 m_variables.append(name, array.getCount() == 0ul? PrimitiveValue::voidValue: array.get(0ul));
                 loop(return_value, [&](){ auto test = i < array.getCount(); if(test) *m_variables.get(name) = array.get(i); return test; }, [&](){ ++i; });
                 
+                endScope();
                 return return_value;
             }
             else if(auto while_expression = dynamic_cast<const BoundWhileExpression*>(expression))
@@ -691,10 +711,10 @@ namespace linc
             }
             else if(auto array_initializer_expression = dynamic_cast<const BoundArrayInitializerExpression*>(expression))
             {
-                ArrayValue result = ArrayValue::fromDefault(*expression->getType().array.baseType);
+                ArrayValue result = ArrayValue::fromDefault(*expression->getType().array.baseType, array_initializer_expression->getValues().size());
 
-                for(const auto& value: array_initializer_expression->getValues())
-                    result.push(evaluateExpression(value.get()));
+                for(std::size_t i{0ul}; i < array_initializer_expression->getValues().size(); ++i)
+                    result.set(i, evaluateExpression(array_initializer_expression->getValues()[i].get()));
 
                 return std::move(result);
             }
