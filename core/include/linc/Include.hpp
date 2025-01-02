@@ -19,3 +19,4 @@
 #include <utility>
 #include <memory>
 #include <functional>
+#include <csignal>

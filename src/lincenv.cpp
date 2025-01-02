@@ -1,6 +1,6 @@
-#include <linc/Preprocessor.hpp>
 #include <linc/System.hpp>
 #include <linc/Lexer.hpp>
+#include <linc/Preprocessor.hpp>
 #include <linc/Tree.hpp>
 #include <linc/Parser.hpp>
 #include <linc/BoundTree.hpp> 
@@ -10,7 +10,6 @@
 #ifdef LINC_WINDOWS
 #include "Windows.hpp"
 #endif
-
 #define LINC_EXIT_SUCCESS 0
 #define LINC_EXIT_FAILURE_LINC_EXCEPTION 1
 #define LINC_EXIT_FAILURE_STANDARD_EXCEPTION 2
@@ -193,13 +192,12 @@ try
 
         linc::Reporting::setSpansEnabled(true);
     };
+    static const auto prompt = linc::Logger::format("$linc $:$$>$ ", linc::Colors::toANSI(linc::Colors::getCurrentColor()),
+        linc::Colors::toANSI(success? linc::Colors::Color::Yellow: linc::Colors::Color::Red), linc::Colors::toANSI(linc::Colors::Color::Default));
 
     init();
     while(true)
     {
-        auto prompt = linc::Logger::format("$linc $:$$>$ ", linc::Colors::toANSI(linc::Colors::getCurrentColor()),
-            linc::Colors::toANSI(success? linc::Colors::Color::Yellow: linc::Colors::Color::Red), linc::Colors::toANSI(linc::Colors::Color::Default));
-
         success = true;
 
         std::string buffer, buffer_tolower;

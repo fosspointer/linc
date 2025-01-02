@@ -53,6 +53,18 @@ namespace linc
         std::string result;
         std::string::size_type index{};
 
+        static const std::function<void(int)> sigint_handler = [&](int signal){
+            std::fputs("\n\r", stdout);
+            std::fputs(std::string{prompt}.c_str(), stdout);
+            std::fflush(stdout);
+            result.clear();
+            index = {};
+        };
+
+        std::signal(SIGINT, [](int signal){
+            sigint_handler(signal);
+        });
+
         while(true)
         {
             char character = std::getchar();
@@ -60,6 +72,8 @@ namespace linc
             {
                 std::fputc('\n', stdout); break;
             }
+            else if(character == 4)
+                std::exit(0);
 
             if(character == 127ul || character == '\b')
             {

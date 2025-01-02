@@ -1,4 +1,5 @@
 #pragma once
+#include <linc/system/Exception.hpp>
 #include <linc/Include.hpp>
 
 namespace linc
