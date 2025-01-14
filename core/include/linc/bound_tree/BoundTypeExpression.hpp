@@ -25,7 +25,7 @@ namespace linc
             if(auto kind = std::get_if<Types::type::Primitive>(&m_root))
                 root = std::make_unique<Types::type>(*kind, m_isMutable);
             else if(auto structure = std::get_if<Types::type::Structure>(&m_root))
-                root = std::make_unique<Types::type>(Types::type::cloneStructure(structure, m_isMutable), m_isMutable);
+                root = std::make_unique<Types::type>(Types::type::cloneStructure(*structure, m_isMutable), m_isMutable);
             else if(auto enumeration = std::get_if<Types::type::Enumeration>(&m_root))
                 root = std::make_unique<Types::type>(*enumeration, m_isMutable);
             else root = std::make_unique<Types::type>(Types::type::cloneFunction(&std::get<Types::type::Function>(m_root)), m_isMutable);

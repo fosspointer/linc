@@ -31,7 +31,7 @@ namespace linc
             Types::type::Structure types;
             
             for(const auto& field: m_fields)
-                types.push_back(std::pair(field->getName(), field->getActualType().clone()));
+                types.push_back(std::pair(field->getActualType(), field->getName()));
 
             return Types::type(std::move(types));
         }

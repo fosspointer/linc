@@ -6,6 +6,7 @@
 #include <linc/bound_tree/BoundBinaryExpression.hpp>
 #include <linc/bound_tree/BoundUnaryExpression.hpp>
 #include <linc/bound_tree/BoundTypeExpression.hpp>
+#include <linc/bound_tree/BoundDeclaration.hpp>
 #include <linc/tree/TypeExpression.hpp>
 
 namespace linc
@@ -57,7 +58,7 @@ namespace linc
             return m_boundDeclarations.getSymbols();
         }
 
-        [[nodiscard]] class BoundProgram bindProgram(const Program* program);
+        [[nodiscard]] struct BoundProgram bindProgram(const Program* program);
         [[nodiscard]] std::unique_ptr<const class BoundNode> bindNode(const Node* node);
         [[nodiscard]] std::unique_ptr<const class BoundStatement> bindStatement(const class Statement* statement);
         [[nodiscard]] std::unique_ptr<const class BoundDeclaration> bindDeclaration(const class Declaration* expression);

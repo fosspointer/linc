@@ -1,10 +1,10 @@
 #pragma once
 #include <linc/bound_tree/BoundDeclaration.hpp>
+#include <linc/bound_tree/BoundTypeExpression.hpp>
+#include <linc/bound_tree/BoundIdentifierExpression.hpp>
 
 namespace linc
 {
-    class BoundTypeExpression;
-    class BoundIdentifierExpression;
     class BoundExternalDeclaration final : public BoundDeclaration
     {
     public:

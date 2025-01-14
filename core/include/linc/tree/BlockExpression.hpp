@@ -29,7 +29,7 @@ namespace linc
             statements.reserve(m_statements.size());
 
             for(const auto& statement: m_statements)
-                statements.push_back(std::move(statement->clone()));
+                statements.push_back(statement->clone());
 
             auto tail = m_tail? m_tail->clone(): nullptr;
             return std::make_unique<const BlockExpression>(m_leftBrace, m_rightBrace, std::move(statements), std::move(tail));

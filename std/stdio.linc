@@ -1,3 +1,32 @@
 #guard
 fn println(str: string) putln(str)
 fn print(str: string) puts(str)
+
+fn readFile(filename: string): string {
+    file_descriptor := sys_open(filename, 0i32, 0u16);
+    
+    if file_descriptor < 0i32 {
+        putln("Error: unable to open file. Error code: " + @(-file_descriptor));
+        sys_exit(1i32);
+    };
+
+    buffer: mut string;
+    result: mut string;
+    bytes_read: mut i64;
+
+    while true {
+        bytes_read = sys_read(file_descriptor, buffer, 1024u64);
+        if bytes_read < 0i64 {
+            println("Error: Failed to read file. Error code: " + @(-bytes_read));
+            sys_close(file_descriptor);
+            sys_exit(2i32);
+        }
+        else if bytes_read == 0i64 {
+            break;
+        };
+        result += buffer;
+    };
+
+    sys_close(file_descriptor);
+    result
+}

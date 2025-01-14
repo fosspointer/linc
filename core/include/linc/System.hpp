@@ -5,6 +5,7 @@
 #include <linc/system/PrimitiveValue.hpp>
 #include <linc/system/EnumeratorValue.hpp>
 #include <linc/system/ArrayValue.hpp>
+#include <linc/system/FunctionValue.hpp>
 #include <linc/system/Reporting.hpp>
 #include <linc/system/TextSpan.hpp>
 #include <linc/system/Logger.hpp>

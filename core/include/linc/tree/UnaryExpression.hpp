@@ -21,7 +21,7 @@ namespace linc
 
         virtual std::unique_ptr<const Expression> clone() const final override
         {
-            return std::make_unique<const UnaryExpression>(m_operatorToken, std::move(m_operand->clone()));
+            return std::make_unique<const UnaryExpression>(m_operatorToken, m_operand->clone());
         }
 
         inline const Expression* const getOperand() const { return m_operand.get(); }

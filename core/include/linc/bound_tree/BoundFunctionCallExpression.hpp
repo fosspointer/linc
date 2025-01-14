@@ -8,21 +8,15 @@ namespace linc
     class BoundFunctionCallExpression final : public BoundExpression
     {
     public:
-        struct Argument final
-        {
-            std::string name;
-            std::unique_ptr<const BoundExpression> value;
-        };
+        BoundFunctionCallExpression(Types::type type, std::unique_ptr<const BoundExpression> function, std::vector<std::unique_ptr<const BoundExpression>> arguments);
 
-        BoundFunctionCallExpression(Types::type type, const std::string& name, std::vector<Argument> arguments);
-
-        [[nodiscard]] inline const std::string& getName() const { return m_name; }
-        [[nodiscard]] inline const std::vector<Argument>& getArguments() const { return m_arguments; }
+        [[nodiscard]] inline const BoundExpression* const getFunction() const { return m_function.get(); }
+        [[nodiscard]] inline const std::vector<std::unique_ptr<const BoundExpression>>& getArguments() const { return m_arguments; }
 
         virtual std::unique_ptr<const BoundExpression> clone() const final override;
     private:
         virtual std::string toStringInner() const final override;
-        const std::string m_name;
-        const std::vector<Argument> m_arguments;
+        const std::unique_ptr<const BoundExpression> m_function;
+        const std::vector<std::unique_ptr<const BoundExpression>> m_arguments;
     };
 }

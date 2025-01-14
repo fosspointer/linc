@@ -50,7 +50,6 @@ namespace linc
                     }
 
                     bool found{false};
-
                     for(const auto& definition: m_definitions)
                         if(definition.name == *identifier.value)
                         {
@@ -66,23 +65,36 @@ namespace linc
                         {
                             std::vector<TokenList> arguments{TokenList{}};
                             match(Token::Type::ParenthesisLeft);
-                            
-                            while(peek() && peek()->type != Token::Type::PreprocessorSpecifier)
+
+                            using ssize_t = std::make_signed<size_t>::type;
+                            ssize_t parentheses_count{0l};
+                            while(peek() && (peek()->type != Token::Type::ParenthesisRight || parentheses_count > 0l))
                             {
+                                if(peek()->type == Token::Type::ParenthesisLeft)
+                                    ++parentheses_count;
+                                else if(peek()->type == Token::Type::ParenthesisRight)
+                                    --parentheses_count;
+
                                 arguments.back().push_back(consume());
-                                
-                                if(peek() && peek()->type == Token::Type::PreprocessorSpecifier)
+                                if(peek()->type == Token::Type::Comma && parentheses_count == 0l)
                                 {
                                     consume();
-                                    if(peek() && peek()->type == Token::Type::ParenthesisRight)
-                                    {
-                                        match(Token::Type::ParenthesisRight);  
-                                        break;
-                                    }
-                                    else arguments.push_back(TokenList{});
+                                    arguments.push_back(TokenList{});
                                 }
-                            }                           
+                            }
+                            if(parentheses_count != 0l)
+                                Reporting::push(Reporting::Report{
+                                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
+                                    .span = TextSpan::fromTokenInfo(peekInfo()),
+                                    .message = Logger::format("$ Unmatched parentheses in macro expansion.", peekInfo())
+                                });
+                            match(Token::Type::ParenthesisRight); 
                             std::vector<Token> body = embedMacroArguments(macro, arguments);
+                            body.push_back(Token{.type = Token::Type::EndOfFile, .info = peekInfo()});
+                            Preprocessor preprocessor(body, m_filepath);
+                            preprocessor.appendDefinitions(m_definitions, m_macros);
+                            body = preprocessor();
+                            body.pop_back();
 
                             output.insert(output.end(), body.begin(), body.end());
                             found = true;
@@ -165,7 +177,7 @@ namespace linc
                     }
 
                     while(peek() && peek()->type != Token::Type::PreprocessorSpecifier)
-                            body.push_back(consume());
+                        body.push_back(consume());
 
                     match(Token::Type::PreprocessorSpecifier);
                     m_macros.push_back(Macro{.name = *identifier.value, .arguments = arguments, .body = std::move(body)});
@@ -213,16 +225,8 @@ namespace linc
             
             return output;
         }
-    private:
-        static std::string filepathToDirectory(const std::string& path)
-        {
-        #ifdef LINC_WINDOWS
-            return path.substr(0ul, path.find_last_of('\\'));
-        #else
-            return path.substr(0ul, path.find_last_of('/'));
-        #endif
-        }
 
+    private:
         struct Definition
         {
             std::string name;
@@ -235,6 +239,21 @@ namespace linc
             std::vector<std::string> arguments;
             std::vector<Token> body;
         };
+
+        inline void appendDefinitions(std::vector<Definition>& definitions, std::vector<Macro>& macros)
+        {
+            m_definitions.insert(m_definitions.end(), definitions.begin(), definitions.end());
+            m_macros.insert(m_macros.end(), macros.begin(), macros.end());
+        }
+
+        static std::string filepathToDirectory(const std::string& path)
+        {
+        #ifdef LINC_WINDOWS
+            return path.substr(0ul, path.find_last_of('\\'));
+        #else
+            return path.substr(0ul, path.find_last_of('/'));
+        #endif
+        }
 
         static inline std::vector<Token> embedMacroArguments(const Macro& macro, const std::vector<TokenList>& arguments)
         {
@@ -276,24 +295,11 @@ namespace linc
             return m_tokens[m_index];
         }
 
-        inline bool nameExists(std::string_view name) const
-        {
-            for(const auto& macro: m_macros)
-                if(name == macro.name)
-                    return true;
-
-            for(const auto& definition: m_definitions)
-                if(name == definition.name)
-                    return true;
-
-            return false;
-        }
-
         inline Token consume() const
         {
             Token::Info info = peekInfo();
 
-            if(m_index + 1ul >= m_tokens.size())
+            if(m_index > m_tokens.size())
                 return (++m_index, Token{.type = Token::Type::EndOfFile, .info = info});
             return m_tokens[m_index++];
         }

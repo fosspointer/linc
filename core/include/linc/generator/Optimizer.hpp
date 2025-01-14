@@ -165,20 +165,14 @@ namespace linc
             {
                 auto body = optimizeExpression(function_declaration->getBody());
                 std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments;
-                std::vector<std::unique_ptr<const Types::type>> argument_types;
                 arguments.reserve(function_declaration->getArguments().size());
-                argument_types.reserve(function_declaration->getArguments().size());
-
                 for(const auto& argument: function_declaration->getArguments())
                 {
                     auto optimized_argument = Types::uniqueCast<const BoundVariableDeclaration>(optimizeDeclaration(argument.get()));
                     arguments.push_back(std::move(optimized_argument));
                 }
 
-                for(const auto& argument: arguments)
-                    argument_types.push_back(argument->getActualType().clone());
-
-                auto function_type = Types::type{Types::type::Function{function_declaration->getReturnType().clone(), std::move(argument_types)}};
+                auto function_type = Types::type{Types::type::Function{function_declaration->getReturnType().clone(), function_declaration->getFunctionType().function.argumentTypes}};
                 return std::make_unique<const BoundFunctionDeclaration>(function_type, function_declaration->getName(), std::move(arguments), std::move(body));
             }
             return declaration->clone();

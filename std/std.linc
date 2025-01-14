@@ -2,3 +2,4 @@
 #include `stdmath.linc`
 #include `stdio.linc`
 #include `stdstring.linc`
+#include `stdoption.linc`

@@ -1,6 +1,8 @@
 #pragma once
 #include <linc/tree/Expression.hpp>
 #include <linc/tree/NodeListClause.hpp>
+#include <linc/tree/IdentifierExpression.hpp>
+#include <linc/tree/LiteralExpression.hpp>
 
 namespace linc
 {
@@ -14,12 +16,12 @@ namespace linc
             std::unique_ptr<const NodeListClause<TypeExpression>> argumentTypes;
         };
 
-        using Root = std::variant<std::unique_ptr<const class IdentifierExpression>, FunctionRoot>;
+        using Root = std::variant<std::unique_ptr<const IdentifierExpression>, FunctionRoot>;
 
         struct ArraySpecifier final
         {
             std::optional<const Token> leftBracket, rightBracket;
-            std::unique_ptr<const class LiteralExpression> count;
+            std::unique_ptr<const LiteralExpression> count;
         };
 
         TypeExpression(const std::optional<Token>& mutability_Keyword, Root root, std::vector<ArraySpecifier> array_specifiers);

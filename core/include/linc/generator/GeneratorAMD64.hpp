@@ -228,15 +228,15 @@ namespace linc
 
         void generateFunctionCallExpression(const BoundFunctionCallExpression* expression)
         {
-            const auto& name = expression->getName();
+            // const auto& name = expression->getName();
 
-            for(std::size_t i{0ul}; i < expression->getArguments().size(); ++i)
-            {
-                generateExpression(expression->getArguments()[i].value.get());
-                m_emitter.pop(Registers::getArgumentName(static_cast<std::uint8_t>(i)));
-            }
-            m_emitter.unary(Emitter::UnaryInstruction::Call, name);
-            m_emitter.push(Registers::getReturn());
+            // for(std::size_t i{0ul}; i < expression->getArguments().size(); ++i)
+            // {
+            //     generateExpression(expression->getArguments()[i].value.get());
+            //     m_emitter.pop(Registers::getArgumentName(static_cast<std::uint8_t>(i)));
+            // }
+            // m_emitter.unary(Emitter::UnaryInstruction::Call, name);
+            // m_emitter.push(Registers::getReturn());
         }
 
         void generateExternalCallExpression(const BoundExternalCallExpression* expression)
@@ -794,13 +794,13 @@ namespace linc
                 m_emitter.push(Registers::getPrimary());
                 break;
             case BoundBinaryOperator::Kind::BitwiseShiftLeft:
-                if constexpr(Registers::getCount() != Registers::getSecondary())
+                if(Registers::getCount() != Registers::getSecondary())
                     m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getCount(), Registers::getSecondary());
                 m_emitter.binary(Emitter::BinaryInstruction::BitShiftLeft, Registers::getPrimary(), Registers::getCount(Registers::Size::Byte), kind);
                 m_emitter.push(Registers::getPrimary());
                 break;
             case BoundBinaryOperator::Kind::BitwiseShiftRight:
-                if constexpr(Registers::getCount() != Registers::getSecondary())
+                if(Registers::getCount() != Registers::getSecondary())
                     m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getCount(), Registers::getSecondary());
                 m_emitter.binary(Emitter::BinaryInstruction::BitShiftRight, Registers::getPrimary(), Registers::getCount(Registers::Size::Byte), kind);
                 m_emitter.push(Registers::getPrimary());
@@ -886,7 +886,7 @@ namespace linc
         }
     private:
         const BoundProgram* const m_program;
-        const Target::Platform m_platform;
+        [[maybe_unused]] const Target::Platform m_platform;
         Emitter m_emitter;
         std::unordered_set<std::string> m_externalDefinitions;
         ScopeStack<Variable> m_variables;

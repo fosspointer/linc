@@ -30,23 +30,14 @@ namespace linc
         {
             Types::type::Function function_clone;
             function_clone.returnType = function->returnType->clone();
-            function_clone.argumentTypes.reserve(function->argumentTypes.size());
-            
-            for(const auto& argument: function->argumentTypes)
-                function_clone.argumentTypes.push_back(argument->clone());
+            function_clone.argumentTypes = function->argumentTypes;
 
             return std::make_unique<const BoundTypeExpression>(std::move(function_clone), m_isMutable, std::move(m_arraySpecifiers));
         }
         else
         {
             const auto& structure = std::get<Types::type::Structure>(m_root);
-            Types::type::Structure new_structure;
-            new_structure.reserve(structure.size());
-
-            for(const auto& element: structure)
-                new_structure.push_back(std::pair(element.first, element.second->clone()));
-            
-            return std::make_unique<const BoundTypeExpression>(std::move(new_structure), m_isMutable, std::move(m_arraySpecifiers));
+            return std::make_unique<const BoundTypeExpression>(structure, m_isMutable, std::move(m_arraySpecifiers));
         }
     }
     

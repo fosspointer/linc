@@ -1,0 +1,30 @@
+#guard
+#macro __STD_OPTION(_type)
+enum Option_##_type {
+    Some(_type),
+    None
+}
+fn _type##_or(option: Option_##_type, alternative: _type) {
+    match option {
+        Option_##_type::Some(value) => value,
+        Option_##_type::None => alternative
+    }
+}
+#
+
+#macro __DEFINE_PRIMITIVES(macro)
+    macro(i8)
+    macro(i16)
+    macro(i32)
+    macro(i64)
+    macro(u8)
+    macro(u16)
+    macro(u32)
+    macro(u64)
+    macro(f32)
+    macro(f64)
+    macro(char)
+    macro(bool)
+    macro(string)
+    macro(type) #
+__DEFINE_PRIMITIVES(__STD_OPTION)

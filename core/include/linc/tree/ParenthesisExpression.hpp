@@ -33,7 +33,7 @@ namespace linc
 
         virtual std::unique_ptr<const Expression> clone() const final override
         {
-            return std::make_unique<const ParenthesisExpression>(m_leftParenthesisToken, m_rightParenthesisToken, std::move(m_expression->clone()));
+            return std::make_unique<const ParenthesisExpression>(m_leftParenthesisToken, m_rightParenthesisToken, m_expression->clone());
         }
 
         inline const Expression* const getExpression() const { return m_expression.get(); }

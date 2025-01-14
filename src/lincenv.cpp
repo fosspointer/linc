@@ -61,7 +61,7 @@ static int evaluateFile(std::string filepath, int argc, const char** argv, Argum
     {
         linc::Interpreter interpreter;
         std::vector<linc::NodeListClause<linc::Expression>::DelimitedNode> arguments;
-        for(int i{0}; i < argc; ++i)
+        for(int i{1}; i < argc; ++i)
             arguments.push_back(linc::NodeListClause<linc::Expression>::DelimitedNode{
                 .delimiter = i == argc - 1? std::nullopt: std::make_optional(linc::Token{.type = linc::Token::Type::Comma}),
                 .node = std::make_unique<const linc::LiteralExpression>(linc::Token{

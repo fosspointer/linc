@@ -35,7 +35,7 @@ namespace linc
             };
 
             using Primitive = Types::Kind;
-            using Structure = std::vector<std::pair<std::string, std::unique_ptr<const type>>>;
+            using Structure = std::vector<std::pair<type, std::string>>;
             using Enumeration = std::vector<std::pair<std::string, type>>;
 
             struct Array final
@@ -47,7 +47,7 @@ namespace linc
             struct Function final
             {
                 std::unique_ptr<const type> returnType;
-                std::vector<std::unique_ptr<const type>> argumentTypes;
+                std::vector<type> argumentTypes;
             };
 
             type(Primitive primitive, bool is_mutable = false)
@@ -57,7 +57,7 @@ namespace linc
             type(const Structure& _structure, bool is_mutable = false)
                 :kind(Kind::Structure), isMutable(is_mutable)
             {
-                new (&structure) std::vector{cloneStructure(&_structure, is_mutable)};
+                new (&structure) Structure{_structure};
             }
 
             type(const Enumeration& _enumeration, bool is_mutable = false)
@@ -97,7 +97,7 @@ namespace linc
                 {
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{.baseType = other.array.baseType->clone(), .count = other.array.count}; break;
-                case Kind::Structure: new (&structure) std::vector{cloneStructure(&other.structure, other.isMutable)}; break;
+                case Kind::Structure: new (&structure) Structure{cloneStructure(other.structure, isMutable)}; break;
                 case Kind::Function: new (&function) Function{cloneFunction(&other.function)}; break;
                 case Kind::Enumeration: new (&enumeration) Enumeration{other.enumeration}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
@@ -127,7 +127,7 @@ namespace linc
                 {
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{.baseType = other.array.baseType->clone(), .count = other.array.count}; break;
-                case Kind::Structure: new (&structure) std::vector{cloneStructure(&other.structure, other.isMutable)}; break;
+                case Kind::Structure: new (&structure) std::vector{cloneStructure(other.structure, isMutable)}; break;
                 case Kind::Function: new (&function) Function{cloneFunction(&other.function)}; break;
                 case Kind::Enumeration: new (&enumeration) Enumeration{other.enumeration}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
@@ -164,17 +164,13 @@ namespace linc
                 {
                     Structure structure_vector;
                     for(const auto& member: structure)
-                        structure_vector.push_back(std::pair(member.first, member.second->clone()));
+                        structure_vector.push_back(std::pair(member.first, member.second));
                  
                     return std::make_unique<const type>(std::move(structure_vector), isMutable);
                 }
                 case Kind::Function:
                 {
-                    std::vector<std::unique_ptr<const type>> argument_types;
-                    for(const auto& argument_type: function.argumentTypes)
-                        argument_types.push_back(argument_type->clone());
-                    
-                    return std::make_unique<const type>(Function{.returnType = function.returnType->clone(), .argumentTypes = std::move(argument_types)},
+                    return std::make_unique<const type>(Function{.returnType = function.returnType->clone(), .argumentTypes = function.argumentTypes},
                         isMutable);
                 }
                 case Kind::Enumeration: return std::make_unique<const type>(enumeration, isMutable);
@@ -196,7 +192,7 @@ namespace linc
                     if(structure.size() != other.structure.size()) return false;
 
                     for(Structure::size_type i{0ul}; i < structure.size(); ++i)
-                        if(*structure[i].second != *other.structure[i].second)
+                        if(structure[i].first != other.structure[i].first)
                             return false;
 
                     return true;
@@ -207,7 +203,7 @@ namespace linc
                     || function.argumentTypes.size() != other.function.argumentTypes.size()) return false;
 
                     for(decltype(Function::argumentTypes)::size_type i{0ul}; i < function.argumentTypes.size(); ++i)
-                        if(!function.argumentTypes[i] || !other.function.argumentTypes[i] || *function.argumentTypes[i] != *other.function.argumentTypes[i])
+                        if(function.argumentTypes[i] != other.function.argumentTypes[i])
                             return false;
 
                     return true;
@@ -238,8 +234,7 @@ namespace linc
                     if(structure.size() != other.structure.size()) return false;
 
                     for(Structure::size_type i{0ul}; i < structure.size(); ++i)
-                        if(!structure.at(i).second || !other.structure.at(i).second) return false;
-                        else if(!structure[i].second->isAssignableTo(*other.structure[i].second)) return false;
+                        if(!structure[i].first.isAssignableTo(other.structure[i].first)) return false;
                 
                     return true;
                 case Kind::Function: return type(function) == type(other.function);
@@ -264,28 +259,17 @@ namespace linc
             };
             bool isMutable;
 
-            static Structure cloneStructure(const Structure* structure, bool is_mutable)
+            static Structure cloneStructure(Structure structure, bool is_mutable)
             {
-                Structure result;
-
-                for(const auto& type: *structure)
-                {
-                    auto clone = type.second->clone();
-                    const_cast<Types::type*>(clone.get())->isMutable = clone->isMutable || is_mutable;
-                    result.push_back(std::pair(type.first, std::move(clone)));
-                }
-
-                return result;
+                for(auto& type: structure)
+                    type.first.isMutable |= type.first.isMutable;
+                
+                return structure;
             }
 
             static Function cloneFunction(const Function* function)
             {
-                std::vector<std::unique_ptr<const Types::type>> argument_types;
-
-                for(const auto& argument_type: function->argumentTypes)
-                    argument_types.push_back(argument_type->clone());
-
-                return Function{.returnType = function->returnType->clone(), .argumentTypes = std::move(argument_types)};
+                return Function{.returnType = function->returnType->clone(), .argumentTypes = function->argumentTypes};
             }
         };
        

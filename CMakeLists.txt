@@ -20,6 +20,8 @@ target_compile_options(linc_core PUBLIC
     $<$<CXX_COMPILER_ID:MSVC>:/W4 /permissive->
 )
 
+string(TIMESTAMP YEAR "%Y")
+
 target_include_directories(linc_core
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/include)
 
@@ -31,6 +33,7 @@ target_compile_definitions(linc_core PUBLIC
     $<$<CONFIG:Debug>:LINC_DEBUG>
     $<$<CONFIG:RelWithDebInfo>:LINC_DEBUG>
     LINC_VERSION=\"${PROJECT_VERSION}\"
+    LINC_YEAR=\"${YEAR}\"
 )
 
 target_compile_definitions(linc_core PUBLIC LINC_INSTALL_PATH="${CMAKE_INSTALL_PREFIX}")

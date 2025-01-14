@@ -52,9 +52,9 @@ namespace linc
                 });
 
             auto main_call = std::make_unique<const linc::CallExpression>(
-                linc::Token{.type = linc::Token::Type::Identifier, .value = main->getName()},
                 linc::Token{.type = linc::Token::Type::ParenthesisLeft},
                 linc::Token{.type = linc::Token::Type::ParenthesisRight},
+                std::make_unique<const IdentifierExpression>(linc::Token{.type = linc::Token::Type::Identifier, .value = main->getName()}),
                 std::make_unique<const NodeListClause<Expression>>(std::move(main_argument_list), Token::Info{}), false);
 
             auto bound_main_call = binder.bindExpression(main_call.get());
@@ -132,13 +132,20 @@ namespace linc
             {
                 auto value = variable_declaration->getDefaultValue()? evaluateExpression(variable_declaration->getDefaultValue()):
                     Value::fromDefault(variable_declaration->getActualType());
-                m_variables.append(variable_declaration->getName(), value);
+                if(auto array = value.getIfArray(); array && array->getCount() == 0ul)
+                    value = ArrayValue::fromDefault(*variable_declaration->getActualType().array.baseType, 0ul);
+                m_identifiers.append(variable_declaration->getName(), value);
 
                 return PrimitiveValue::voidValue;
             }
             else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
             {
-                m_functions.append(function_declaration->getName(), function_declaration->getBody()->clone());
+                std::vector<std::string> argument_names;
+                argument_names.reserve(function_declaration->getArguments().size());
+                for(const auto& argument: function_declaration->getArguments())
+                    argument_names.push_back(argument->getName());
+                FunctionValue value(function_declaration->getName(), std::move(argument_names), function_declaration->getBody()->clone());
+                m_identifiers.append(function_declaration->getName(), value);
                 return PrimitiveValue::voidValue;
             }
             else if(dynamic_cast<const BoundExternalDeclaration*>(declaration))
@@ -240,9 +247,9 @@ namespace linc
                     if(reverse)
                     {
                         --end;
-                        m_variables.append(name, end);
-                        loop(return_value, [&](){ return *m_variables.get(name) != begin; }, [&](){ --(*m_variables.get(name)); });
-                        if(*m_variables.get(name) == begin)
+                        m_identifiers.append(name, end);
+                        loop(return_value, [&](){ return *m_identifiers.get(name) != begin; }, [&](){ --(*m_identifiers.get(name)); });
+                        if(*m_identifiers.get(name) == begin)
                         {
                             try
                             {
@@ -262,8 +269,8 @@ namespace linc
                     }
                     else
                     {
-                        m_variables.append(name, begin);
-                        loop(return_value, [&](){ return *m_variables.get(name) != end; }, [&](){ ++(*m_variables.get(name)); });
+                        m_identifiers.append(name, begin);
+                        loop(return_value, [&](){ return *m_identifiers.get(name) != end; }, [&](){ ++(*m_identifiers.get(name)); });
                     }
                     
                     endScope();
@@ -276,8 +283,8 @@ namespace linc
                     auto c_string = string.c_str();
                     
                     Value return_value = Value::fromDefault(Types::fromKind(Types::Kind::_char));
-                    m_variables.append(name, PrimitiveValue(c_string[0ul]));
-                    loop(return_value, [&](){ return *c_string; }, [&](){ ++c_string; *m_variables.get(name) = PrimitiveValue(*c_string); });
+                    m_identifiers.append(name, PrimitiveValue(c_string[0ul]));
+                    loop(return_value, [&](){ return *c_string; }, [&](){ ++c_string; *m_identifiers.get(name) = PrimitiveValue(*c_string); });
                     
                     endScope();
                     return return_value;
@@ -286,8 +293,8 @@ namespace linc
                 auto array = iterable.getArray();
                 Value return_value = Value::fromDefault(*expression_type.array.baseType);
                 std::size_t i{0ul};
-                m_variables.append(name, array.getCount() == 0ul? PrimitiveValue::voidValue: array.get(0ul));
-                loop(return_value, [&](){ auto test = i < array.getCount(); if(test) *m_variables.get(name) = array.get(i); return test; }, [&](){ ++i; });
+                m_identifiers.append(name, array.getCount() == 0ul? PrimitiveValue::voidValue: array.get(0ul));
+                loop(return_value, [&](){ auto test = i < array.getCount(); if(test) *m_identifiers.get(name) = array.get(i); return test; }, [&](){ ++i; });
                 
                 endScope();
                 return return_value;
@@ -342,8 +349,8 @@ namespace linc
                             auto enumerator = dynamic_cast<const BoundEnumeratorExpression*>(value.get());
                             if(!enumerator || match_expression->getTestExpression()->getType().kind != Types::type::Kind::Enumeration) return;
                             auto identifier = dynamic_cast<const BoundIdentifierExpression*>(enumerator->getValue());
-                            if(!identifier || m_variables.find(identifier->getValue())) return;
-                            m_variables.append(identifier->getValue(), test_expression.getEnumerator().getValue());    
+                            if(!identifier || m_identifiers.find(identifier->getValue())) return;
+                            m_identifiers.append(identifier->getValue(), test_expression.getEnumerator().getValue());    
                         }();
                         if(evaluateExpression(value.get()) == test_expression)
                         {
@@ -521,25 +528,12 @@ namespace linc
             }
             else if(auto identifier_expression = dynamic_cast<const BoundIdentifierExpression*>(expression))
             {
-                if(identifier_expression->getType().kind == Types::type::Kind::Function)
-                {
-                    auto find = m_functions.get(identifier_expression->getValue());
-
-                    if(!find)
-                        return (Reporting::push(Reporting::Report{
-                            .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                            .message = Logger::format("Function `$` does not exist!", identifier_expression->getValue())
-                        }), PrimitiveValue::invalidValue);
-
-                    return PrimitiveValue::voidValue;
-                }
-
-                auto find = m_variables.find(identifier_expression->getValue());
+                auto find = m_identifiers.find(identifier_expression->getValue());
                 
                 if(!find)
                     return (Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                        .message = Logger::format("Variable `$` does not exist!", identifier_expression->getValue())
+                        .message = Logger::format("Identifier `$` does not exist!", identifier_expression->getValue())
                     }), PrimitiveValue::invalidValue);
 
                 return *find;
@@ -551,15 +545,16 @@ namespace linc
             else if(auto function_call_expression = dynamic_cast<const BoundFunctionCallExpression*>(expression))
             {
                 beginScope();
-                for(const auto& argument: function_call_expression->getArguments())
+                auto function = evaluateExpression(function_call_expression->getFunction());
+                for(std::size_t i{0ul}; i < function_call_expression->getArguments().size(); ++i)
                 {
-                    auto value = evaluateExpression(argument.value.get());
-                    m_variables.append(argument.name, value);
+                    auto value = evaluateExpression(function_call_expression->getArguments()[i].get());
+                    m_identifiers.append(function.getFunction().getArgumentNames().at(i), value);
                 }
 
                 try
                 {
-                    auto result = evaluateExpression(m_functions.get(function_call_expression->getName())->get());
+                    auto result = evaluateExpression(function.getFunction().getBody());
                     endScope();
                     return result;
                 }
@@ -656,7 +651,7 @@ namespace linc
 
                     auto result = syscall(SYS_read, file, &buffer[0ul], count);
 
-                    *m_variables.get(identifier->getValue()) = PrimitiveValue(buffer);
+                    *m_identifiers.get(identifier->getValue()) = PrimitiveValue(buffer);
                     return PrimitiveValue(result < 0? -errno: result);
                 #else
                     return PrimitiveValue::invalidValue;
@@ -783,7 +778,7 @@ namespace linc
 
         inline void reset()
         {
-            m_variables = ScopeStack<Value>{};
+            m_identifiers = ScopeStack<Value>{};
         }
 
         static void printNodeTree(const BoundNode* node, std::string indent = "", bool last = true)
@@ -816,7 +811,7 @@ namespace linc
 
             if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(expression))
             {
-                *m_variables.get(identifier->getValue()) = new_value;
+                *m_identifiers.get(identifier->getValue()) = new_value;
                 result = new_value;
             }
             else if(auto index_expression = dynamic_cast<const BoundIndexExpression*>(expression))
@@ -826,7 +821,7 @@ namespace linc
 
                 if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(array))
                 {
-                    auto find = m_variables.find(identifier->getValue());
+                    auto find = m_identifiers.find(identifier->getValue());
                     
                     if(!find)
                         return PrimitiveValue::invalidValue;
@@ -850,7 +845,7 @@ namespace linc
 
                 if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(base))
                 {
-                    auto find = m_variables.find(identifier->getValue());
+                    auto find = m_identifiers.find(identifier->getValue());
                     
                     if(!find)
                         return PrimitiveValue::invalidValue;
@@ -880,20 +875,17 @@ namespace linc
 
         void beginScope()
         {
-            m_variables.beginScope();
-            m_functions.beginScope();
+            m_identifiers.beginScope();
             m_enumerations.beginScope();
         }
 
         void endScope()
         {
-            m_variables.endScope();
-            m_functions.endScope();
+            m_identifiers.endScope();
             m_enumerations.endScope();
         }
 
-        ScopeStack<Value> m_variables;
+        ScopeStack<Value> m_identifiers;
         ScopeStack<Types::type::Enumeration> m_enumerations;
-        ScopeStack<std::unique_ptr<const BoundExpression>> m_functions;
     };
 }

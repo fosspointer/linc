@@ -8,7 +8,7 @@ namespace linc
 
     std::unique_ptr<const BoundStatement> BoundDeclarationStatement::clone() const
     {
-        return std::make_unique<const BoundDeclarationStatement>(std::move(m_declaration->clone()));
+        return std::make_unique<const BoundDeclarationStatement>(m_declaration->clone());
     }
 
     std::string BoundDeclarationStatement::toStringInner() const

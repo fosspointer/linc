@@ -315,7 +315,7 @@ namespace linc
         }
     }
 
-    void Binder:: reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::type operand_type, const Token::Info& info)
+    void Binder::reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::type operand_type, const Token::Info& info)
     {
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -486,7 +486,7 @@ namespace linc
         auto name = declaration->getIdentifier()->getValue();
 
         std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments;
-        std::vector<std::unique_ptr<const Types::type>> argument_types;
+        std::vector<Types::type> argument_types;
         arguments.reserve(declaration->getArguments()->getList().size());
         argument_types.reserve(declaration->getArguments()->getList().size());
 
@@ -521,7 +521,7 @@ namespace linc
         }
 
         for(const auto& argument: arguments)
-            argument_types.push_back(argument->getActualType().clone());
+            argument_types.push_back(argument->getActualType());
 
         ++m_inFunction;
         m_currentFunctionType = return_type;
@@ -644,10 +644,13 @@ namespace linc
 
         else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find.get()))
             return std::make_unique<const BoundIdentifierExpression>(value, function->getFunctionType());
+        
+        else if(auto external = dynamic_cast<const BoundExternalDeclaration*>(find.get()))
+            return std::make_unique<const BoundIdentifierExpression>(value, external->getActualType()->getActualType());
 
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-            .message = Logger::format("$ Cannot reference identifier '$', as it is not a variable.", expression->getTokenInfo(), value)});
+            .message = Logger::format("$ Cannot reference identifier '$', as it does not refer to value.", expression->getTokenInfo(), value)});
 
         return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
     }
@@ -734,11 +737,11 @@ namespace linc
         else if(auto function = expression->getIfFunctionRoot())
         {
             auto return_type = bindTypeExpression(function->returnType.get())->getActualType().clone();
-            std::vector<std::unique_ptr<const Types::type>> argument_types;
+            std::vector<Types::type> argument_types;
             argument_types.reserve(function->argumentTypes->getList().size());
 
             for(const auto& type: function->argumentTypes->getList())
-                argument_types.push_back(bindTypeExpression(type.node.get())->getActualType().clone());
+                argument_types.push_back(bindTypeExpression(type.node.get())->getActualType());
 
             return std::make_unique<const BoundTypeExpression>(Types::type::Function{std::move(return_type), std::move(argument_types)}, expression->getMutabilityKeyword().has_value(),
                 std::move(specifiers));
@@ -764,7 +767,7 @@ namespace linc
                 types.reserve(structure_declaration->getFields().size());
 
                 for(const auto& field: structure_declaration->getFields())
-                    types.push_back(std::pair(field->getName(), field->getActualType().clone()));
+                    types.push_back(std::pair(field->getActualType(), field->getName()));
 
                 return std::make_unique<const BoundTypeExpression>(std::move(types), expression->getMutabilityKeyword().has_value(), std::move(specifiers));
             }
@@ -889,78 +892,90 @@ namespace linc
 
     const std::unique_ptr<const BoundFunctionCallExpression> Binder::bindFunctionCallExpression(const CallExpression* expression)
     {
-        auto name = expression->getIdentifier().value.value();
-        std::vector<BoundFunctionCallExpression::Argument> arguments;
+        auto function = bindExpression(expression->getFunction());
+        std::vector<std::unique_ptr<const BoundExpression>> arguments;
         
-        auto find = m_boundDeclarations.find(name);
-
-        if(!find)
+        if(function->getType().kind != Types::type::Kind::Function)
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot call undeclared function '$'.", expression->getTokenInfo(), name)});
-
-        else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find.get()); !function)
-            Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot call identifier '$', as it is not a function.", expression->getTokenInfo(), name)});
+                .message = Logger::format("$ Cannot call non-functor expression of type $.",
+                    expression->getTokenInfo(), PrimitiveValue(function->getType()))});
 
         else 
         {
             const auto& list = expression->getArguments()->getList();
-            if(function->getArguments().size() < list.size()
-            || function->getArguments().size() - function->getDefaultArgumentCount() > list.size())
+            const auto& function_type = function->getType().function;
+            std::vector<std::unique_ptr<const BoundExpression>> default_arguments;
+            [&]()
+            {
+                auto identifier = dynamic_cast<const BoundIdentifierExpression*>(function.get());
+                if(!identifier) return;
+
+                auto find = m_boundDeclarations.find(identifier->getValue());
+                if(!find) return;
+
+                auto function = dynamic_cast<const BoundFunctionDeclaration*>(find.get());
+                if(!function) return;
+                
+                for(const auto& argument: function->getArguments())
+                    if(argument->getDefaultValue())
+                        default_arguments.push_back(argument->getDefaultValue()->clone());
+            }();
+
+            if(function_type.argumentTypes.size() < list.size()
+            || function_type.argumentTypes.size() - default_arguments.size() > list.size())
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                    .message = Logger::format("$ Tried to call function '$' with $ arguments, when it takes $ (with $ default arguments).", 
-                        expression->getTokenInfo(), name, list.size(), function->getArguments().size(),
-                        function->getDefaultArgumentCount())});
+                    .message = Logger::format("$ Tried to call function with $ arguments, when it takes $ (with $ default arguments).", 
+                        expression->getTokenInfo(), list.size(), function_type.argumentTypes.size(),
+                        default_arguments.size())});
 
             using _size = std::vector<std::unique_ptr<const Expression>>::size_type;
 
-            for(_size i{0ul}; i < std::min(list.size(), function->getArguments().size()); i++)
+            for(_size i{0ul}; i < std::min(list.size(), function_type.argumentTypes.size()); i++)
             {
                 const auto& argument = list[i];
-                const auto& declared_argument = function->getArguments()[i];
+                const auto& declared_argument_type = function_type.argumentTypes[i];
                 auto bound_argument = bindExpression(argument.node.get());
 
-                if(!declared_argument->getActualType().isCompatible(bound_argument->getType()))
+                if(!declared_argument_type.isCompatible(bound_argument->getType()))
                 {
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                        .message = Logger::format("$ Invalid argument type in function '$'.", expression->getTokenInfo(), name)});
+                        .message = Logger::format("$ Invalid argument type in function.", expression->getTokenInfo())});
                     
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
                         .message = Logger::format("$ Argument $ called with type `$`, expected `$`.",
-                            expression->getTokenInfo(), i, bound_argument->getType(), declared_argument->getActualType())});
+                            expression->getTokenInfo(), i, bound_argument->getType(), declared_argument_type)});
                 }
 
-                else arguments.push_back(BoundFunctionCallExpression::Argument{
-                    .name = declared_argument->getName(),
-                    .value = std::move(bound_argument)
-                });
+                else arguments.push_back(std::move(bound_argument));
             }
 
-            for(_size i{list.size()}; i < function->getArguments().size()
-                && i >= function->getArguments().size() - function->getDefaultArgumentCount(); ++i)
+            auto identifier = dynamic_cast<const BoundIdentifierExpression*>(function.get());
+            auto find = identifier? m_boundDeclarations.find(identifier->getValue()): nullptr;
+            for(_size i{list.size()}; i < function_type.argumentTypes.size()
+                && i >= function_type.argumentTypes.size() - default_arguments.size(); ++i)
             {
-                const auto& declared_argument = function->getArguments()[i];
-                
-                arguments.push_back(BoundFunctionCallExpression::Argument{
-                    .name = declared_argument->getName(),
-                    .value = declared_argument->getDefaultValue()->clone()
-                });
+                if(!identifier) break;
+                auto function = static_cast<const BoundFunctionDeclaration*>(find.get());
+                arguments.push_back(function->getArguments().at(i)->getDefaultValue()->clone());
             }
 
-            return std::make_unique<const BoundFunctionCallExpression>(function->getReturnType(), name, std::move(arguments));
+            return std::make_unique<const BoundFunctionCallExpression>(*function_type.returnType, std::move(function), std::move(arguments));
         }
 
-        return std::make_unique<const BoundFunctionCallExpression>(Types::invalidType, name, std::move(arguments));
+        return std::make_unique<const BoundFunctionCallExpression>(Types::invalidType, std::move(function), std::move(arguments));
     }
 
     const std::unique_ptr<const BoundExternalCallExpression> Binder::bindExternalCallExpression(const CallExpression* expression)
     {
-        auto name = expression->getIdentifier().value.value();
+        auto function = expression->getFunction();
+        auto base_identifier = dynamic_cast<const IdentifierExpression*>(function);
+        if(!base_identifier)
+            throw LINC_EXCEPTION_ILLEGAL_STATE(expression);
+        auto name = base_identifier->getValue();
         std::vector<std::unique_ptr<const BoundExpression>> arguments;
 
         auto find = m_boundDeclarations.find(name);
@@ -1244,8 +1259,8 @@ namespace linc
         auto structure = Types::type{base->getType()}.structure;
 
         for(std::size_t index{0ul}; index < structure.size(); ++index)
-            if(structure[index].first == name)
-                return std::make_unique<const BoundAccessExpression>(std::move(base), index, *structure[index].second);
+            if(structure[index].second == name)
+                return std::make_unique<const BoundAccessExpression>(std::move(base), index, structure[index].first);
 
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -1337,9 +1352,9 @@ namespace linc
         
         auto structure = Types::type::Structure{};
         structure.reserve(3ul);
-        structure.push_back(std::make_pair(std::string("begin"), begin_expression->getType().clone()));
-        structure.push_back(std::make_pair(std::string("end"), end_expression->getType().clone()));
-        structure.push_back(std::make_pair(std::string("reverse"), Types::fromKind(Types::Kind::_bool).clone()));
+        structure.push_back(std::make_pair(begin_expression->getType(), std::string("begin")));
+        structure.push_back(std::make_pair(end_expression->getType(), std::string("end")));
+        structure.push_back(std::make_pair(Types::fromKind(Types::Kind::_bool), std::string("reverse")));
 
         if(!begin_expression->getType().isCompatible(end_expression->getType()))
             Reporting::push(Reporting::Report{
@@ -1412,12 +1427,12 @@ namespace linc
             type = Types::type::Primitive::_char;
         else if(expression->getType().kind == Types::type::Kind::Structure && expression->getType().structure.size() == 3ul)
         {
-            auto begin_type_mutable = *expression->getType().structure[0ul].second;
+            auto begin_type_mutable = expression->getType().structure[0ul].first;
             begin_type_mutable.isMutable = true;
 
-            if(begin_type_mutable.isCompatible(*expression->getType().structure[1ul].second)
+            if(begin_type_mutable.isCompatible(expression->getType().structure[1ul].first)
             && BoundUnaryOperator(BoundUnaryOperator::Kind::Increment, begin_type_mutable).getReturnType() != Types::invalidType
-            && *expression->getType().structure[2ul].second == Types::fromKind(Types::Kind::_bool))
+            && expression->getType().structure[2ul].first == Types::fromKind(Types::Kind::_bool))
             {
                 type = begin_type_mutable;
             }

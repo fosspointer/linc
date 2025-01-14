@@ -339,6 +339,16 @@ namespace linc
         
         while(true)
         {
+            if(peek() && peek()->type == Token::Type::ParenthesisLeft)
+            {
+                auto left_parenthesis = consume();
+                auto arguments = parseNodeListClause(LAMBDA_PARSE(Expression));
+                auto right_parenthesis = match(Token::Type::ParenthesisRight);
+                auto identifier = dynamic_cast<const IdentifierExpression*>(base.get());
+                auto is_external = identifier && findDefinition(identifier->getValue()) == Definition::Kind::External;
+
+                base = std::make_unique<const CallExpression>(left_parenthesis, right_parenthesis, std::move(base), std::move(arguments), is_external);
+            }
             if(peek() && peek()->type == Token::Type::SquareLeft)
             {
                 auto left_bracket = consume();
@@ -622,35 +632,6 @@ namespace linc
         return std::make_unique<const StructureInitializerExpression>(left_brace, std::move(identifier), std::move(arguments));
     }
 
-    std::unique_ptr<const CallExpression> Parser::parseCallExpression() const
-    {
-        if(!peek(1ul) || !peek()->isIdentifier() || peek(1ul)->type != Token::Type::ParenthesisLeft)
-            return nullptr;
-
-        auto identifier = consume();
-        auto left_parenthesis = consume();
-        auto arguments = parseNodeListClause(LAMBDA_PARSE(Expression));
-        auto right_parenthesis = match(Token::Type::ParenthesisRight);
-        auto definition = findDefinition(identifier.value.value_or(""));
-        
-        if(!definition)
-            return (Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                .span = TextSpan::fromTokenInfo(identifier.info),
-                .message = Logger::format("$ Call to undeclared function `$`.", identifier.info, identifier.value.value_or(""))
-            }), nullptr);
-
-        else if(definition != Definition::Kind::Function && definition != Definition::Kind::External && definition != Definition::Kind::Variable)
-            return (Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                .span = TextSpan::fromTokenInfo(identifier.info),
-                .message = Logger::format("$ Call to non-callable symbol `$`.", identifier.info, identifier.value.value_or(""))
-            }), nullptr);
-
-        return std::make_unique<const CallExpression>(identifier, left_parenthesis, right_parenthesis, std::move(arguments),
-            definition == Definition::Kind::External);
-    }
-
     std::unique_ptr<const EnumeratorExpression> Parser::parseEnumeratorExpression() const
     {
         if(peek()->type != Token::Type::Identifier || !isValidTypeDefinition(peek()->value.value_or("")) || peek(1ul)->type != Token::Type::DoubleColon)
@@ -712,9 +693,6 @@ namespace linc
 
         else if(auto structure_initializer = parseStructureInitializerExpression())
             return structure_initializer;
-        
-        else if(auto function_call = parseCallExpression())
-            return function_call;
 
         else if(auto namespace_access = parseEnumeratorExpression())
             return namespace_access;

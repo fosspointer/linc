@@ -9,10 +9,10 @@
 namespace linc
 {
     template <typename T>
-    struct NodeListClause;
+    class NodeListClause;
 
     template <typename FIRST, typename SECOND>
-    struct VariantClause;
+    class VariantClause;
     
     /// @brief Class responsible for the parsing stage of compilation. Parses a list of tokens into AST nodes.
     class Parser final 
@@ -85,7 +85,7 @@ namespace linc
         std::unique_ptr<const class RangedForClause> parseRangedForClause() const;
 
         /// @brief Parse the following tokens as an optional loop identifier.
-        std::optional<class LoopLabel> parseLoopLabel() const;
+        std::optional<struct LoopLabel> parseLoopLabel() const;
 
         /// @brief Parse the following tokens as an AST statement.
         std::unique_ptr<const class Statement> parseStatement() const;
@@ -156,9 +156,6 @@ namespace linc
         /// @brief Parse the following tokens as an AST identifier expression.
         /// @param type_inclusive Treat type identifiers as valid.
         std::unique_ptr<const class IdentifierExpression> parseIdentifierExpression(bool type_inclusive = false) const;
-
-        /// @brief Parse the following tokens as an AST function call expression.
-        std::unique_ptr<const class CallExpression> parseCallExpression() const;
 
         /// @brief Parse the following tokens as an AST namespace access expression.
         std::unique_ptr<const class EnumeratorExpression> parseEnumeratorExpression() const;

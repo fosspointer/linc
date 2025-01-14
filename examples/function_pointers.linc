@@ -1,0 +1,16 @@
+fn filter(array: string[], function: fn(string): bool) {
+    result: mut string[] = [];
+    for element in array {
+        if function(element) result += [element];
+    };
+    result
+}
+
+fn main() {
+    fn endsInPunctuation(str: string): bool {
+        if +str == 0u64 { return false; };
+        last := str[+str - 1u64];
+        last == '!' || last == '.' || last == '?'
+    };
+    putln(@filter(["hello", "world", "foo!", "goodbye.", "bar?", "hey"], endsInPunctuation));
+}

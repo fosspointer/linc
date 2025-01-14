@@ -1,25 +1,12 @@
-%define SYS_READ 0
-%define SYS_WRITE 1
-%define SYS_OPEN 2
-%define SYS_CLOSE 3
-%define SYS_MMAP 9
-%define SYS_MUNMAP 11
-%define SYS_EXIT 60
-%define STR_BUFFER_SIZE 1024
-
-%define STDOUT 1
-%define STDIN 0
-
-section .bss
-    __std_string_buffer: resb STR_BUFFER_SIZE
 section .data
-    __std_true_literal db "true", 0
-    __std_false_literal db "false", 0
+    __std_literal_true db "true", 0
+    __std_literal_false db "false", 0
 section .text
+    extern puts:function
+    extern putc:function
+    extern __memory_alloc:function
+    global putln:function
     global __memory_copy:function
-    global __memory_alloc:function
-    global __memory_free:function
-
     global __mod_f32:function
     global __mod_f64:function
 
@@ -35,18 +22,6 @@ section .text
     global __bool_to_string:function
     global __count_digits_signed:function
     global __count_digits_unsigned:function
-    
-    global putc:function
-    global puts:function
-    global putln:function
-    global readc:function
-    global readraw:function
-
-    global sys_read:function
-    global sys_write:function
-    global sys_open:function
-    global sys_close:function
-    global sys_exit:function
 
 __memory_copy:
     test rdx, rdx
@@ -54,28 +29,6 @@ __memory_copy:
     mov rcx, rdx
     rep movsb
 .done:
-    ret
-
-__memory_alloc:
-    add rdi, 8
-    mov rsi, rdi
-    xor rdi, rdi
-    mov rdx, 3
-    mov r10, 0x22
-    mov r8, -1
-    mov r9, 0
-    mov rax, SYS_MMAP
-    syscall
-
-    mov [rax], rsi
-    add rax, 8
-    ret
-
-__memory_free:
-    sub rdi, 8
-    mov rsi, [rdi]
-    mov rax, SYS_MUNMAP
-    syscall
     ret
 
 __mod_f32:
@@ -141,7 +94,7 @@ __string_concat:
     add rax, r14 ; rax = strlen(arg 1) + strlen(arg 2)
     inc rax ; rax = strlen(arg 1) + strlen(arg 2) + 1
     mov rdi, rax ; dest = rax (memory to allocate)
-    call __memory_alloc ; allocate the memory
+    call __memory_alloc wrt ..got; allocate the memory
     push rax
     mov rdi, rax ; dest = the new address
     mov rsi, rbx ; source = arg 0
@@ -165,7 +118,7 @@ __string_char_concat:
     push rsi
     mov rdi, rax
     inc rdi
-    call __memory_alloc
+    call __memory_alloc wrt ..got
     pop r8
     pop rsi
     pop rdx
@@ -184,7 +137,7 @@ __char_string_concat:
     push rsi
     mov rdi, rax
     inc rdi
-    call __memory_alloc
+    call __memory_alloc wrt ..got
     pop rcx
     mov byte [rax], cl
     inc rax
@@ -199,7 +152,7 @@ __char_concat:
     push rdi
     push rsi
     mov rdi, 3
-    call __memory_alloc
+    call __memory_alloc wrt ..got
     pop rsi
     pop rdi
     mov byte [rax], dil
@@ -211,7 +164,7 @@ __signed_to_string:
     call __count_digits_signed; count the digits of the number
     push rax; save count
     lea rdi, [rax + 1]; allocation = digit count + 1 (for nul termination)
-    call __memory_alloc; __memory_alloc(__count_digits_signed(rdi) + 1)
+    call __memory_alloc wrt ..got; __memory_alloc(__count_digits_signed(rdi) + 1)
     xor r8b, r8b; clear negative flag
     pop rcx; restore count
     pop rdi; restore rdi - number
@@ -249,7 +202,7 @@ __unsigned_to_string:
     call __count_digits_unsigned; count the digits of the number
     push rax; save count
     lea rdi, [rax + 1]; vvv
-    call __memory_alloc; __memory_alloc(__count_digits_unsigned(rdi) + 1)
+    call __memory_alloc wrt ..got; __memory_alloc(__count_digits_unsigned(rdi) + 1)
     pop rcx; restore count
     pop rdi; restore rdi - number
     test rdi, rdi; number test cases
@@ -276,48 +229,23 @@ __unsigned_to_string:
 __char_to_string:
     push rdi
     mov rdi, 2
-    call __memory_alloc
+    call __memory_alloc wrt ..got
     pop rdi
     mov qword [rax], rdi
     ret
 
 __bool_to_string:
-    lea rax, [rel __std_true_literal]
-    lea rdx, [rel __std_false_literal]
+    lea rax, [rel __std_literal_true]
+    lea rdx, [rel __std_literal_false]
     test di, di
     cmovz rax, rdx
     ret
 
-; putc(char): void
-putc:
-    push rdi
-    mov rax, SYS_WRITE
-    mov rdi, STDOUT
-    lea rsi, [rsp] 
-    mov rdx, 1
-    syscall
-    pop rdi
-    ret
-
-; puts(string): void
-puts:
-    xor rdx, rdx
-.loop:
-    inc rdx
-    mov cl, [rdi + rdx]
-    cmp cl, 0
-    jnz .loop
-    mov rsi, rdi
-    mov rax, SYS_WRITE
-    mov rdi, STDOUT
-    syscall
-    ret
-
 ; putln(string): void
 putln:
-    call puts
+    call qword [rel puts wrt ..got]
     mov dil, 0x0a
-    call putc
+    call [rel putc wrt ..got]
     ret
 
 ; __count_digits_signed(i64): u64
@@ -363,70 +291,3 @@ __count_digits_unsigned:
 .end:
     mov rax, rcx
     ret
-
-; readc(): char
-readc:
-    mov rdx, 1
-    lea rsi, [rel __std_string_buffer]
-    mov rax, SYS_READ
-    mov rdi, STDIN
-    mov rax, [rel __std_string_buffer]
-    syscall
-    ret
-
-; readraw(): string
-readraw:
-    push r11
-    mov rdx, STR_BUFFER_SIZE
-    lea rsi, [rel __std_string_buffer]
-    mov rax, SYS_READ
-    mov rdi, STDIN
-    syscall
-    lea rax, [rel __std_string_buffer]
-    lea rsi, [rel __std_string_buffer]
-.find_newline:
-    cmp byte [rsi], 0xa
-    je .found
-    inc rsi
-    jmp .find_newline
-.found:
-    mov byte [rsi], 0
-    sub rsi, rax
-    mov rdi, rsi
-    mov r11, rsi
-    call __memory_alloc
-    mov rdx, r11
-    mov rdi, rax
-    lea rsi, [rel __std_string_buffer]
-    call __memory_copy
-    pop r11
-    ret
-
-; sys_read(u32, string, u64): void
-sys_read:
-    mov rax, SYS_READ
-    syscall
-    ret
-
-; sys_write(u32, string, u64): void
-sys_write:
-    mov rax, SYS_WRITE
-    syscall
-    ret
-
-; sys_open(string, i32, i32): u32
-sys_open:
-    mov rax, SYS_OPEN
-    syscall
-    ret
-
-; sys_close(u32): void
-sys_close:
-    mov rax, SYS_CLOSE
-    syscall
-    ret
-
-; exit(i32): void
-sys_exit:
-    mov rax, SYS_EXIT
-    syscall

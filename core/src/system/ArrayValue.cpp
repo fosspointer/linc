@@ -27,6 +27,13 @@ namespace linc
         }
     }
 
+    ArrayValue::~ArrayValue()
+    {
+        s_stringFunction(*this, [this](std::size_t i){
+            reinterpret_cast<Types::string*>(m_data.data())[i].~basic_string();
+        });
+    }
+
     auto ArrayValue::fromDefault(const Types::type& type, std::size_t count) -> ArrayValue
     {
         switch(type.kind)
@@ -35,7 +42,7 @@ namespace linc
         case Types::type::Kind::Array: return ArrayValue(count, sizeof(ArrayValue), type);
         case Types::type::Kind::Structure: return ArrayValue(count, sizeof(std::vector<Value>), type);
         case Types::type::Kind::Enumeration: return ArrayValue(count, sizeof(EnumeratorValue), type);
-        case Types::type::Kind::Function: // return fromDefault(type.function);
+        case Types::type::Kind::Function: return ArrayValue(count, sizeof(FunctionValue), type);
         default:
             throw LINC_EXCEPTION_ILLEGAL_STATE(type.kind);
         }
@@ -73,7 +80,7 @@ namespace linc
         case Types::type::Kind::Array: reinterpret_cast<ArrayValue*>(m_data.data())[index] = value.getArray(); break;
         case Types::type::Kind::Structure: reinterpret_cast<std::vector<Value>*>(m_data.data())[index] = value.getStructure(); break;
         case Types::type::Kind::Enumeration: reinterpret_cast<EnumeratorValue*>(m_data.data())[index] = value.getEnumerator(); break;
-        case Types::type::Kind::Function: 
+        case Types::type::Kind::Function: reinterpret_cast<FunctionValue*>(m_data.data())[index] = value.getFunction(); break;
         default: throw LINC_EXCEPTION_ILLEGAL_STATE(m_type.kind);
         }
     }
@@ -110,7 +117,7 @@ namespace linc
         case Types::type::Kind::Array: return reinterpret_cast<const ArrayValue*>(m_data.data())[index];
         case Types::type::Kind::Structure: return Value{reinterpret_cast<const std::vector<Value>*>(m_data.data())[index]};
         case Types::type::Kind::Enumeration: return reinterpret_cast<const EnumeratorValue*>(m_data.data())[index];
-        case Types::type::Kind::Function: 
+        case Types::type::Kind::Function: return reinterpret_cast<const FunctionValue*>(m_data.data())[index];
         default: throw LINC_EXCEPTION_ILLEGAL_STATE(m_type.kind);
         }
     }

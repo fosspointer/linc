@@ -10,25 +10,22 @@ namespace linc
     class ArrayValue final
     {
     public:
-        template <typename T>
-        ArrayValue(const std::vector<T>& values, const Types::type& type)
-            :m_elementSize(sizeof(T)), m_type(type)
-        {
-            m_data.resize(m_elementSize * values.size());
-            std::memcpy(m_data.data(), values.data(), m_data.size());
-        }
-
         ArrayValue(const ArrayValue& other)
             :m_elementSize(other.m_elementSize), m_type(other.m_type)
         {
             m_data.resize(other.m_data.size());
             if(s_stringFunction(*this, [this, &other](std::size_t i){
-                new(&reinterpret_cast<Types::string*>(m_data.data())[i]) Types::string{reinterpret_cast<const Types::string*>(other.m_data.data())[i]};
+                new(&reinterpret_cast<Types::string*>(m_data.data())[i])
+                    Types::string{reinterpret_cast<const Types::string*>(other.m_data.data())[i]};
             }))
             {
                 m_data = other.m_data;
             }
         }
+
+        ArrayValue(ArrayValue&& other)
+            :m_elementSize(other.m_elementSize), m_type(other.m_type), m_data(std::move(other.m_data))
+        {}
 
         ArrayValue& operator=(const ArrayValue& other)
         {
@@ -36,22 +33,25 @@ namespace linc
             m_type = other.m_type;
             m_data.resize(other.m_data.size());
             if(s_stringFunction(*this, [this, &other](std::size_t i){
-                new(&reinterpret_cast<Types::string*>(m_data.data())[i]) Types::string{reinterpret_cast<const Types::string*>(other.m_data.data())[i]};
+                new(&reinterpret_cast<Types::string*>(m_data.data())[i])
+                    Types::string{reinterpret_cast<const Types::string*>(other.m_data.data())[i]};
             }))
             {
                 m_data = other.m_data;
             }
             return *this;
         }
-        
-        ~ArrayValue()
-        {
-            s_stringFunction(*this, [this](std::size_t i){
-                reinterpret_cast<Types::string*>(m_data.data())[i].~basic_string();
-            });
-        }
 
+        ArrayValue& operator=(ArrayValue&& other)
+        {
+            m_elementSize = other.m_elementSize;
+            m_type = other.m_type;
+            m_data = std::move(other.m_data);
+            return *this;
+        }
+        
         ArrayValue(std::size_t count, std::size_t element_size, const Types::type& type, bool initialize = true);
+        ~ArrayValue();
 
         bool operator==(const ArrayValue&) const = default;
         bool operator!=(const ArrayValue&) const = default;

@@ -61,10 +61,13 @@ namespace linc
             index = {};
         };
 
-        std::signal(SIGINT, [](int signal){
-            sigint_handler(signal);
-        });
-
+        struct sigaction old_action, new_action;
+        new_action.sa_handler = [](int signal){ sigint_handler(signal); };
+        sigemptyset(&new_action.sa_mask);
+        new_action.sa_flags = 0;
+        if(sigaction(SIGINT, &new_action, &old_action) == -1)
+            throw LINC_EXCEPTION_ILLEGAL_STATE(new_action);
+        
         while(true)
         {
             char character = std::getchar();
@@ -75,7 +78,7 @@ namespace linc
             else if(character == 4)
                 std::exit(0);
 
-            if(character == 127ul || character == '\b')
+            if(character == 127 || character == '\b')
             {
                 if(index == 0ul)
                 {
@@ -151,13 +154,13 @@ namespace linc
                     auto character = std::getchar();
                     if(character == csi_back)
                     {
-                        while(index != 0ul && result[index - 1ul] == ' ') { --index; std::fputs((std::string("\x1B[") + csi_back).c_str(), stdout); }
-                        while(index != 0ul && result[index - 1ul] != ' ') { --index; std::fputs((std::string("\x1B[") + csi_back).c_str(), stdout); }
-                    }
+                        while(index != 0ul && std::isspace(result[index - 1ul])) { --index; std::fputs((std::string("\x1B[") + csi_back).c_str(), stdout); }
+                        while(index != 0ul && !std::isspace(result[index - 1ul])) { --index; std::fputs((std::string("\x1B[") + csi_back).c_str(), stdout); }
+                    }      
                     else if(character == csi_forward)
                     {
-                        while(index < result.size() && result[index] == ' ') { ++index; std::fputs((std::string("\x1B[") + csi_forward).c_str(), stdout); }
-                        while(index < result.size() && result[index] != ' ') { ++index; std::fputs((std::string("\x1B[") + csi_forward).c_str(), stdout); }
+                        while(index < result.size() && std::isspace(result[index])) { ++index; std::fputs((std::string("\x1B[") + csi_forward).c_str(), stdout); }
+                        while(index < result.size() && !std::isspace(result[index])) { ++index; std::fputs((std::string("\x1B[") + csi_forward).c_str(), stdout); }
                     }
                     else std::fputc('\a', stdout);
                     break;
@@ -176,10 +179,13 @@ namespace linc
             std::fputc('\a', stdout);
         }
 
+        if(sigaction(SIGINT, &old_action, nullptr) == -1)
+            throw LINC_EXCEPTION_ILLEGAL_STATE(old_action);
+
         tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
         return result;
     #else
-        std::cout << prompt;
+        std::fputs(std::string{prompt}.c_str(), stdout);
         std::string result;
         std::getline(std::cin, result);
         return result;

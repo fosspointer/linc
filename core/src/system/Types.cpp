@@ -112,13 +112,13 @@ namespace linc
         case type::Kind::Structure:
             result.push_back('{');
             for(type::Structure::size_type i{0ul}; i < structure.size(); ++i)
-                result.append((i == 0ul? "": ", ") + structure[i].first + ": " + structure[i].second->toString());
+                result.append((i == 0ul? "": ", ") + structure[i].second + ": " + structure[i].first.toString());
             result.push_back('}');
             break;
         case type::Kind::Function:
             result.append("fn(");
             for(decltype(type::Function::argumentTypes)::size_type i{0ul}; i < function.argumentTypes.size(); ++i)
-                result.append((i == 0ul? "": ", ") + function.argumentTypes[i]->toString());
+                result.append((i == 0ul? "": ", ") + function.argumentTypes[i].toString());
             result.append("): " + function.returnType->toString());
             break;
         case type::Kind::Enumeration:

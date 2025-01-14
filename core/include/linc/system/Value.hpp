@@ -2,6 +2,7 @@
 #include <linc/system/PrimitiveValue.hpp>
 #include <linc/system/ArrayValue.hpp>
 #include <linc/system/EnumeratorValue.hpp>
+#include <linc/system/FunctionValue.hpp>
 
 #define LINC_VALUE_OPERATOR_UNARY_PRIMITIVE(op, return_type, const_keyword) \
 return_type operator op() const_keyword \
@@ -47,6 +48,7 @@ return_type operator op() const_keyword \
         case Kind::Array: return m_array op other.m_array; \
         case Kind::Structure: return m_structure op other.m_structure; \
         case Kind::Enumerator: return m_enumerator op other.m_enumerator; \
+        case Kind::Function: return m_function op other.m_function; \
         default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind); \
         } \
     }
@@ -58,7 +60,7 @@ namespace linc
     public:
         enum class Kind: char
         {
-            Invalid, Primitive, Array, Structure, Enumerator
+            Invalid, Primitive, Array, Structure, Enumerator, Function
         };
 
         Value(const PrimitiveValue& value)
@@ -79,6 +81,12 @@ namespace linc
             new (&m_enumerator) EnumeratorValue{value};
         }
 
+        Value(const FunctionValue& value)
+            :m_kind(Kind::Function)
+        {
+            new (&m_function) FunctionValue{value};
+        }
+
         explicit Value(const std::vector<Value>& value)
             :m_kind(Kind::Structure)
         {
@@ -94,6 +102,7 @@ namespace linc
             case Kind::Array: new (&m_array) ArrayValue{other.m_array}; break;
             case Kind::Structure: new (&m_structure) std::vector<Value>{copyStructure(other.m_structure)}; break;
             case Kind::Enumerator: new (&m_enumerator) EnumeratorValue{other.m_enumerator}; break;
+            case Kind::Function: new (&m_function) FunctionValue{other.m_function}; break;
             default:
                 throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
@@ -109,6 +118,7 @@ namespace linc
             case Kind::Array: new (&m_array) ArrayValue{other.m_array}; break;
             case Kind::Structure: new (&m_structure) std::vector<Value>{copyStructure(other.m_structure)}; break;
             case Kind::Enumerator: new (&m_enumerator) EnumeratorValue{other.m_enumerator}; break;
+            case Kind::Function: new (&m_function) FunctionValue{other.m_function}; break;
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
 
@@ -126,6 +136,7 @@ namespace linc
             case Kind::Array: new (&m_array) ArrayValue{std::move(other.m_array)}; break;
             case Kind::Structure: new (&m_structure) std::vector<Value>{copyStructure(other.m_structure)}; break;
             case Kind::Enumerator: new (&m_enumerator) EnumeratorValue{std::move(other.m_enumerator)}; break;
+            case Kind::Function: new (&m_function) FunctionValue{std::move(other.m_function)}; break;
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
         }
@@ -138,6 +149,7 @@ namespace linc
             case Kind::Array: m_array.~ArrayValue(); break;
             case Kind::Structure: m_structure.~vector(); break;
             case Kind::Enumerator: m_enumerator.~EnumeratorValue(); break;
+            case Kind::Function: m_function.~FunctionValue(); break;
             default: break;
             }
         }
@@ -153,6 +165,7 @@ namespace linc
             case Kind::Array: new (&m_array) ArrayValue{std::move(other.m_array)}; break;
             case Kind::Structure: new (&m_structure) std::vector<Value>{copyStructure(other.m_structure)}; break;
             case Kind::Enumerator: new (&m_enumerator) EnumeratorValue{std::move(other.m_enumerator)}; break;
+            case Kind::Function: new (&m_function) FunctionValue{std::move(other.m_function)}; break;
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
 
@@ -171,13 +184,14 @@ namespace linc
                 values.reserve(type.structure.size());
                 
                 for(const auto& member: type.structure)
-                    values.push_back(fromDefault(*member.second));
+                    values.push_back(fromDefault(member.first));
                 
                 return Value(values);
             }
             case Types::type::Kind::Enumeration:
                 return type.enumeration.empty()? Value(PrimitiveValue::voidValue):
                     Value(EnumeratorValue(type.enumeration.at(0ul).first, 0ul, fromDefault(type.enumeration.at(0ul).second)));
+            case Types::type::Kind::Function: return PrimitiveValue::invalidValue;
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(type.kind);
             }
         }
@@ -221,11 +235,14 @@ namespace linc
         inline const ArrayValue& getArray() const { return m_array; }
         inline const std::vector<Value>& getStructure() const { return m_structure; }
         inline const EnumeratorValue& getEnumerator() const { return m_enumerator; }
+        inline const FunctionValue& getFunction() const { return m_function; }
 
         inline PrimitiveValue& getPrimitive() { return m_primitive; }
         inline ArrayValue& getArray() { return m_array; }
         inline std::vector<Value>& getStructure() { return m_structure; }
         inline EnumeratorValue& getEnumerator() { return m_enumerator; }
+        inline FunctionValue& getFunction() { return m_function; }
+
 
         inline std::optional<PrimitiveValue> getIfPrimitive() const
         {
@@ -264,6 +281,7 @@ namespace linc
                 return result;
             }
             case Kind::Enumerator: return m_enumerator.getName();
+            case Kind::Function: return m_function.getName();
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
         }
@@ -286,6 +304,8 @@ namespace linc
             }
             case Kind::Enumerator:
                 return Colors::toANSI(Colors::Color::Cyan) + m_enumerator.getName() + Colors::toANSI(Colors::getCurrentColor()); 
+            case Kind::Function:
+                return Colors::toANSI(Colors::Color::Cyan) + m_function.getName() + Colors::toANSI(Colors::getCurrentColor()); 
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
         }
@@ -306,6 +326,7 @@ namespace linc
             PrimitiveValue m_primitive;
             ArrayValue m_array;
             EnumeratorValue m_enumerator;
+            FunctionValue m_function;
             std::vector<Value> m_structure;
         };
         Kind m_kind;
