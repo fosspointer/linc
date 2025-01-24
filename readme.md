@@ -1,6 +1,7 @@
 # Linc Language: Linc Is Not C
 
 *Disclaimer: Everything demonstrated is a Work In Progress (W.I.P), so the language is bound to undergo changes; some minor, some not so much.
+
 Linc is a general-purpose programming language inspired by C.
 Here are some of its key characteristics:
 
