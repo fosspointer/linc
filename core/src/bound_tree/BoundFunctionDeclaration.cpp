@@ -5,7 +5,7 @@ namespace linc
     BoundFunctionDeclaration::BoundFunctionDeclaration(const Types::type& function_type, const std::string& name, 
         std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments, 
         std::unique_ptr<const BoundExpression> body)
-        :m_functionType(function_type), m_name(name), m_arguments(std::move(arguments)), m_body(std::move(body))
+        :BoundDeclaration(name), m_functionType(function_type), m_arguments(std::move(arguments)), m_body(std::move(body))
     {}
 
     std::unique_ptr<const BoundDeclaration> BoundFunctionDeclaration::clone() const

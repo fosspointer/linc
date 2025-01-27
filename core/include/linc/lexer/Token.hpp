@@ -32,7 +32,7 @@ namespace linc
             // Keywords
             KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse, KeywordMutability, KeywordFinally,
             KeywordAs, KeywordFor, KeywordIn, KeywordExternal, KeywordBreak, KeywordContinue, KeywordStructure, KeywordMatch,
-            KeywordEnumeration,
+            KeywordEnumeration, KeywordGeneric, KeywordAlias,
 
             // Symbols
             ParenthesisLeft, ParenthesisRight, SquareLeft, SquareRight, BraceLeft, BraceRight, Colon, Comma, Tilde, Dot, PreprocessorSpecifier,

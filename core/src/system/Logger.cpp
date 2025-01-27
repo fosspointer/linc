@@ -20,13 +20,16 @@ namespace linc
     
     std::string Logger::logTypeToString(Type type)
     {
-        static const auto log_type_format{"\x1B[1;$m$\x1B[0m"};
+        static const auto debug   = Colors::toANSI(Colors::Bold | Colors::Cyan)   + "DEBUG";
+        static const auto info    = Colors::toANSI(Colors::Bold | Colors::Blue)   + "INFO";
+        static const auto warning = Colors::toANSI(Colors::Bold | Colors::Yellow) + "WARNING";
+        static const auto error   = Colors::toANSI(Colors::Bold | Colors::Red)    + "ERROR";
         switch(type)
         {
-        case Type::Debug:   return Logger::format(log_type_format, 36, "DEBUG");
-        case Type::Info:    return Logger::format(log_type_format, 34, "INFO");
-        case Type::Warning: return Logger::format(log_type_format, 33, "WARNING");
-        case Type::Error:   return Logger::format(log_type_format, 31, "ERROR");
+        case Type::Debug:   return debug;
+        case Type::Info:    return info;
+        case Type::Warning: return warning;
+        case Type::Error:   return error;
         default:
             throw LINC_EXCEPTION_OUT_OF_BOUNDS(type);
         }
@@ -37,9 +40,10 @@ namespace linc
         std::fputc('\n', stdout);
     }
 
-    std::string Logger::read(std::string_view prompt)
+    std::string Logger::read(std::string_view _prompt, bool is_shell)
     {
     #ifdef LINC_LINUX
+        std::string prompt{_prompt};
         static constexpr auto csi_back{'D'}, csi_forward{'C'}; 
         static constexpr auto csi_delete{"3~"}, csi_control{";5"};
         std::fputs(std::string(prompt).c_str(), stdout);
@@ -50,30 +54,72 @@ namespace linc
         new_term.c_lflag &= ~(ICANON | ECHO);
         tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
 
-        std::string result;
+        std::string result, line;
         std::string::size_type index{};
+        ssize_t depth{0l};
 
         static const std::function<void(int)> sigint_handler = [&](int signal){
+            prompt = _prompt;
             std::fputs("\n\r", stdout);
             std::fputs(std::string{prompt}.c_str(), stdout);
             std::fflush(stdout);
+            line.clear();
             result.clear();
             index = {};
+            depth = {};
         };
 
         struct sigaction old_action, new_action;
-        new_action.sa_handler = [](int signal){ sigint_handler(signal); };
-        sigemptyset(&new_action.sa_mask);
-        new_action.sa_flags = 0;
-        if(sigaction(SIGINT, &new_action, &old_action) == -1)
-            throw LINC_EXCEPTION_ILLEGAL_STATE(new_action);
+        if(is_shell)
+        {
+            new_action.sa_handler = [](int signal){ sigint_handler(signal); };
+            sigemptyset(&new_action.sa_mask);
+            new_action.sa_flags = 0;
+            if(sigaction(SIGINT, &new_action, &old_action) == -1)
+                throw LINC_EXCEPTION_ILLEGAL_STATE(new_action);
+        }
         
         while(true)
         {
+            ssize_t local_depth{0l};
             char character = std::getchar();
             if(character == '\n')
             {
-                std::fputc('\n', stdout); break;
+                for(char c: line)
+                    if(c == '{') ++local_depth;
+                    else if(c == '}') --local_depth;
+                if(local_depth < 0l)
+                {
+                    prompt.erase(prompt.size() - 3ul, 2ul);
+                    reprintLine(line, prompt, index);
+                }
+                depth += local_depth;
+                std::fputc('\n', stdout);
+                result += line;
+                if(!prompt.empty() && prompt[0ul] != '.')
+                {
+                    prompt.clear();
+                    prompt.reserve(_prompt.size());
+                    for(std::size_t i{0ul}; i < _prompt.size(); ++i) {
+                        if(_prompt[i] == '\x1B') while(_prompt[i++] != 'm');
+                        prompt.push_back('.');
+                    }
+                    prompt.back() = ' ';
+                }
+                if(depth <= 0l)
+                {
+                    prompt = _prompt;
+                    break;
+                }
+                else
+                {
+                    if(local_depth > 0l)
+                        prompt.append("  ");
+                    line.clear();
+                    fputs(std::string{_prompt}.c_str(), stdout);
+                    index = {};
+                    reprintLine(line, prompt, index);
+                }
             }
             else if(character == 4)
                 std::exit(0);
@@ -85,22 +131,21 @@ namespace linc
                     std::fputc('\a', stdout);
                     continue;
                 }
-
-                result.erase(index -1ul, 1ul);
+                line.erase(index -1ul, 1ul);
                 index--;
-                reprintLine(result, prompt, index);
+                reprintLine(line, prompt, index);
                 continue;
             }
             else if(character == 12)
             {
                 std::fputs("\033c", stdout);
-                reprintLine(result, prompt, index);
+                reprintLine(line, prompt, index);
                 continue;
             }
             else if(character == 1)
             {
                 index = 0ul;
-                reprintLine(result, prompt, index);
+                reprintLine(line, prompt, index);
                 continue;
             }
             else if(character == '\033')
@@ -117,7 +162,7 @@ namespace linc
                     else std::fputc('\a', stdout);
                     break;
                 case csi_forward: // Right arrow
-                    if(index < result.length())
+                    if(index < line.length())
                     {
                         index++;
                         std::fputs((std::string("\x1B[") + csi_forward).c_str(), stdout);
@@ -129,10 +174,10 @@ namespace linc
                     auto character = std::getchar();
                     if(character == csi_delete[1ul]) // Delete key
                     {
-                        if(index < result.length())
+                        if(index < line.length())
                         {
-                            result.erase(index, 1ul);
-                            reprintLine(result, prompt, index);
+                            line.erase(index, 1ul);
+                            reprintLine(line, prompt, index);
                         }
                         else std::fputc('\a', stdout);
                     }
@@ -140,10 +185,10 @@ namespace linc
                         && std::getchar() == csi_delete[1ul])
                     {
                         auto delete_index = index;
-                        while(delete_index < result.size() && result[delete_index] == ' ') ++delete_index;
-                        while(delete_index < result.size() && result[delete_index] != ' ') ++delete_index;
-                        result.erase(index, delete_index);
-                        reprintLine(result, prompt, index);
+                        while(delete_index < line.size() && line[delete_index] == ' ') ++delete_index;
+                        while(delete_index < line.size() && line[delete_index] != ' ') ++delete_index;
+                        line.erase(index, delete_index);
+                        reprintLine(line, prompt, index);
                     }
                     else std::fputc('\a', stdout);
                     break;
@@ -154,13 +199,13 @@ namespace linc
                     auto character = std::getchar();
                     if(character == csi_back)
                     {
-                        while(index != 0ul && std::isspace(result[index - 1ul])) { --index; std::fputs((std::string("\x1B[") + csi_back).c_str(), stdout); }
-                        while(index != 0ul && !std::isspace(result[index - 1ul])) { --index; std::fputs((std::string("\x1B[") + csi_back).c_str(), stdout); }
+                        while(index != 0ul && std::isspace(line[index - 1ul])) { --index; std::fputs((std::string("\x1B[") + csi_back).c_str(), stdout); }
+                        while(index != 0ul && !std::isspace(line[index - 1ul])) { --index; std::fputs((std::string("\x1B[") + csi_back).c_str(), stdout); }
                     }      
                     else if(character == csi_forward)
                     {
-                        while(index < result.size() && std::isspace(result[index])) { ++index; std::fputs((std::string("\x1B[") + csi_forward).c_str(), stdout); }
-                        while(index < result.size() && !std::isspace(result[index])) { ++index; std::fputs((std::string("\x1B[") + csi_forward).c_str(), stdout); }
+                        while(index < line.size() && std::isspace(line[index])) { ++index; std::fputs((std::string("\x1B[") + csi_forward).c_str(), stdout); }
+                        while(index < line.size() && !std::isspace(line[index])) { ++index; std::fputs((std::string("\x1B[") + csi_forward).c_str(), stdout); }
                     }
                     else std::fputc('\a', stdout);
                     break;
@@ -168,11 +213,10 @@ namespace linc
                 }
                 continue;
             }
-            else if(std::isprint(character))
+            if(std::isprint(character))
             {
-                result.insert(index, 1ul, character);
-                index++;
-                reprintLine(result, prompt, index);
+                line.insert(index++, 1ul, character);
+                reprintLine(line, prompt, index);
                 continue;
             }
             

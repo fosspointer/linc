@@ -56,13 +56,13 @@ fn main(args: string[]): i32 {
         return 0i32;
     }
     else if +args > 2u64 {
-        println("Usage:");
-        println(args[1u64] + ": interpret code from stdin.");
-        println(args[1u64] + "[FILE]: interpret code from a file.");
+        putln("Usage:");
+        putln(args[1u64] + ": interpret code from stdin.");
+        putln(args[1u64] + "[FILE]: interpret code from a file.");
         return -1i32;
     };
 
-    println("<Brainfuck interpreter in linc. Input a new-line character to start code evaluation.>");
+    putln("<Brainfuck interpreter in linc. Input a new-line character to start code evaluation.>");
 
     str mut := "";
     line mut := readln("");

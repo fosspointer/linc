@@ -1,40 +1,20 @@
 #pragma once
-#include <linc/system/Reporting.hpp>
 #include <linc/tree/Expression.hpp>
 
 namespace linc
 {
+    class GenericClause;
     class IdentifierExpression final : public Expression 
     {
     public:
-        IdentifierExpression(const Token& token)
-            :Expression(NodeInfo{.tokenList = {token}, .info = token.info}),
-            m_identifierToken(token)
-        {
-            if(m_identifierToken.type != Token::Type::Identifier)
-            {
-                Reporting::push(Reporting::Report{
-                        .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
-                        .message = linc::Logger::format("Identifier Expression expected identifier token. Got '$' instead.",
-                            Token::typeToString(m_identifierToken.type))});
-            }
-            else if(!m_identifierToken.value.has_value())
-            {
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
-                    .message = "Identifier token has no value."
-                });
-            }
-        }
-
-        virtual std::unique_ptr<const Expression> clone() const final override
-        {
-            return std::make_unique<const IdentifierExpression>(m_identifierToken); 
-        }
-
-        const Token& getIdentifierToken() const { return m_identifierToken; }
-        std::string getValue() const { return m_identifierToken.value.value_or(""); }
+        IdentifierExpression(const Token& token, std::unique_ptr<const GenericClause> generic);
+        ~IdentifierExpression();
+        virtual std::unique_ptr<const Expression> clone() const final override;
+        [[nodiscard]] const Token& getIdentifierToken() const { return m_identifierToken; }
+        [[nodiscard]] std::string getValue() const { return m_identifierToken.value.value_or(std::string{}); }
+        [[nodiscard]] const GenericClause* const getGeneric() const { return m_generic? m_generic.get(): nullptr; }
     private:
         const Token m_identifierToken;
+        const std::unique_ptr<const GenericClause> m_generic;
     };
 }

@@ -10,7 +10,7 @@ namespace linc
     public:
         EnumerationDeclaration(const Token& enumeration_keyword, const Token& left_brace, const Token& right_brace, std::unique_ptr<const IdentifierExpression> identifier,
             std::unique_ptr<const NodeListClause<EnumeratorClause>> enumerators)
-            :Declaration(enumeration_keyword.info), m_enumerationKeyword(enumeration_keyword), m_leftBrace(left_brace), m_rightBrace(right_brace), m_identifier(std::move(identifier)),
+            :Declaration(std::move(identifier), enumeration_keyword.info), m_enumerationKeyword(enumeration_keyword), m_leftBrace(left_brace), m_rightBrace(right_brace),
             m_enumerators(std::move(enumerators))
         {
             addToken(m_enumerationKeyword);
@@ -30,11 +30,9 @@ namespace linc
         inline const Token& getEnumerationKeyword() const { return m_enumerationKeyword; }
         inline const Token& getLeftBrace() const { return m_leftBrace; }
         inline const Token& getRightBrace() const { return m_rightBrace; }
-        inline const IdentifierExpression* const getIdentifier() const { return m_identifier.get(); }
         inline const auto* const getEnumerators() const { return m_enumerators.get(); }
     private:
         const Token m_enumerationKeyword, m_leftBrace, m_rightBrace;
-        const std::unique_ptr<const IdentifierExpression> m_identifier;
         const std::unique_ptr<const NodeListClause<EnumeratorClause>> m_enumerators;
     };
 }

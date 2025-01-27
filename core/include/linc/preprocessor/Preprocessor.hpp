@@ -13,12 +13,15 @@ namespace linc
     public:
         using TokenList = std::vector<Token>;
         using TokenSize = std::vector<Token>::size_type;
-        
-        Preprocessor(TokenList tokens, std::string_view filepath)
-            :m_tokens(std::move(tokens)), m_filepath(filepath)
-        {}
+        Preprocessor() = default;
 
-        static void reset()
+        void set(TokenList tokens, std::string_view filepath)
+        {
+            m_tokens = std::move(tokens);
+            m_filepath = filepath;
+        }
+
+        inline static void reset()
         {
             s_guardedFiles.clear();
         }
@@ -91,7 +94,8 @@ namespace linc
                             match(Token::Type::ParenthesisRight); 
                             std::vector<Token> body = embedMacroArguments(macro, arguments);
                             body.push_back(Token{.type = Token::Type::EndOfFile, .info = peekInfo()});
-                            Preprocessor preprocessor(body, m_filepath);
+                            Preprocessor preprocessor;
+                            preprocessor.set(body, m_filepath);
                             preprocessor.appendDefinitions(m_definitions, m_macros);
                             body = preprocessor();
                             body.pop_back();
@@ -139,7 +143,8 @@ namespace linc
                     auto raw_source = Files::read(filepath);
                     auto source = Code::toSource(raw_source, filepath);
                     Lexer lexer(source, false);
-                    Preprocessor preprocessor(lexer(), filepath);
+                    Preprocessor preprocessor;
+                    preprocessor.set(lexer(), filepath);
                     auto tokens = preprocessor();
 
                     output.insert(output.end(), tokens.begin(), tokens.end() - 1ul);
@@ -223,6 +228,9 @@ namespace linc
                     continue;
                 }
             
+            m_index = {};
+            m_matchFailed = {};
+
             return output;
         }
 
@@ -330,8 +338,8 @@ namespace linc
             return m_index < m_tokens.size()? m_tokens[m_index].info: m_tokens.back().info;
         }
 
-        const TokenList m_tokens;
-        const std::string m_filepath;
+        TokenList m_tokens;
+        std::string m_filepath;
         mutable std::vector<std::string> m_includeDirectories{"/usr/include/", "/usr/local/include/", LINC_INSTALL_PATH "/include/"};
         mutable std::vector<Definition> m_definitions;
         mutable std::vector<Macro> m_macros;

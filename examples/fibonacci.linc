@@ -1,7 +1,5 @@
 // The fibonacci number sequence demonstrated using linc!
 
-#include `std.linc`
-
 fn display_fibonacci(count: u8) {
     first: mut u32 = 0u32;
     second: mut u32 = 1u32;
@@ -10,11 +8,11 @@ fn display_fibonacci(count: u8) {
         first = (first + second);
         second = (first - second);
         
-        println("#" + @(index + 1u8) + ": " + @first);
+        putln("#" + @(index + 1u8) + ": " + @first);
         index
     };
 
-    println("The fibonacci number count displayed was " + @number_of_fibonacci + '.');
+    putln("The fibonacci number count displayed was " + @number_of_fibonacci + '.');
 }
 
 fn main() {

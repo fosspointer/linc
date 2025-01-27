@@ -109,7 +109,7 @@ namespace linc
 
     std::string BoundUnaryExpression::toStringInner() const
     {
-        return linc::Logger::format("Unary Expression (@$:$:$)", Colors::toANSI(Colors::Color::Green),
+        return linc::Logger::format("Unary Expression (@$:$:$)", Colors::toANSI(Colors::Green),
             BoundUnaryOperator::kindToString(m_operator->getKind()), Colors::toANSI(Colors::getCurrentColor()));
     }
 }

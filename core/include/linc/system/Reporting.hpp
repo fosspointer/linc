@@ -25,6 +25,14 @@ namespace linc
             {
                 return message == std::string{} || span == Report{}.span || span.lineStart == 0ul || span.lineStart == -1ul || span.lineEnd > span.lineStart || span.file == std::string{};
             }
+
+            std::string toString() const
+            {
+                if(isInvalid() || !s_spansEnabled)
+                    return Logger::format("$ $", stageToString(stage), message);
+                else
+                    return Logger::format("$ $\n $:#4in$:#3 `$`", stageToString(stage), message, span.get(s_source, type == Reporting::Type::Error? Colors::Red: Colors::Blue), Colors::pop(), Colors::push(Colors::Yellow));
+            }
         };
 
         using ReportList = std::vector<Report>; 

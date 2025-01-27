@@ -65,12 +65,10 @@ namespace linc
         [[nodiscard]] std::unique_ptr<const class BoundExpression> bindExpression(const class Expression* expression);
 
         [[nodiscard]] inline auto find(const std::string& name){ return m_boundDeclarations.find(name); }
+        [[nodiscard]] inline const std::vector<std::unordered_map<std::string, std::unique_ptr<const BoundDeclaration>>>& getGenericInstanceMaps() const { return m_genericInstanceMaps; }
 
         inline void reset() { m_boundDeclarations.clear(); }
     private:
-        static void reportInvalidBinaryOperator(BoundBinaryOperator::Kind operator_kind, Types::type left_type, Types::type right_type,
-            const Token::Info& info);
-        static void reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::type operand_type, const Token::Info& info);
         template <typename FROM, typename FUNC>
         [[nodiscard]] inline const auto bindNodeListClause(const class NodeListClause<FROM>* clause, FUNC bind_function)
         {
@@ -100,6 +98,8 @@ namespace linc
         [[nodiscard]] const std::unique_ptr<const class BoundExternalDeclaration> bindExternalDeclaration(const class ExternalDeclaration* declaration);
         [[nodiscard]] const std::unique_ptr<const class BoundStructureDeclaration> bindStructureDeclaration(const class StructureDeclaration* declaration);
         [[nodiscard]] const std::unique_ptr<const class BoundEnumerationDeclaration> bindEnumerationDeclaration(const class EnumerationDeclaration* declaration);
+        [[nodiscard]] const std::unique_ptr<const class BoundAliasDeclaration> bindAliasDeclaration(const class AliasDeclaration* declaration);
+        [[nodiscard]] const std::unique_ptr<const class BoundGenericDeclaration> bindGenericDeclaration(const class GenericDeclaration* declaration);
         [[nodiscard]] const std::unique_ptr<const class BoundIdentifierExpression> bindIdentifierExpression(const class IdentifierExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundEnumeratorExpression> bindEnumeratorExpression(const class EnumeratorExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundTypeExpression> bindTypeExpression(const class TypeExpression* expression);
@@ -121,6 +121,7 @@ namespace linc
         [[nodiscard]] const std::unique_ptr<const class BoundMatchClause> bindMatchClause(const class MatchClause* clause);
         [[nodiscard]] const std::unique_ptr<const class BoundEnumeratorClause> bindEnumeratorClause(const class EnumeratorClause* clause);
         [[nodiscard]] const std::unique_ptr<const class BoundVariantClause<class BoundLegacyForClause, class BoundRangedForClause>> bindForClause(const class VariantClause<class LegacyForClause, class RangedForClause>* clause);
+        [[nodiscard]] std::string bindGenericClause(const class GenericClause* clause, const class BoundGenericDeclaration* declaration, const Token::Info& info);
         [[nodiscard]] BoundUnaryOperator::Kind bindUnaryOperatorKind(Token::Type token_type);
         [[nodiscard]] BoundBinaryOperator::Kind bindBinaryOperatorKind(Token::Type token_type);
         [[nodiscard]] BoundTypeExpression::BoundArraySpecifiers bindArraySpecifiers(const std::vector<TypeExpression::ArraySpecifier>& specifiers);
@@ -128,6 +129,7 @@ namespace linc
         BoundSymbols m_boundDeclarations;
         Types::u64 m_inLoop{}, m_inFunction{};
         std::stack<std::string> m_matchIdentifiers{};
+        std::vector<std::unordered_map<std::string, std::unique_ptr<const BoundDeclaration>>> m_genericInstanceMaps;
         Types::type m_currentFunctionType{Types::voidType};
     };
 }

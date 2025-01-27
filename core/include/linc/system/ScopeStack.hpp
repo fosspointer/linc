@@ -53,6 +53,11 @@ namespace linc
             return static_cast<SymbolPointerType>(nullptr);
         }
 
+        inline void removeTop(const std::string& name)
+        {
+            m_symbols.back().erase(name);
+        }
+
         [[nodiscard]] inline std::stack<std::unordered_map<std::string, SYMBOL_TYPE>>::size_type getScopeSize() const { return m_symbols.size(); }
         [[nodiscard]] std::vector<std::pair<std::string, SYMBOL_TYPE>> getNamedSymbols() const
         {

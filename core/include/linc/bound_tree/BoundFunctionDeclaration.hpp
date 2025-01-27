@@ -14,7 +14,6 @@ namespace linc
 
         [[nodiscard]] inline const Types::type& getReturnType() const { return *m_functionType.function.returnType; }
         [[nodiscard]] inline const Types::type& getFunctionType() const { return m_functionType; }
-        [[nodiscard]] inline const std::string& getName() const { return m_name; }
         [[nodiscard]] inline const std::vector<std::unique_ptr<const BoundVariableDeclaration>>& getArguments() const { return m_arguments; }
         [[nodiscard]] inline const BoundExpression* const getBody() const { return m_body.get(); }
 
@@ -44,7 +43,6 @@ namespace linc
         virtual std::string toStringInner() const final override;
     
         const Types::type m_functionType;
-        const std::string m_name;
         const std::vector<std::unique_ptr<const BoundVariableDeclaration>> m_arguments;
         const std::unique_ptr<const BoundExpression> m_body;
     };

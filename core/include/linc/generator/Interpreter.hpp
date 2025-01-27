@@ -16,14 +16,18 @@ namespace linc
     class Interpreter final
     {
     public:
+        Interpreter(Binder& binder)
+            :m_binder(binder)
+        {}
+
         [[nodiscard("The return value of this function must match that of the environment's entry point (i.e. main()).")]]
-        int evaluateProgram(const BoundProgram* program, Binder& binder, std::unique_ptr<const ArrayInitializerExpression> argument_list)
+        int evaluateProgram(const BoundProgram* program, std::unique_ptr<const ArrayInitializerExpression> argument_list)
         {
             for(const auto& declaration: program->declarations)
                 evaluateDeclaration(declaration.get());
         
             auto main_name = linc::PrimitiveValue(std::string{"main"});
-            auto find_main = binder.find(main_name.getString());
+            auto find_main = m_binder.find(main_name.getString());
             if(!find_main)
             {
                 Reporting::push(Reporting::Report{
@@ -54,10 +58,10 @@ namespace linc
             auto main_call = std::make_unique<const linc::CallExpression>(
                 linc::Token{.type = linc::Token::Type::ParenthesisLeft},
                 linc::Token{.type = linc::Token::Type::ParenthesisRight},
-                std::make_unique<const IdentifierExpression>(linc::Token{.type = linc::Token::Type::Identifier, .value = main->getName()}),
+                std::make_unique<const IdentifierExpression>(linc::Token{.type = linc::Token::Type::Identifier, .value = main->getName()}, nullptr),
                 std::make_unique<const NodeListClause<Expression>>(std::move(main_argument_list), Token::Info{}), false);
 
-            auto bound_main_call = binder.bindExpression(main_call.get());
+            auto bound_main_call = m_binder.bindExpression(main_call.get());
 
             bool errors{false};
             for(const auto& report: Reporting::getReports())
@@ -94,21 +98,21 @@ namespace linc
                 return evaluateExpression(std::move(expression));
 
             else if(auto statement = dynamic_cast<const BoundStatement*>(node))
-                return evaluateStatement(std::move(statement));
+                return (evaluateStatement(std::move(statement)), PrimitiveValue::voidValue);
             
             else if(auto declaration = dynamic_cast<const BoundDeclaration*>(node))
-                return evaluateDeclaration(std::move(declaration));
+                return (evaluateDeclaration(std::move(declaration)), PrimitiveValue::voidValue);
 
             throw LINC_EXCEPTION_INVALID_INPUT("Encountered unreognized node during evaluation");
         }
 
-        Value evaluateStatement(const BoundStatement* statement)
+        void evaluateStatement(const BoundStatement* statement)
         {
             if(auto declaration_statement = dynamic_cast<const BoundDeclarationStatement*>(statement))
-                return evaluateDeclaration(declaration_statement->getDeclaration());
+                evaluateDeclaration(declaration_statement->getDeclaration());
             
             else if(auto expression_statement = dynamic_cast<const BoundExpressionStatement*>(statement))
-                return (evaluateExpression(expression_statement->getExpression()), PrimitiveValue::voidValue);
+                evaluateExpression(expression_statement->getExpression());
 
             else if(auto return_statement = dynamic_cast<const BoundReturnStatement*>(statement))
                 throw ReturnException{return_statement->getExpression()? evaluateExpression(return_statement->getExpression()): PrimitiveValue::voidValue};
@@ -119,14 +123,10 @@ namespace linc
             else if(auto continue_statement = dynamic_cast<const BoundContinueStatement*>(statement))
                 throw ContinueException{continue_statement->getLabel()};
 
-            else
-            {
-                throw LINC_EXCEPTION("Encountered unrecognized statement type while evaluating program"); 
-                return PrimitiveValue::invalidValue;
-            }
+            else throw LINC_EXCEPTION("Encountered unrecognized statement type while evaluating program"); 
         }
 
-        Value evaluateDeclaration(const BoundDeclaration* declaration)
+        void evaluateDeclaration(const BoundDeclaration* declaration)
         {
             if(auto variable_declaration = dynamic_cast<const BoundVariableDeclaration*>(declaration))
             {
@@ -135,8 +135,6 @@ namespace linc
                 if(auto array = value.getIfArray(); array && array->getCount() == 0ul)
                     value = ArrayValue::fromDefault(*variable_declaration->getActualType().array.baseType, 0ul);
                 m_identifiers.append(variable_declaration->getName(), value);
-
-                return PrimitiveValue::voidValue;
             }
             else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
             {
@@ -146,22 +144,15 @@ namespace linc
                     argument_names.push_back(argument->getName());
                 FunctionValue value(function_declaration->getName(), std::move(argument_names), function_declaration->getBody()->clone());
                 m_identifiers.append(function_declaration->getName(), value);
-                return PrimitiveValue::voidValue;
             }
-            else if(dynamic_cast<const BoundExternalDeclaration*>(declaration))
-                return PrimitiveValue::voidValue;
-            else if(dynamic_cast<const BoundStructureDeclaration*>(declaration))
-                return PrimitiveValue::voidValue;
+            else if(auto generic_declaration = dynamic_cast<const BoundGenericDeclaration*>(declaration))
+                m_generics.append(generic_declaration->getName(), generic_declaration->getInstanceMapIndex());
             else if(auto enumeration_declaration = dynamic_cast<const BoundEnumerationDeclaration*>(declaration))
-            {
                 m_enumerations.append(enumeration_declaration->getName(), enumeration_declaration->getActualType().enumeration);
-                return PrimitiveValue::voidValue;
-            }
-            else
-            {
-                throw LINC_EXCEPTION("Encountered unrecognized declaration type while evaluating program"); 
-                return PrimitiveValue::invalidValue;
-            }
+            else if(dynamic_cast<const BoundExternalDeclaration*>(declaration));
+            else if(dynamic_cast<const BoundStructureDeclaration*>(declaration));
+            else if(dynamic_cast<const BoundAliasDeclaration*>(declaration));
+            else throw LINC_EXCEPTION("Encountered unrecognized declaration type while evaluating program"); 
         }
 
         Value evaluateExpression(const BoundExpression* expression)
@@ -411,7 +402,7 @@ namespace linc
                     result = left * right;
                     break;
                 case BoundBinaryOperator::Kind::Division:
-                    if(right.getPrimitive().isZero())
+                    if(right.getPrimitive().isZero() && !Types::isFloating(binary_expression->getOperator()->getReturnType().primitive))
                         return (Reporting::push(Reporting::Report{
                             .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
                             .message = Logger::format("Attempted division by zero. Operands are `$` and `$` (`$`).",
@@ -528,13 +519,24 @@ namespace linc
             }
             else if(auto identifier_expression = dynamic_cast<const BoundIdentifierExpression*>(expression))
             {
-                auto find = m_identifiers.find(identifier_expression->getValue());
+                const auto& name = identifier_expression->getValue();
+                auto find = m_identifiers.find(name);
+                if(find) return *find;
                 
-                if(!find)
-                    return (Reporting::push(Reporting::Report{
-                        .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                        .message = Logger::format("Identifier `$` does not exist!", identifier_expression->getValue())
-                    }), PrimitiveValue::invalidValue);
+                std::size_t index;
+                if((index = name.find_first_of('|')) != std::string::npos)
+                {
+                    auto generic_name = name.substr(0ul, index);
+                    auto generic_types = name.substr(index + 1ul, name.size() - index - 1ul);
+                    auto generic_find = m_generics.find(generic_name);
+                    auto declaration = m_binder.getGenericInstanceMaps().at(*generic_find).at(generic_types).get();
+                    evaluateDeclaration(declaration);
+                    return evaluateExpression(identifier_expression);
+                }
+                return (Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                    .message = Logger::format("Identifier $ does not exist!", PrimitiveValue(name))
+                }), PrimitiveValue::invalidValue);
 
                 return *find;
             }
@@ -759,9 +761,25 @@ namespace linc
             {
                 auto index = enumerator_expression->getEnumeratorIndex();
                 auto value = enumerator_expression->getValue()? evaluateExpression(enumerator_expression->getValue()): PrimitiveValue::voidValue;
-                auto name = m_enumerations.get(enumerator_expression->getEnumerationName())->at(enumerator_expression->getEnumeratorIndex()).first;
+                auto enumeration_name = enumerator_expression->getEnumerationName();
+                auto find = m_enumerations.find(enumeration_name);
+                if(find)
+                    return EnumeratorValue(find->at(enumerator_expression->getEnumeratorIndex()).first, index, std::move(value));
+                
+                if((index = enumeration_name.find_first_of('|')) != std::string::npos)
+                {
+                    auto generic_name = enumeration_name.substr(0ul, index);
+                    auto generic_types = enumeration_name.substr(index + 1ul, enumeration_name.size() - index - 1ul);
+                    auto generic_find = m_generics.find(generic_name);
+                    auto declaration = m_binder.getGenericInstanceMaps().at(*generic_find).at(generic_types).get();
+                    evaluateDeclaration(declaration);
+                    return evaluateExpression(enumerator_expression);
+                }
 
-                return EnumeratorValue(name, index, std::move(value));
+                return (Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
+                    .message = Logger::format("Cannot access enumeration $", enumeration_name)
+                }), PrimitiveValue::invalidValue);
             }
             else if(auto range_expression = dynamic_cast<const BoundRangeExpression*>(expression))
             {
@@ -877,15 +895,19 @@ namespace linc
         {
             m_identifiers.beginScope();
             m_enumerations.beginScope();
+            m_generics.beginScope();
         }
 
         void endScope()
         {
             m_identifiers.endScope();
             m_enumerations.endScope();
+            m_generics.endScope();
         }
 
         ScopeStack<Value> m_identifiers;
+        ScopeStack<std::size_t> m_generics;
         ScopeStack<Types::type::Enumeration> m_enumerations;
+        Binder& m_binder;
     };
 }

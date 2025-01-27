@@ -27,6 +27,8 @@
 #include <linc/bound_tree/BoundExternalDeclaration.hpp>
 #include <linc/bound_tree/BoundStructureDeclaration.hpp>
 #include <linc/bound_tree/BoundEnumerationDeclaration.hpp>
+#include <linc/bound_tree/BoundAliasDeclaration.hpp>
+#include <linc/bound_tree/BoundGenericDeclaration.hpp>
 #include <linc/bound_tree/BoundStatement.hpp>
 #include <linc/bound_tree/BoundDeclarationStatement.hpp>
 #include <linc/bound_tree/BoundExpressionStatement.hpp>

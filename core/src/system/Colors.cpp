@@ -4,6 +4,7 @@
 namespace linc
 {
     std::stack<Colors::Color> Colors::s_colorStack{};
+    bool Colors::s_ansiSupported{true};
 
     std::string Colors::push(Color color)
     {
@@ -22,27 +23,30 @@ namespace linc
 
     std::string Colors::toANSI(Color color)
     {
-        static const std::string black  = "\x1B[0;30m";
-        static const std::string red    = "\x1B[0;31m";
-        static const std::string green  = "\x1B[0;32m";
-        static const std::string yellow = "\x1B[0;33m";
-        static const std::string blue   = "\x1B[0;34m";
-        static const std::string purple = "\x1B[0;35m";
-        static const std::string cyan   = "\x1B[0;36m";
-        static const std::string white  = "\x1B[0;37m";
-        static const std::string _default  = "\x1B[0m";
-
-        switch(color)
-        {
-        case Color::Black:  return black;
-        case Color::Red:    return red;
-        case Color::Green:  return green;
-        case Color::Yellow: return yellow;
-        case Color::Blue:   return blue;
-        case Color::Purple: return purple;
-        case Color::Cyan:   return cyan;
-        case Color::White:  return white;
-        default: return _default;
-        }
+        static const std::string empty{};
+        static const std::string default_escape{"\x1B[0m"};
+        
+        if(!s_ansiSupported)
+            return empty;
+        else if(color == Colors::Reset)
+            return default_escape;
+        
+        auto base_color = color & 0xF; // bits 0-4 = color
+        auto mode = color & 0x30; // bits 5-6 = mode
+        bool is_high_intensity = color >> 6; // bit 7 = high intensity
+        unsigned short offset;
+        if(mode == Colors::Background)
+            offset = is_high_intensity? 100: 40;
+        else
+            offset = is_high_intensity? 90: 30;
+        char begin = mode == Colors::Bold? '1': mode == Colors::Underline? '4': '0';
+        
+        std::string result{"\x1B["};
+        result.reserve(7ul);
+        result.push_back(begin);
+        result.push_back(';');
+        result.append(std::to_string(offset + base_color));
+        result.push_back('m');
+        return result;
     }
 }

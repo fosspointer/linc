@@ -171,14 +171,14 @@ namespace linc
 
     std::string ArrayValue::toString() const
     {
-        std::string result{Colors::push(Colors::Color::Purple)};
+        std::string result{Colors::push(Colors::Purple)};
         result.push_back('[');
 
         for(std::size_t i{0ul}; i * m_elementSize < m_data.size(); ++i)
         {
             if(i != 0ul)
             {
-                result.append(Colors::push(Colors::Color::Purple));
+                result.append(Colors::push(Colors::Purple));
                 result.append(", ");
                 result.append(Colors::pop());
             }

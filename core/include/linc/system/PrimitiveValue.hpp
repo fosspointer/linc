@@ -533,15 +533,15 @@ namespace linc
             case Kind::Signed:
             case Kind::Float: 
             case Kind::Double:
-                return Colors::Color::Blue; 
+                return Colors::Blue; 
             case Kind::String: 
             case Kind::Character:
-                return Colors::Color::Cyan;
+                return Colors::Cyan;
             case Kind::Boolean: 
             case Kind::Type:
-                return Colors::Color::Purple;
+                return Colors::Purple;
             default:
-                return Colors::Color::Default;
+                return Colors::Reset;
             }
         }
 
@@ -582,7 +582,7 @@ namespace linc
             {
                 std::string result;
 
-                result.append(Colors::push(Colors::Color::Blue));
+                result.append(Colors::push(Colors::Blue));
                 result.append("\\" + std::to_string(+character));
                 result.append(Colors::pop());
                 

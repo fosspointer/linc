@@ -243,7 +243,6 @@ namespace linc
         inline EnumeratorValue& getEnumerator() { return m_enumerator; }
         inline FunctionValue& getFunction() { return m_function; }
 
-
         inline std::optional<PrimitiveValue> getIfPrimitive() const
         {
             return m_kind == Kind::Primitive? std::make_optional(m_primitive): std::nullopt;
@@ -262,6 +261,11 @@ namespace linc
         inline std::optional<EnumeratorValue> getIfEnumerator() const
         {
             return m_kind == Kind::Enumerator? std::make_optional(m_enumerator): std::nullopt;
+        }
+
+        inline std::optional<FunctionValue> getIfFunction() const
+        {
+            return m_kind == Kind::Function? std::make_optional(m_function): std::nullopt;
         }
 
         [[nodiscard]] inline std::string toApplicationString() const 
@@ -303,9 +307,9 @@ namespace linc
                 return result;
             }
             case Kind::Enumerator:
-                return Colors::toANSI(Colors::Color::Cyan) + m_enumerator.getName() + Colors::toANSI(Colors::getCurrentColor()); 
+                return Colors::toANSI(Colors::Cyan) + m_enumerator.getName() + Colors::toANSI(Colors::getCurrentColor());
             case Kind::Function:
-                return Colors::toANSI(Colors::Color::Cyan) + m_function.getName() + Colors::toANSI(Colors::getCurrentColor()); 
+                return Colors::toANSI(Colors::Cyan) + m_function.getName() + Colors::toANSI(Colors::getCurrentColor());
             default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
             }
         }

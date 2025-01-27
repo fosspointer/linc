@@ -3,7 +3,7 @@
 #include `std.linc`
 
 fn call(greeting: string = "Hello", first_name: string = "John", last_name: string = "Doe") {
-    println(greeting + " \"" + first_name + ' ' + last_name + '"');
+    putln(greeting + " \"" + first_name + ' ' + last_name + '"');
 }
 
 fn main() {

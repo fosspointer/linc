@@ -1,4 +1,5 @@
 #include <linc/system/Reporting.hpp>
+#include <linc/system/Colors.hpp>
 
 namespace linc
 {
@@ -8,32 +9,27 @@ namespace linc
 
 
     std::string Reporting::stageToString(Stage stage){
-        const static auto format_string = "\x1B[4;90m$\x1B[0m";
+        using namespace std::string_literals;
+        const auto color = Colors::toANSI(Colors::Black | Colors::HighIntensity | Colors::Underline);
         switch(stage)
         {
-        case Stage::Environment:  return Logger::format(format_string, "ENVIRONMENT");
-        case Stage::Lexer:        return Logger::format(format_string, "LEXER");
-        case Stage::Preprocessor: return Logger::format(format_string, "PREPROCESSOR");
-        case Stage::Parser:       return Logger::format(format_string, "PARSER");
-        case Stage::AST:          return Logger::format(format_string, "AST");
-        case Stage::ABT:          return Logger::format(format_string, "ABT");
-        case Stage::Generator:    return Logger::format(format_string, "GENERATOR");
+        case Stage::Environment:  return color + "ENVIRONMENT"s + Colors::toANSI(Colors::Reset);
+        case Stage::Lexer:        return color + "LEXER"s + Colors::toANSI(Colors::Reset);
+        case Stage::Preprocessor: return color + "PREPROCESSOR"s + Colors::toANSI(Colors::Reset);
+        case Stage::Parser:       return color + "PARSER"s + Colors::toANSI(Colors::Reset);
+        case Stage::AST:          return color + "AST"s + Colors::toANSI(Colors::Reset);
+        case Stage::ABT:          return color + "ABT"s + Colors::toANSI(Colors::Reset);
+        case Stage::Generator:    return color + "GENERATOR"s + Colors::toANSI(Colors::Reset);
         default:
             throw LINC_EXCEPTION_OUT_OF_BOUNDS(stage);
         }
     }
 
-    void Reporting::push(const Report& report, bool log)
+    void Reporting::push(const Report& report, bool show_log)
     {
         s_reports.push_back(report);
-        if(log) [[likely]] 
-        {
-            if(report.isInvalid() || !s_spansEnabled)
-                Logger::log(report.type, "$ $", stageToString(report.stage), report.message);
-            else
-                Logger::log(report.type, "$ $\n $:#4in$:#3 `$`", stageToString(report.stage), report.message, report.span.get(s_source,
-                    report.type == Reporting::Type::Error? Colors::Color::Red: Colors::Color::Blue), Colors::pop(), Colors::push(Colors::Color::Yellow));
-        }
+        if(show_log) [[likely]] 
+            Logger::log(report.type, "$", report);
     }
 
     void Reporting::clearReports()

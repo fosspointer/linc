@@ -19,7 +19,7 @@ namespace linc
         [[nodiscard]] inline const Token::Info& getInfo() const { return m_info; }
         [[nodiscard]] virtual std::string toString() const
         {
-            std::string result{Colors::push(Colors::Color::Yellow)};
+            std::string result{Colors::push(Colors::Yellow)};
             result.append(toStringInner());
             result.append(Colors::pop());
             return result;

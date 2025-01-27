@@ -10,22 +10,18 @@ namespace linc
     public:
         struct Argument final
         {
-            const Token accessSpecifier, equalitySpecifier, separator;
+            const Token equalitySpecifier, separator;
             std::unique_ptr<const IdentifierExpression> identifier;
             std::unique_ptr<const Expression> value;
         };
 
-        StructureInitializerExpression(const Token& left_brace, std::unique_ptr<const IdentifierExpression> identifier,
-            std::vector<Argument> arguments)
-            :Expression(left_brace.info), m_leftBrace(left_brace), m_identifier(std::move(identifier)),
-            m_arguments(std::move(arguments))
+        StructureInitializerExpression(const Token& left_brace, std::unique_ptr<const IdentifierExpression> identifier, std::vector<Argument> arguments)
+            :Expression(identifier->getTokenInfo()), m_leftBrace(left_brace), m_identifier(std::move(identifier)), m_arguments(std::move(arguments))
         {
             addTokens(m_identifier->getTokens());
             addToken(m_leftBrace);
-            
             for(const auto& argument: m_arguments)
             {
-                addToken(argument.accessSpecifier);
                 addTokens(argument.identifier->getTokens());
                 addToken(argument.equalitySpecifier);
                 addTokens(argument.value->getTokens());
@@ -42,7 +38,6 @@ namespace linc
             {
                 auto identifier = Types::uniqueCast<const IdentifierExpression>(argument.identifier->clone());
                 arguments.push_back(Argument{
-                    .accessSpecifier = argument.accessSpecifier,
                     .equalitySpecifier = argument.equalitySpecifier,
                     .separator = argument.separator,
                     .identifier = std::move(identifier),

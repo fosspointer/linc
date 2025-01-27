@@ -2,6 +2,7 @@
 #include <linc/parser/Program.hpp>
 #include <linc/system/Reporting.hpp>
 #include <linc/system/Types.hpp>
+#include <linc/system/ScopeStack.hpp>
 #include <linc/lexer/Operators.hpp>
 #include <linc/lexer/Brackets.hpp>
 #include <linc/Include.hpp>
@@ -19,13 +20,9 @@ namespace linc
     {
     public:
         /// @brief A symbol generic definition representation.
-        struct Definition
+        enum class Definition: Types::u8
         {
-            enum class Kind: Types::u8
-            {
-                Function, Variable, External, Typename
-            } kind;
-            std::string identifier;
+            Function, Variable, External, Typename, Enumeration, Generic
         };
 
         using TokenList = std::vector<Token>;
@@ -84,6 +81,9 @@ namespace linc
         /// @brief Parse the following tokens as a ranged for clause. 
         std::unique_ptr<const class RangedForClause> parseRangedForClause() const;
 
+        /// @brief Parse the following tokens as a generic clause.
+        std::unique_ptr<const class GenericClause> parseGenericClause() const;
+
         /// @brief Parse the following tokens as an optional loop identifier.
         std::optional<struct LoopLabel> parseLoopLabel() const;
 
@@ -114,6 +114,12 @@ namespace linc
         /// @brief Parse the following tokens as an AST enumeration declaration.
         std::unique_ptr<const class EnumerationDeclaration> parseEnumerationDeclaration() const;
 
+        /// @brief Parse the following tokens as an AST aslias declaration.
+        std::unique_ptr<const class AliasDeclaration> parseAliasDeclaration() const;
+
+        /// @brief Parse the following tokens as a generic declaration.
+        std::unique_ptr<const class GenericDeclaration> parseGenericDeclaration() const;
+        
         /// @brief Parse the following tokens as an AST modifier expression.
         std::unique_ptr<const class Expression> parseModifierExpression() const;
         
@@ -170,16 +176,10 @@ namespace linc
         inline auto parseEndOfFile() const { return match(Token::Type::EndOfFile); }
     private:
         /// @brief Begin a new scope for all definitions.
-        void beginScope() const
-        {
-            m_definitions.push(m_definitions.empty()? std::vector<Definition>{}: m_definitions.top());
-        }
+        void beginScope() const { m_definitions.beginScope(); }
         
         /// @brief End the current scope for all definitions.
-        void endScope() const
-        {
-            m_definitions.pop();
-        }
+        inline void endScope() const { m_definitions.endScope(); }
 
         /// @brief Check whether a token is a valid identifier that corresponds to a type. 
         [[nodiscard]] bool isTypeIdentifier(const Token& token) const
@@ -198,21 +198,15 @@ namespace linc
         /// @brief Check whether a given identifier has been defined as a valid structure.
         [[nodiscard]] inline bool isValidTypeDefinition(const std::string& name) const
         {
-            for(const auto& definition: m_definitions.top())
-                if(definition.kind == Definition::Kind::Typename && name == definition.identifier)
-                    return true;
-
-            return false;
+            auto find = m_definitions.find(name);
+            return find && (*find == Definition::Typename || *find == Definition::Enumeration);
         }
 
         /// @brief Find an optional definition from an identifier.
-        [[nodiscard]] std::optional<Definition::Kind> findDefinition(const std::string& name) const
+        [[nodiscard]] std::optional<Definition> findDefinition(const std::string& name) const
         {
-            for(const auto& definition: m_definitions.top())
-                if(name == definition.identifier)
-                    return definition.kind;
-
-            return std::nullopt;
+            auto find = m_definitions.find(name);
+            return find? std::make_optional(*find): std::nullopt;
         }
 
         /// @brief Peek the token at a specified offset.
@@ -275,7 +269,7 @@ namespace linc
 
         TokenList m_tokens;
         std::string m_filepath;
-        mutable std::stack<std::vector<Definition>> m_definitions; 
+        mutable ScopeStack<Definition> m_definitions; 
         mutable bool m_matchFailed{};
         mutable TokenSize m_index{0};
     };

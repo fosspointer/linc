@@ -81,70 +81,25 @@ namespace linc
     std::unique_ptr<const BoundDeclaration> BoundSymbols::find(const std::string& name, bool top_only) const
     {
         if(auto find = top_only? m_scopes.findTop(name): m_scopes.find(name); find)
-        {
-            if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(find->get()))
-            {
-                if(variable->getName() == name)
-                    return variable->clone();
-            }
-            else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find->get()))
-            {
-                if(function->getName() == name)
-                    return function->clone();
-            }
-            else if(auto external_function = dynamic_cast<const BoundExternalDeclaration*>(find->get()))
-            {
-                if(external_function->getName() == name)
-                    return external_function->clone();
-            }
-            else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(find->get()))
-            {
-                if(structure_declaration->getName() == name)
-                    return structure_declaration->clone();
-            }
-            else if(auto enumeration_declaration = dynamic_cast<const BoundEnumerationDeclaration*>(find->get()))
-            {
-                if(enumeration_declaration->getName() == name)
-                    return enumeration_declaration->clone();
-            }
-            else throw LINC_EXCEPTION_ILLEGAL_STATE(find);
-        }   
-        return nullptr;
+            return find->get()->clone();
+        else return nullptr;
     }
 
     bool BoundSymbols::push(std::unique_ptr<const BoundDeclaration> symbol)
     {
         std::unique_ptr<const BoundDeclaration> find{nullptr};
-        std::string name;
+        auto name = symbol->getName();
         
-        if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(symbol.get()))
-        {
-            name = variable->getName();
+        auto variable = dynamic_cast<const BoundVariableDeclaration*>(symbol.get());
+        if(variable)
             find = this->find(name, true);
-        }
-        else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(symbol.get()))
-        {
-            name = function->getName();
-            find = this->find(name);
-        }
-        else if(auto external_function = dynamic_cast<const BoundExternalDeclaration*>(symbol.get()))
-        {
-            name = external_function->getName();
-            find = this->find(name);
-        }
-        else if(auto structure = dynamic_cast<const BoundStructureDeclaration*>(symbol.get()))
-        {
-            name = structure->getName();
-            find = this->find(name);
-        }
-        else if(auto enumeration = dynamic_cast<const BoundEnumerationDeclaration*>(symbol.get()))
-        {
-            name = enumeration->getName();
-            find = this->find(name);
-        }
-        else throw LINC_EXCEPTION_ILLEGAL_VALUE(symbol);       
+        else
+            find = this->find(name);   
 
-        if(!find)
+        if(dynamic_cast<const BoundAliasDeclaration*>(symbol.get()))
+            return (find? m_scopes.update(name, std::move(symbol)): m_scopes.append(name, std::move(symbol)), true);
+
+        else if(!find)
         {
             m_scopes.append(name, std::move(symbol));
             return true;
@@ -225,6 +180,12 @@ namespace linc
         else if(auto enumeration_declaration = dynamic_cast<const EnumerationDeclaration*>(declaration))
             return Types::uniqueCast<const BoundDeclaration>(bindEnumerationDeclaration(enumeration_declaration));
 
+        else if(auto alias_declaration = dynamic_cast<const AliasDeclaration*>(declaration))
+            return Types::uniqueCast<const BoundDeclaration>(bindAliasDeclaration(alias_declaration));
+
+        else if(auto generic_declaration = dynamic_cast<const GenericDeclaration*>(declaration))
+            return Types::uniqueCast<const BoundDeclaration>(bindGenericDeclaration(generic_declaration));
+
         throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized declaration");
     }
 
@@ -285,8 +246,8 @@ namespace linc
         else if(auto access_exprsesion = dynamic_cast<const AccessExpression*>(expression))
             return Types::uniqueCast<const BoundExpression>(bindAccessExpression(access_exprsesion));
         
-        else if(auto namespace_access_expression = dynamic_cast<const EnumeratorExpression*>(expression))
-            return Types::uniqueCast<const BoundExpression>(bindEnumeratorExpression(namespace_access_expression));
+        else if(auto enumerator_expression = dynamic_cast<const EnumeratorExpression*>(expression))
+            return Types::uniqueCast<const BoundExpression>(bindEnumeratorExpression(enumerator_expression));
 
         else if(auto structure_initializer_expression = dynamic_cast<const StructureInitializerExpression*>(expression))
             return Types::uniqueCast<const BoundExpression>(bindStructureInitializerExpression(structure_initializer_expression));
@@ -295,33 +256,6 @@ namespace linc
             return Types::uniqueCast<const BoundExpression>(bindRangeExpression(range_expression));            
 
         throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized expression");
-    }
-
-    void Binder::reportInvalidBinaryOperator(BoundBinaryOperator::Kind operator_kind, Types::type left_type, Types::type right_type,
-        const Token::Info& info)
-    {
-        Reporting::push(Reporting::Report{
-            .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-            .span = TextSpan::fromTokenInfo(info),
-            .message = Logger::format("$ Invalid binary operator '$' for operands `$` and `$`.",
-            info, BoundBinaryOperator::kindToString(operator_kind), left_type, right_type)});
-
-        if(left_type.kind == Types::type::Kind::Primitive && right_type.kind == Types::type::Kind::Primitive
-        && Types::isNumeric(left_type.primitive) && Types::isNumeric(right_type.primitive) && left_type.primitive != right_type.primitive){
-            Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Note that Linc does not allow for implicit type conversions between numeric types. "
-                    "Did you forget to do a type-cast?", info, BoundBinaryOperator::kindToString(operator_kind), left_type, right_type)});
-        }
-    }
-
-    void Binder::reportInvalidUnaryOperator(BoundUnaryOperator::Kind operator_kind, Types::type operand_type, const Token::Info& info)
-    {
-        Reporting::push(Reporting::Report{
-            .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-            .span = TextSpan::fromTokenInfo(info),
-            .message = Logger::format("$ Invalid unary operator '$' for operand of type `$`.",
-            info, BoundUnaryOperator::kindToString(operator_kind), operand_type)});
     }
 
     const std::unique_ptr<const BoundDeclarationStatement> Binder::bindDeclarationStatement(const DeclarationStatement* statement)
@@ -624,6 +558,42 @@ namespace linc
 
         return enumeration;
     }
+
+    const std::unique_ptr<const BoundAliasDeclaration> Binder::bindAliasDeclaration(const AliasDeclaration* declaration)
+    {
+        auto name = declaration->getIdentifier()->getValue();
+        auto type = bindTypeExpression(declaration->getType());
+        auto alias = std::make_unique<const BoundAliasDeclaration>(std::move(name), std::move(type));
+
+        if(!m_boundDeclarations.push(alias->clone()))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Redefinition of symbol '$' as type alias.",
+                    declaration->getTokenInfo(), name)
+            });
+
+        return alias;
+    }
+
+    const std::unique_ptr<const BoundGenericDeclaration> Binder::bindGenericDeclaration(const GenericDeclaration* declaration)
+    {
+        std::vector<std::string> type_identifiers;
+        type_identifiers.reserve(declaration->getTypeIdentifiers()->getList().size());
+        for(const auto& identifier: declaration->getTypeIdentifiers()->getList())
+            type_identifiers.push_back(identifier.node->getValue());
+        
+        m_genericInstanceMaps.push_back(std::unordered_map<std::string, std::unique_ptr<const BoundDeclaration>>{});
+        auto generic = std::make_unique<const BoundGenericDeclaration>(declaration->getDeclaration()->clone(), std::move(type_identifiers),
+            m_genericInstanceMaps.size() - 1ul);
+        if(!m_boundDeclarations.push(generic->clone()))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Redefinition of symbol '$' as generic.",
+                    declaration->getTokenInfo(), generic->getName())
+            });
+
+        return generic;
+    }
  
     const std::unique_ptr<const BoundIdentifierExpression> Binder::bindIdentifierExpression(const IdentifierExpression* expression)
     {
@@ -648,9 +618,25 @@ namespace linc
         else if(auto external = dynamic_cast<const BoundExternalDeclaration*>(find.get()))
             return std::make_unique<const BoundIdentifierExpression>(value, external->getActualType()->getActualType());
 
+        else if(auto generic = dynamic_cast<const BoundGenericDeclaration*>(find.get()))
+        {
+            if(!expression->getGeneric())
+                return (Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .span = TextSpan::fromTokenInfo(expression->getTokenInfo()),
+                    .message = Logger::format("$ Cannot use generic identifier `$` without instantiating its type arguments.",
+                        expression->getTokenInfo(), expression->getValue())
+                }), std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType));
+
+            auto token = expression->getIdentifierToken();
+            *token.value = bindGenericClause(expression->getGeneric(), generic, expression->getTokenInfo());
+            auto identifier = std::make_unique<const IdentifierExpression>(std::move(token), nullptr);
+            return bindIdentifierExpression(identifier.get());
+        }
+
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-            .message = Logger::format("$ Cannot reference identifier '$', as it does not refer to value.", expression->getTokenInfo(), value)});
+            .message = Logger::format("$ Cannot reference identifier `$`, as it does not refer to value.", expression->getTokenInfo(), value)});
 
         return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
     }
@@ -665,16 +651,24 @@ namespace linc
         }
 
         auto name = expression->getEnumerationIdentifier()->getValue();
+        
         auto find = m_boundDeclarations.find(name);
+        if(auto generic = expression->getEnumerationIdentifier()->getGeneric(); generic && find && dynamic_cast<const BoundGenericDeclaration*>(find.get()))
+        {
+            auto declaration = static_cast<const BoundGenericDeclaration*>(find.get());
+            name = bindGenericClause(generic, declaration, expression->getTokenInfo());
+            find = m_boundDeclarations.find(name);
+        }
+
         if(!find)
             return (Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Undeclared identifier '$' does not result to a namespace.", expression->getTokenInfo(), name)
+                .message = Logger::format("$ Undeclared identifier `$` does not result to a namespace.", expression->getTokenInfo(), name)
             }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
         else if(auto enumeration = dynamic_cast<const BoundEnumerationDeclaration*>(find.get()); !enumeration)
             return (Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot namespace-access identifier '$', which is not an enumeration.",
+                .message = Logger::format("$ Cannot namespace-access identifier `$`, which is not an enumeration.",
                     expression->getTokenInfo(), name)
             }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
         
@@ -722,7 +716,6 @@ namespace linc
                 .message = Logger::format("$ Cannot omit value for non-void enumerator '$' in enumeration '$'.",
                     expression->getTokenInfo(), enumerator_name, name)
             }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
-
         return std::make_unique<const BoundEnumeratorExpression>(name, enumerator_index, std::move(value), type);
     }
 
@@ -752,6 +745,13 @@ namespace linc
             auto name = expression->getIfIdentifierRoot()->getValue();
             auto find = m_boundDeclarations.find(name);
             
+            if(auto generic = expression->getIfIdentifierRoot()->getGeneric(); generic && find && dynamic_cast<const BoundGenericDeclaration*>(find.get()))
+            {
+                auto declaration = static_cast<const BoundGenericDeclaration*>(find.get());
+                name = bindGenericClause(generic, declaration, expression->getTokenInfo());
+                find = m_boundDeclarations.find(name);
+            }
+
             if(!find)
             {
                 Reporting::push(Reporting::Report{
@@ -760,6 +760,15 @@ namespace linc
                 });
                 return std::make_unique<const BoundTypeExpression>(Types::Kind::invalid, expression->getMutabilityKeyword().has_value(),
                     std::move(specifiers));
+            }
+            else if(auto alias_declaration = dynamic_cast<const BoundAliasDeclaration*>(find.get()))
+            {
+                if(!specifiers.empty())
+                    Reporting::push(Reporting::Report{
+                        .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                        .message = Logger::format("$ Cannot add specifiers to aliased type '$'.", expression->getTokenInfo(), name)
+                    });
+                return Types::uniqueCast<const BoundTypeExpression>(alias_declaration->getType()->clone());
             }
             else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(find.get()))
             {
@@ -1105,7 +1114,11 @@ namespace linc
         auto _operator = std::make_unique<const BoundUnaryOperator>(kind, operand->getType());
 
         if(_operator->getReturnType().primitive == Types::Kind::invalid)
-            reportInvalidUnaryOperator(kind, operand->getType(), expression->getInfo().info);
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(expression->getTokenInfo()),
+                .message = Logger::format("$ Invalid unary operator '$' for operand of type `$`.",
+                expression->getTokenInfo(), BoundUnaryOperator::kindToString(_operator->getKind()), operand->getType())});
 
         return std::make_unique<const BoundUnaryExpression>(std::move(_operator), std::move(operand));
     }
@@ -1149,8 +1162,24 @@ namespace linc
         auto kind = bindBinaryOperatorKind(expression->getOperatorToken().type);
         auto _operator = std::make_unique<const BoundBinaryOperator>(kind, left->getType(), right->getType());
 
-        if(_operator->getReturnType().primitive == Types::Kind::invalid)
-            reportInvalidBinaryOperator(kind, left->getType(), right->getType(), expression->getInfo().info);
+        if(_operator->getReturnType().primitive == Types::Kind::invalid && left->getType() != Types::invalidType && right->getType() != Types::invalidType)
+        {
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(expression->getTokenInfo()),
+                .message = Logger::format("$ Invalid binary operator '$' for operands `$` and `$`.",
+                    expression->getTokenInfo(), BoundBinaryOperator::kindToString(_operator->getKind()), PrimitiveValue(left->getType()),
+                    PrimitiveValue(right->getType()))});
+
+            if(left->getType().kind == Types::type::Kind::Primitive && right->getType().kind == Types::type::Kind::Primitive
+            && Types::isNumeric(left->getType().primitive) && Types::isNumeric(right->getType().primitive) && left->getType().primitive != right->getType().primitive){
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
+                    .message = Logger::format("$ Note that Linc does not allow for implicit type conversions between numeric types. "
+                        "Did you forget to perform a type-cast?", expression->getTokenInfo(), BoundBinaryOperator::kindToString(_operator->getKind()),
+                        left->getType(), right->getType())});
+            }
+        }
 
         return std::make_unique<const BoundBinaryExpression>(std::move(_operator), std::move(left), std::move(right));
     }
@@ -1388,7 +1417,7 @@ namespace linc
             auto enumerator = dynamic_cast<const EnumeratorExpression*>(value.node.get());
             if(!enumerator || !enumerator->getValue()) continue;
             auto identifier = dynamic_cast<const IdentifierExpression*>(enumerator->getValue());
-            if(!identifier || m_boundDeclarations.find(identifier->getValue())) continue;
+            if(!identifier) continue;
             m_matchIdentifiers.push(identifier->getValue());
         }
 
@@ -1460,5 +1489,43 @@ namespace linc
         auto identifier = bindIdentifierExpression(value->getIdentifier());
         auto ranged_for_clause = std::make_unique<const BoundRangedForClause>(std::move(identifier), std::move(expression));
         return std::make_unique<const BoundForExpression::ForClause>(std::move(ranged_for_clause));
+    }
+
+    std::string Binder::bindGenericClause(const GenericClause* clause, const BoundGenericDeclaration* declaration, const Token::Info& info)
+    {
+        if(clause->getTypes()->getList().size() != declaration->getTypeIdentifiers().size())
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(info),
+                .message = Logger::format("$ Incorrect type count given to generic clause for symbol `$`.", info, declaration->getName())
+            });
+        
+        const auto& type_identifiers = declaration->getTypeIdentifiers();
+        const auto& type_instances = clause->getTypes()->getList();
+        auto identifier = *declaration->getDeclaration()->getIdentifier()->getIdentifierToken().value;
+        auto identifier_length = identifier.size();
+
+        identifier.push_back('|');
+        for(std::size_t i{0ul}; i < type_identifiers.size(); ++i)
+        {
+            if(i != 0ul) identifier.push_back('.');
+            auto type = bindTypeExpression(type_instances[i].node.get());
+            auto alias = std::make_unique<const BoundAliasDeclaration>(type_identifiers[i], std::move(type));
+            if(!m_boundDeclarations.push(alias->clone())) throw LINC_EXCEPTION_ILLEGAL_STATE(m_boundDeclarations);
+            identifier.append(alias->getType()->getActualType().toString());
+        }
+
+        auto& map = m_genericInstanceMaps.at(declaration->getInstanceMapIndex());
+        auto key = identifier.substr(identifier_length + 1ul, identifier.size() - identifier_length - 1ul);
+        auto find = map.find(key);
+        if(find == map.end())
+        {
+            auto new_identifier = Token{.type = Token::Type::Identifier, .value = identifier, .info = info};
+            auto raw_declaration = declaration->getDeclaration()->cloneRename(std::make_unique<const IdentifierExpression>(new_identifier, nullptr));
+            auto declaration = bindDeclaration(raw_declaration.get());
+            map[key] = declaration->clone();
+            return identifier;
+        }
+        return identifier;
     }
 }

@@ -36,6 +36,6 @@ namespace linc
 
     std::string Exception::variableExceptionMessage(const Printable& variable_value, std::string_view variable_name, std::string_view variable_type, std::string_view message)
     {
-        return Logger::format("$ $:#5$::$:$:#4 (=$:#6$:$:#4)", message, variable_name, variable_type, variable_value, Colors::pop(), Colors::push(Colors::Color::Blue), Colors::push(Colors::Color::Cyan));
+        return Logger::format("$ $:#5$::$:$:#4 (=$:#6$:$:#4)", message, variable_name, variable_type, variable_value, Colors::toANSI(Colors::Reset), Colors::toANSI(Colors::Blue), Colors::toANSI(Colors::Cyan));
     }
 }

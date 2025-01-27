@@ -2,6 +2,8 @@
 #include <linc/lexer/Token.hpp>
 #include <linc/tree/NodeInfo.hpp>
 #include <linc/Include.hpp>
+#define LINC_NODE_ASSERT(node, token_type) if((node).type != (token_type)) throw LINC_EXCEPTION_ILLEGAL_VALUE(node);
+#define LINC_NODE_ASSERT_IDENTIFIER(node) if((node).type != Token::Type::Identifier || !(node).value.has_value()) throw LINC_EXCEPTION_ILLEGAL_VALUE(node);
 
 namespace linc
 {

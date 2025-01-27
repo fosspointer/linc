@@ -1,11 +1,11 @@
 #pragma once
 #include <linc/tree/Expression.hpp>
 #include <linc/tree/NodeListClause.hpp>
-#include <linc/tree/IdentifierExpression.hpp>
-#include <linc/tree/LiteralExpression.hpp>
 
 namespace linc
 {
+    class IdentifierExpression;
+    class LiteralExpression;
     class TypeExpression final : public Expression
     {
     public:
@@ -25,6 +25,7 @@ namespace linc
         };
 
         TypeExpression(const std::optional<Token>& mutability_Keyword, Root root, std::vector<ArraySpecifier> array_specifiers);
+        ~TypeExpression();
         [[nodiscard]] inline const Root& getRoot() const { return m_root; }
         [[nodiscard]] inline const std::optional<const Token>& getMutabilityKeyword() const { return m_mutabilityKeyword; }
         [[nodiscard]] inline const std::vector<ArraySpecifier>& getArraySpecifiers() const { return m_arraySpecifiers; }
@@ -33,8 +34,6 @@ namespace linc
 
         virtual std::unique_ptr<const Expression> clone() const final override;
     private:
-        void handleTokens() const;
-
         const Root m_root;
         const std::optional<const Token> m_mutabilityKeyword;
         const std::vector<ArraySpecifier> m_arraySpecifiers;

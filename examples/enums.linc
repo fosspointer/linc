@@ -21,6 +21,6 @@ fn main() {
     printValue(Choice::None);
     printValue(Choice::Scalar(5f));
     printValue(Choice::Scalar(2f));
-    printValue(Choice::Vector(Vector2f{.x = 1.618f, .y = 3.14159f}));
-    printValue(Choice::Vector(Vector2f{.x = 0f, .y = 0f}));
+    printValue(Choice::Vector(Vector2f{x = 1.618f, y = 3.14159f}));
+    printValue(Choice::Vector(Vector2f{x = 0f, y = 0f}));
 }

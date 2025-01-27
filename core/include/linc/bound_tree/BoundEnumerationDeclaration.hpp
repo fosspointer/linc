@@ -10,7 +10,7 @@ namespace linc
     {
     public:
         BoundEnumerationDeclaration(const std::string& name, std::unique_ptr<const BoundNodeListClause<BoundEnumeratorClause>> enumerators)
-            :m_name(name), m_enumerators(std::move(enumerators)), m_actualType(calculateActualType(m_enumerators.get()))
+            :BoundDeclaration(name), m_enumerators(std::move(enumerators)), m_actualType(calculateActualType(m_enumerators.get()))
         {}
 
         virtual std::unique_ptr<const BoundDeclaration> clone() const final override
@@ -19,7 +19,6 @@ namespace linc
         }
 
         [[nodiscard]] inline const Types::type& getActualType() const { return m_actualType; }
-        [[nodiscard]] inline const std::string& getName() const { return m_name; }
         [[nodiscard]] inline const auto* const getEnumerators() const { return m_enumerators.get(); }
     private:
         static Types::type calculateActualType(const BoundNodeListClause<BoundEnumeratorClause>* enumerators)
@@ -35,7 +34,6 @@ namespace linc
         {
             return "Enumeration Declaration";
         }
-        const std::string m_name;
         const std::unique_ptr<const BoundNodeListClause<BoundEnumeratorClause>> m_enumerators;
         const Types::type m_actualType;
     };

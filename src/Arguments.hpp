@@ -6,9 +6,14 @@ class Arguments final
 public:
     struct Option
     {
-        std::string::size_type index{1ul};
         std::string description;
         bool flag{false};
+    };
+
+    struct Argument
+    {
+        int index;
+        std::optional<std::string> value;
     };
 
     Arguments(int argument_count, const char** arguments, std::unordered_map<char, Option> options,
@@ -17,14 +22,16 @@ public:
     {
         const_cast<std::vector<std::pair<std::string, char>>&>(m_optionNames).push_back(std::pair("--help", 'h'));
 
+        bool default_arguments{false};
         for(int i{1}; i < argument_count; ++i)
         {
             const auto full_argument = std::string{arguments[i]};
             const auto argument = full_argument.length() == 2ul && full_argument[0ul] == '-'? full_argument[1ul]: findOptionShortName(full_argument);
             
-            if(!argument)
+            if(default_arguments || !argument)
             {
-                m_defaultArguments.push_back(full_argument);
+                m_defaultArguments.push_back(Argument {.index = i, .value = full_argument});
+                default_arguments = true;
                 continue;
             }
             else if(argument == 'h')
@@ -38,7 +45,7 @@ public:
             }
 
             auto find = m_options.find(argument);
-            
+
             if(find == m_options.end())
             {
                 linc::Reporting::push(linc::Reporting::Report{
@@ -64,7 +71,7 @@ public:
             }
 
             auto value = arguments[i + 1];
-            m_namedArguments.insert(std::pair(argument, value));
+            m_namedArguments.insert(std::pair(argument, Argument{.index = i, .value = value}));
             ++i;
         }
     }
@@ -84,12 +91,20 @@ public:
         result.reserve(std::distance(lookup.first, lookup.second));
 
         for(auto iterator = lookup.first; iterator != lookup.second; ++iterator)
-            result.push_back(iterator->second.value_or(std::string{}));
+        {
+            result.push_back(iterator->second->value.value_or(std::string{}));
+            if(result.back().empty()) break;
+        }
 
         return result;
     }
 
-    inline const std::vector<std::string>& getDefaults() const { return m_defaultArguments; }
+    inline int getFirstDefaultIndex() const
+    {
+        return m_defaultArguments.empty()? -1: m_defaultArguments[0ul].index;
+    }
+
+    inline const std::vector<Argument>& getDefaults() const { return m_defaultArguments; }
     inline std::string findOptionFullName(char short_name) const
     {
         for(const auto& item: m_optionNames)
@@ -111,6 +126,6 @@ private:
     const std::string m_program;
     const std::unordered_map<char, Option> m_options;
     const std::vector<std::pair<std::string, char>> m_optionNames;
-    std::unordered_multimap<char, std::optional<std::string>> m_namedArguments;
-    std::vector<std::string> m_defaultArguments;
+    std::unordered_multimap<char, std::optional<Argument>> m_namedArguments;
+    std::vector<Argument> m_defaultArguments;
 };

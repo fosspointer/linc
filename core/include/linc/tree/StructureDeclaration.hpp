@@ -12,8 +12,8 @@ namespace linc
     public:
         StructureDeclaration(const Token& structure_keyword, const Token& left_brace, const Token& right_brace,
             std::unique_ptr<const IdentifierExpression> identifier, std::vector<std::unique_ptr<const VariableDeclaration>> fields)
-            :Declaration(structure_keyword.info), m_structureKeyword(structure_keyword), m_leftBrace(left_brace), m_rightBrace(right_brace),
-            m_identifier(std::move(identifier)), m_fields(std::move(fields))
+            :Declaration(std::move(identifier), structure_keyword.info), m_structureKeyword(structure_keyword),
+            m_leftBrace(left_brace), m_rightBrace(right_brace), m_fields(std::move(fields))
         {
             addToken(m_structureKeyword);
             addTokens(m_identifier->getTokens());
@@ -44,11 +44,9 @@ namespace linc
         inline const Token& getStructureKeyword() const { return m_structureKeyword; }
         inline const Token& getLeftBrace() const { return m_leftBrace; }
         inline const Token& getRightBrace() const { return m_rightBrace; }
-        inline const IdentifierExpression* const getIdentifier() const { return m_identifier.get(); }
         inline const std::vector<std::unique_ptr<const VariableDeclaration>>& getFields() const { return m_fields; }
     private:
         const Token m_structureKeyword, m_leftBrace, m_rightBrace;
-        const std::unique_ptr<const IdentifierExpression> m_identifier;
         const std::vector<std::unique_ptr<const VariableDeclaration>> m_fields;
     };
 }

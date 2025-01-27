@@ -1,81 +1,44 @@
 #guard
-#macro __STD_ABSOLUTE(_type, zero) fn abs_##_type(value: _type) if value > zero value else -value #
-#macro __STD_LERP(_type) fn lerp_##_type(start: _type, end: _type, position: f32) as _type (as f32(start) * (1f - position)) + as _type (position * as f32 (end)) #
-#macro __STD_CLAMP(_type) fn clamp_##_type(value: _type, min: _type, max: _type) if value > max max else if value < min min else value #
-#macro __STD_MIN(_type) fn min_##_type(first: _type, second: _type) if first < second first else second #
-#macro __STD_MAX(_type) fn max_##_type(first: _type, second: _type) if first > second first else second #
 
-#macro __STD_FLOOR(_type, one, zero)
-fn floor_##_type(number: _type)
-{
-    mod: _type = number % one;
+gen<T> fn abs(number: T) {
+    zero := as T(0);
+    if number > zero number else - number
+}
+
+gen<T, U> fn lerp(start: T, end: T, position: U) {
+    one := as U(1);
+    as T(as U(start) * (one - position)) + as T(position * as U(end))
+}
+
+gen<T> fn min(first: T, second: T)
+    if first < second first else second
+
+gen<T> fn max(first: T, second: T)
+    if first > second first else second
+
+gen<T> fn floor(number: T) {
+    zero := as T(0);
+    one := as T(1);
+    mod: T = number % one;
     if number >= zero number - mod
     else if mod == zero number
     else number - mod - one
-} #
+}
 
-#macro __STD_CEIL(_type, one, zero)
-fn ceil_##_type(number: _type)
-{
-    mod: _type = number % one;
+gen<T> fn ceil(number: T) {
+    zero := as T(0);
+    one := as T(1);
+    mod: T = number % one;
     if number <= zero number - mod
     else if mod == zero number
     else number - mod + one
-} #
+}
 
-#macro __STD_ROUND(_type, zero, half)
-fn round_##_type(number: _type)
-    if number > zero floor_##_type(number + half)
-    else ceil_##_type(number - half)
-#
-
-#macro __DEFINE_NUMERIC(macro)
-    macro(i8)
-    macro(i16)
-    macro(i32)
-    macro(i64)
-    macro(u8)
-    macro(u16)
-    macro(u32)
-    macro(u64)
-    macro(f32)
-    macro(f64)
-#
-
-__STD_ABSOLUTE(i8, 0i8)
-__STD_ABSOLUTE(i16, 0i16)
-__STD_ABSOLUTE(i32, 0i32)
-__STD_ABSOLUTE(f32, 0f32)
-__STD_ABSOLUTE(f64, 0f64)
-
-__DEFINE_NUMERIC(__STD_CLAMP)
-__DEFINE_NUMERIC(__STD_MIN)
-__DEFINE_NUMERIC(__STD_MAX)
-
-__STD_LERP(i8, 1i8)
-__STD_LERP(i16, 1i16)
-__STD_LERP(i32, 1i32)
-__STD_LERP(i64, 1i64)
-__STD_LERP(u8, 1u8)
-__STD_LERP(u16, 1u16)
-__STD_LERP(u32, 1u32)
-__STD_LERP(u64, 1u64)
-__STD_LERP(f32, 1f32)
-__STD_LERP(f64, 1f64)
-
-__STD_FLOOR(f32, 1f32, 0f32)
-__STD_FLOOR(f64, 1f64, 0f64)
-__STD_CEIL(f32, 1f32, 0f32)
-__STD_CEIL(f64, 1f64, 0f64)
-__STD_ROUND(f32, 0f32, .5f32)
-__STD_ROUND(f64, 0f64, .5f64)
-
-fn floor_i32(number: f32) as i32 (floor_f32(number))
-fn floor_i64(number: f64) as i64 (floor_f64(number))
-fn ceil_i32(number: f32) as i32 (ceil_f32(number))
-fn ceil_i64(number: f64) as i64 (ceil_f64(number))
-fn round_i32(number: f32) as i32 (round_f32(number))
-fn round_i64(number: f64) as i64 (round_f64(number))
+gen<T> fn round(number: T) {
+    zero := as T(0);
+    half := as T(0.5);
+    if number > zero { floor<T>(number + half) } else { ceil<T>(number - half) }
+}
 
 piF32 := 3.14159265358979323846264338327950288f32
 piF64 := 3.14159265358979323846264338327950288f64

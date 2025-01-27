@@ -31,14 +31,14 @@ namespace linc
         inline const std::optional<Token>& getRightParenthesis() const { return m_rightParenthesis; }
         inline const IdentifierExpression* const getEnumerationIdentifier() const { return m_enumerationIdentifier.get(); }
         inline const IdentifierExpression* const getIdentifier() const { return m_identifier.get(); }
-        inline const Expression* const getValue() const { return m_value.get(); }
+        inline const Expression* const getValue() const { return m_value? m_value.get(): nullptr; }
         
         virtual std::unique_ptr<const Expression> clone() const final override
         {
             auto enumeration_identifier = Types::uniqueCast<const IdentifierExpression>(m_enumerationIdentifier->clone());
             auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
-            return std::make_unique<const EnumeratorExpression>(m_namespaceAccessToken, m_leftParenthesis, m_rightParenthesis, std::move(enumeration_identifier), std::move(identifier),
-                m_value? m_value->clone(): nullptr);
+            return std::make_unique<const EnumeratorExpression>(m_namespaceAccessToken, m_leftParenthesis, m_rightParenthesis,
+                std::move(enumeration_identifier), std::move(identifier), m_value? m_value->clone(): nullptr);
         }
     private:
         const Token m_namespaceAccessToken;

@@ -1,0 +1,13 @@
+#include `std.linc`
+
+fn main() {
+    ~outer for i in 1..6 {
+        ~inner while true {
+            input := to_lower(readln(@i + ": advance? (y/n/q) "));
+            if input == "y" { continue outer; }
+            else if input == "q" { break outer; }
+            else if input == "n" { --i; }
+            else { puts("Invalid! "); };   
+        };
+    };
+}

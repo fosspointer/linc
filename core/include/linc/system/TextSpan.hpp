@@ -20,7 +20,7 @@ namespace linc
         /// @param source The source code to use.
         /// @param highlight_color The color of the highlight/annotation.
         /// @return The source code lines with highlights in ANSI string format.
-        std::string get(Code::Source& source, Colors::Color highlight_color = Colors::Color::Red) const
+        std::string get(Code::Source& source, Colors::Color highlight_color = Colors::Red) const
         {
             std::string result;
             if(lineStart > source.size() || lineStart > lineEnd)
@@ -52,23 +52,23 @@ namespace linc
                 {
                     if(spanEnd < spanStart) throw LINC_EXCEPTION_ILLEGAL_VALUE(spanStart);
                     format = linc::Logger::format("$:$:$:$:$", line.substr(0ul, spanStart), Colors::toANSI(highlight_color),
-                        line.substr(spanStart, spanEnd - spanStart), Colors::toANSI(Colors::Color::Default), line.substr(spanEnd));
+                        line.substr(spanStart, spanEnd - spanStart), Colors::toANSI(Colors::Reset), line.substr(spanEnd));
                 }
                 else if(i == startIndex)
                 {
                     format = linc::Logger::format("$:$:$:$", line.substr(0ul, spanStart), Colors::toANSI(highlight_color),
-                        line.substr(spanStart), Colors::toANSI(Colors::Color::Default));
+                        line.substr(spanStart), Colors::toANSI(Colors::Reset));
                 }
                 else if(i == endIndex)
                 {
                     format = linc::Logger::format("$:$:$:$", Colors::toANSI(highlight_color),
-                        line.substr(0ul, spanEnd), Colors::toANSI(Colors::Color::Default),
+                        line.substr(0ul, spanEnd), Colors::toANSI(Colors::Reset),
                         line.substr(spanEnd));
                 }
                 else
                 {
                     format = linc::Logger::format("$:$:$", Colors::toANSI(highlight_color),
-                        line, Colors::toANSI(Colors::Color::Default));
+                        line, Colors::toANSI(Colors::Reset));
                 }
 
                 result += Code::trim(format);

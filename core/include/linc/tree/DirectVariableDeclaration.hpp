@@ -11,8 +11,8 @@ namespace linc
     public:
         DirectVariableDeclaration(const Token& direct_assignment, const std::optional<Token>& mutability_specifier, 
             std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const Expression> value)
-            :Declaration(direct_assignment.info), m_directAssignment(direct_assignment), m_mutabilitySpecifier(mutability_specifier), 
-            m_identifier(std::move(identifier)), m_value(std::move(value))
+            :Declaration(std::move(identifier), direct_assignment.info), m_directAssignment(direct_assignment), m_mutabilitySpecifier(mutability_specifier),
+            m_value(std::move(value))
         {
             addTokens(m_identifier->getTokens());
             
@@ -31,12 +31,10 @@ namespace linc
 
         inline const Token& getDirectAssignment() const { return m_directAssignment; }
         inline const std::optional<Token>& getMutabilitySpecifier() const { return m_mutabilitySpecifier; }
-        inline const IdentifierExpression* const getIdentifier() const { return m_identifier.get(); }
         inline const Expression* const getValue() const { return m_value.get(); }
     private:
         const Token m_directAssignment;
         const std::optional<Token> m_mutabilitySpecifier;
-        const std::unique_ptr<const IdentifierExpression> m_identifier;
         const std::unique_ptr<const Expression> m_value;
     };
 }

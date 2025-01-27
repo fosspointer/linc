@@ -63,7 +63,8 @@ static auto compileCode(const std::string& raw_code, const std::string& filepath
     lexer.appendIncludeDirectories(std::move(include_directories));
     auto tokens = lexer();
 
-    linc::Preprocessor preprocessor(tokens, filepath);
+    linc::Preprocessor preprocessor;
+    preprocessor.set(tokens, filepath);
     auto processed_code = preprocessor();
 
     linc::Parser parser;
@@ -169,8 +170,9 @@ try
     std::vector<std::pair<std::string, bool>> code;
     std::string linker_command{linc::Logger::format("LD_LIBRARY_PATH=$/lib $ ", LINC_INSTALL_PATH, LINC_LINKER)};
 
-    for(const auto& file: files)
+    for(const auto& file_argument: files)
     {
+        const auto& file = *file_argument.value; 
         if(!linc::Files::exists(file))
         {
             linc::Reporting::push(linc::Reporting::Report{

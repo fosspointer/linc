@@ -174,7 +174,7 @@ namespace linc
 
     std::string BoundBinaryExpression::toStringInner() const
     {
-        return linc::Logger::format("Binary Expression (@$:$:$)", Colors::toANSI(Colors::Color::Green),
+        return linc::Logger::format("Binary Expression (@$:$:$)", Colors::toANSI(Colors::Green),
             BoundBinaryOperator::kindToString(m_operator->getKind()), Colors::toANSI(Colors::getCurrentColor()));
     }
 }

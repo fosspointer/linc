@@ -9,7 +9,7 @@ namespace linc
     {
     public:
         BoundStructureDeclaration(const std::string& name, std::vector<std::unique_ptr<const BoundVariableDeclaration>> fields)
-            :m_name(name), m_fields(std::move(fields))
+            :BoundDeclaration(name), m_fields(std::move(fields))
         {}
 
         virtual std::unique_ptr<const BoundDeclaration> clone() const final override
@@ -36,14 +36,12 @@ namespace linc
             return Types::type(std::move(types));
         }
 
-        [[nodiscard]] inline const std::string& getName() const { return m_name; }
         [[nodiscard]] inline const std::vector<std::unique_ptr<const BoundVariableDeclaration>>& getFields() const { return m_fields; }
     private:
         virtual std::string toStringInner() const final override
         {
             return "Structure Declaration";
         }
-        const std::string m_name;
         const std::vector<std::unique_ptr<const BoundVariableDeclaration>> m_fields;
     };
 }

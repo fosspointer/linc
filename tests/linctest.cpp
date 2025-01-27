@@ -7,15 +7,15 @@
 #include <linc/Binder.hpp>
 #include <linc/Generator.hpp>
 
-[[nodiscard]] static std::unique_ptr<const linc::BoundExpression> const evaluate_expression(const std::string& expression_raw)
+[[nodiscard]] static std::unique_ptr<const linc::BoundExpression> const evaluateExpression(const std::string& expression_raw, linc::Binder& binder)
 {
     const auto test_path = "testing";
     auto code = linc::Code::toSource(expression_raw);
     linc::Lexer lexer(code, true);
-    linc::Preprocessor preprocessor(lexer(), test_path);
+    linc::Preprocessor preprocessor;
+    preprocessor.set(lexer(), test_path);
     linc::Parser parser;
     parser.set(preprocessor(), test_path);
-    linc::Binder binder;
     
     auto expression = parser.parseExpression();
 
@@ -27,10 +27,11 @@
 }
 
 
-[[nodiscard]] static linc::Types::type evaluate_and_compare(const std::string& first_expression_raw, const std::string& second_expression_raw)
+[[nodiscard]] static linc::Types::type evaluateAndCompare(const std::string& first_expression_raw, const std::string& second_expression_raw)
 {
-    auto first_expression = evaluate_expression(first_expression_raw);
-    auto second_expression = evaluate_expression(second_expression_raw);
+    linc::Binder binder;
+    auto first_expression = evaluateExpression(first_expression_raw, binder);
+    auto second_expression = evaluateExpression(second_expression_raw, binder);
 
     if(!first_expression)
     {
@@ -50,7 +51,8 @@
         return linc::Types::invalidType;
     }
 
-    linc::Interpreter interpreter;
+
+    linc::Interpreter interpreter(binder);
     auto first_value = interpreter.evaluateExpression(first_expression.get());
     auto second_value = interpreter.evaluateExpression(second_expression.get());
 
@@ -77,7 +79,7 @@ try {
     auto raw_statement_comparison = arguments[2ul];
     auto raw_type = arguments[3ul];
 
-    auto result = evaluate_and_compare(raw_statement_initial, raw_statement_comparison);
+    auto result = evaluateAndCompare(raw_statement_initial, raw_statement_comparison);
     auto type = linc::Types::kindFromUserString(raw_type);
 
     if(result.primitive == linc::Types::Kind::invalid)

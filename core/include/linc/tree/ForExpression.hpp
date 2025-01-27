@@ -16,10 +16,10 @@ namespace linc
             std::unique_ptr<const Expression> body)
             :Expression(for_keyword.info), m_label(std::move(label)), m_forKeyword(for_keyword), m_clause(std::move(clause)), m_body(std::move(body))
         {
-            if(label)
+            if(m_label)
             {
-                addToken(label->specifier);
-                addTokens(label->identifier->getTokens());
+                addToken(m_label->specifier);
+                addTokens(m_label->identifier->getTokens());
             }
             
             addToken(m_forKeyword);

@@ -13,7 +13,6 @@ namespace linc
         BoundVariableDeclaration(Types::type type, const std::string& name, std::unique_ptr<const BoundExpression> default_value);
 
         [[nodiscard]] inline const Types::type& getActualType() const { return m_actualType; }
-        [[nodiscard]] inline const std::string& getName() const { return m_name; }
         [[nodiscard]] inline const BoundExpression* const getDefaultValue() const { return m_defaultValue? m_defaultValue.get(): nullptr; }
 
         virtual std::unique_ptr<const BoundDeclaration> clone() const final override;
@@ -25,7 +24,6 @@ namespace linc
     private:
         virtual std::string toStringInner() const final override;
         const Types::type m_actualType;
-        const std::string m_name;
         const std::unique_ptr<const BoundExpression> m_defaultValue;
     };
 }

@@ -52,7 +52,7 @@ namespace linc
 
         /// @brief Read string from stdin until return key entered.
         /// @return The resulting string, as read from stdin.
-        static std::string read(std::string_view prompt = "");
+        static std::string read(std::string_view prompt = "", bool is_shell = false);
 
         /// @brief Format a string and append it to the output string. 
         /// @param output_string The output string.
@@ -68,9 +68,9 @@ namespace linc
         /// @param str The string to be formatted.
         /// @param ...args The variadic argument list to format with.
         template <typename... Args>
-        inline static void println(const std::string& str, Args... args)
+        inline static void println(std::string_view str, Args... args)
         {
-            fputs(format(Colors::toANSI(Colors::getCurrentColor()) + str + '\n', args...).c_str(), stdout);
+            fputs(format(Colors::toANSI(Colors::getCurrentColor()) + std::string{str} + '\n', args...).c_str(), stdout);
         }
 
         /// @brief Prints a new-line character to stdout.

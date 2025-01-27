@@ -1,6 +1,4 @@
 #guard
-fn println(str: string) putln(str)
-fn print(str: string) puts(str)
 
 fn readFile(filename: string): string {
     file_descriptor := sys_open(filename, 0i32, 0u16);
@@ -17,7 +15,7 @@ fn readFile(filename: string): string {
     while true {
         bytes_read = sys_read(file_descriptor, buffer, 1024u64);
         if bytes_read < 0i64 {
-            println("Error: Failed to read file. Error code: " + @(-bytes_read));
+            putln("Error: Failed to read file. Error code: " + @(-bytes_read));
             sys_close(file_descriptor);
             sys_exit(2i32);
         }

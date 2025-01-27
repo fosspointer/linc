@@ -34,12 +34,10 @@ fn main() {
     for i in 0u64..(+players) {
         num := i + 1u64;
         players[i] = Player{
-            .name = readln(@num + getPosessiveNumeral(num) + " player's name: "),
-            .health = parseU64(readln(@num + getPosessiveNumeral(num) + " player's health: "))};
+            name = readln(@num + getPosessiveNumeral(num) + " player's name: "),
+            health = parseU64(readln(@num + getPosessiveNumeral(num) + " player's health: "))};
     };
 
     for player in players
         putln("Player " + @player.name + " has " + @player.health + " hp!");
-
-    for i in 15u64..35u64 putln(@i + getPosessiveNumeral(i));
 }

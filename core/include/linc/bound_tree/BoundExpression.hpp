@@ -16,7 +16,7 @@ namespace linc
 
         [[nodiscard]] virtual std::string toString() const final override
         {
-            std::string result{Colors::push(Colors::Color::Yellow)};
+            std::string result{Colors::push(Colors::Yellow)};
             result.append(toStringInner());
             result.append(Colors::pop());
             Logger::append(result, " (:$)", PrimitiveValue(m_type));

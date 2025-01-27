@@ -12,7 +12,7 @@
 #include <linc/tree/WhileExpression.hpp>
 #include <linc/tree/MatchExpression.hpp>
 #include <linc/tree/ForExpression.hpp>
-#include <linc/tree/FunctionCallExpression.hpp>
+#include <linc/tree/CallExpression.hpp>
 #include <linc/tree/UnaryExpression.hpp>
 #include <linc/tree/BinaryExpression.hpp>
 #include <linc/tree/ConversionExpression.hpp>
@@ -29,6 +29,8 @@
 #include <linc/tree/ExternalDeclaration.hpp>
 #include <linc/tree/StructureDeclaration.hpp>
 #include <linc/tree/EnumerationDeclaration.hpp>
+#include <linc/tree/AliasDeclaration.hpp>
+#include <linc/tree/GenericDeclaration.hpp>
 #include <linc/tree/Statement.hpp>
 #include <linc/tree/ExpressionStatement.hpp>
 #include <linc/tree/DeclarationStatement.hpp>
@@ -41,4 +43,5 @@
 #include <linc/tree/VariantClause.hpp>
 #include <linc/tree/RangedForClause.hpp>
 #include <linc/tree/LegacyForClause.hpp>
+#include <linc/tree/GenericClause.hpp>
 #include <linc/tree/LoopLabel.hpp>

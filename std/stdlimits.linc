@@ -1,0 +1,18 @@
+#guard
+maxI64 := 0x7FFFFFFFFFFFFFFFi64
+maxI32 := 0x7FFFFFFFi32
+maxI16 := 0x7FFFi16
+maxI8 :=  0x7Fi8
+maxU64 := 0xFFFFFFFFFFFFFFFFu64
+maxU32 := 0xFFFFFFFFu32
+maxU16 := 0xFFFFu16
+maxU8 :=  0xFFu8
+
+minI64 := 0x8000000000000000i64
+minI32 := 0x80000000i32
+minI16 := 0x8000i16
+minI8 :=  0x80i8
+minU64 := 0u64
+minU32 := 0u32
+minU16 := 0u16
+minU8 :=  0u8

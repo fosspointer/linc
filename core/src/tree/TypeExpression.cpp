@@ -9,8 +9,40 @@ namespace linc
         :Expression(Token::Info{}), m_root(std::move(root)), m_mutabilityKeyword(mutability_Keyword),
         m_arraySpecifiers(std::move(array_specifiers))
     {
-        handleTokens();
+        if(m_mutabilityKeyword)
+        {
+            LINC_NODE_ASSERT(*m_mutabilityKeyword, Token::Type::KeywordMutability);
+            addToken(*m_mutabilityKeyword);
+        }
+        
+        if(auto function_root = std::get_if<1ul>(&m_root))
+        {
+            LINC_NODE_ASSERT(function_root->functionKeyword, Token::Type::KeywordFunction);
+            LINC_NODE_ASSERT(function_root->leftParenthesis, Token::Type::ParenthesisLeft);
+            LINC_NODE_ASSERT(function_root->rightParenthesis, Token::Type::ParenthesisRight);
+            LINC_NODE_ASSERT(function_root->typeSpecifier, Token::Type::Colon);
+            addToken(function_root->functionKeyword);
+            addToken(function_root->leftParenthesis);
+            addTokens(function_root->argumentTypes->getTokens());
+            addToken(function_root->rightParenthesis);
+            addToken(function_root->typeSpecifier);
+            addTokens(function_root->returnType->getTokens());
+        }
+        else addTokens(std::get<0ul>(m_root)->getTokens());
+
+        for(const auto& specifier: m_arraySpecifiers)
+            if(specifier.leftBracket && specifier.rightBracket)
+            {
+                LINC_NODE_ASSERT(specifier.leftBracket.value(), Token::Type::SquareLeft);
+                LINC_NODE_ASSERT(specifier.rightBracket.value(), Token::Type::SquareRight);
+                addToken(*specifier.leftBracket);
+                if(specifier.count)
+                    addTokens(specifier.count->getTokens());
+                addToken(*specifier.rightBracket);
+            }
     }
+
+    TypeExpression::~TypeExpression() = default;
 
     std::unique_ptr<const Expression> TypeExpression::clone() const
     {
@@ -45,31 +77,5 @@ namespace linc
 
         auto identifier = Types::uniqueCast<const IdentifierExpression>(std::get<0ul>(m_root)->clone());
         return std::make_unique<const TypeExpression>(m_mutabilityKeyword, std::move(identifier), std::move(array_specifiers));
-    }
-
-    void TypeExpression::handleTokens() const
-    {
-        if(m_mutabilityKeyword)
-            addToken(*m_mutabilityKeyword);
-        
-        if(auto function_root = std::get_if<1ul>(&m_root))
-        {
-            addToken(function_root->functionKeyword);
-            addToken(function_root->leftParenthesis);
-            addTokens(function_root->argumentTypes->getTokens());
-            addToken(function_root->rightParenthesis);
-            addToken(function_root->typeSpecifier);
-            addTokens(function_root->returnType->getTokens());
-        }
-        else addTokens(std::get<0ul>(m_root)->getTokens());
-
-        for(const auto& specifier: m_arraySpecifiers)
-            if(specifier.leftBracket && specifier.rightBracket)
-            {
-                addToken(*specifier.leftBracket);
-                if(specifier.count)
-                    addTokens(specifier.count->getTokens());
-                addToken(*specifier.rightBracket);
-            }
     }
 }

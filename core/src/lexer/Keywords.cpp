@@ -22,6 +22,8 @@ namespace linc
         LINC_KEYWORD_MAP_PAIR("struct", Token::Type::KeywordStructure),
         LINC_KEYWORD_MAP_PAIR("match", Token::Type::KeywordMatch),
         LINC_KEYWORD_MAP_PAIR("enum", Token::Type::KeywordEnumeration),
+        LINC_KEYWORD_MAP_PAIR("gen", Token::Type::KeywordGeneric),
+        LINC_KEYWORD_MAP_PAIR("alias", Token::Type::KeywordAlias),
     };
 
     Token::Type Keywords::get(const std::string& keyword_string)

@@ -1,30 +1,18 @@
 #guard
-#macro __STD_OPTION(_type)
-enum Option_##_type {
-    Some(_type),
-    None
+gen<T> enum Option {
+    Some(T), None
 }
-fn _type##_or(option: Option_##_type, alternative: _type) {
+
+gen<T> fn Option_or(option: Option<T> , fallback: T) {
     match option {
-        Option_##_type::Some(value) => value,
-        Option_##_type::None => alternative
+        Option<T> ::Some(value) => value,
+        Option<T> ::None => fallback
     }
 }
-#
 
-#macro __DEFINE_PRIMITIVES(macro)
-    macro(i8)
-    macro(i16)
-    macro(i32)
-    macro(i64)
-    macro(u8)
-    macro(u16)
-    macro(u32)
-    macro(u64)
-    macro(f32)
-    macro(f64)
-    macro(char)
-    macro(bool)
-    macro(string)
-    macro(type) #
-__DEFINE_PRIMITIVES(__STD_OPTION)
+gen<T, U> fn Option_map(option: Option<T> , function: fn(T): U) {
+    match option {
+        Option<T> ::Some(value) => Option<U> ::Some(function(value)),
+        Option<T> ::None => Option<U> ::None
+    }
+}

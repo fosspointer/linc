@@ -12,5 +12,7 @@ fn main() {
         last := str[+str - 1u64];
         last == '!' || last == '.' || last == '?'
     };
-    putln(@filter(["hello", "world", "foo!", "goodbye.", "bar?", "hey"], endsInPunctuation));
+    array := ["hello", "world", "foo!", "goodbye.", "bar?", "hey"];
+    putln("original: " + @array);
+    putln("punctuation filtered: " + @filter(array, endsInPunctuation));
 }

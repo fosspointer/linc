@@ -1,5 +1,6 @@
 #pragma once
 #include <linc/Include.hpp>
+#define LINC_COLORS_EXP(number) 1 << number
 
 namespace linc
 {
@@ -9,10 +10,18 @@ namespace linc
     public:
         Colors() = delete;
 
-        /// @brief Enum representing basic ANSI foreground colors
-        enum class Color: char
+        /// @brief Enum representing ANSI colors, exclusive options are incremented by one whereas non-exclusive options
+        /// are assigned to the next power of two, so as to allow bit manipulation.
+        enum Color: std::uint_least8_t
         {
-            Default, Black, Red, Green, Yellow, Blue, Purple, Cyan, White
+            // Color hue
+            Black = 0, Red = 1, Green = 2, Yellow = 3, Blue = 4, Purple = 5, Cyan = 6, White = 7,
+            // Reset color
+            Reset = 8,
+            // Mode
+            Bold = 16, Underline = 32, Background = 48,
+            // High Intensity
+            HighIntensity = 64,
         };
 
         /// @brief Push the specified color onto the stack.
@@ -31,8 +40,17 @@ namespace linc
 
         /// @brief Get the color at the top of the stack. If the stack is empty, return the default color.
         /// @return The enumerator corresponding to the current color.
-        [[nodiscard]] inline static Color getCurrentColor() { return s_colorStack.empty()? Color::Default: s_colorStack.top(); }
+        [[nodiscard]] inline static Color getCurrentColor() { return s_colorStack.empty()? Color::Reset: s_colorStack.top(); }
+
+        /// @brief Toggle the support for ANSI escape sequences. If disabled, toANSI will return an empty string.
+        static inline void toggleANSISupport(bool option) { s_ansiSupported = option; }
     private:
         static std::stack<Color> s_colorStack;
+        static bool s_ansiSupported;
     };
+
+    inline Colors::Color operator|(Colors::Color first, Colors::Color second)
+    {
+        return static_cast<Colors::Color>(+first | +second);
+    }
 }

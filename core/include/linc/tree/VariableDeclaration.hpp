@@ -48,8 +48,8 @@ namespace linc
 
         VariableDeclaration(const Token& type_specifier, std::unique_ptr<const TypeExpression> type,
             std::unique_ptr<const IdentifierExpression> identifier, std::optional<ValueAssignment> default_value)
-            :Declaration(type->getTokenInfo()), m_typeSpecifier(type_specifier),
-            m_type(std::move(type)), m_identifier(std::move(identifier)), m_defaultValue(std::move(default_value))
+            :Declaration(std::move(identifier), type->getTokenInfo()), m_typeSpecifier(type_specifier),
+            m_type(std::move(type)), m_defaultValue(std::move(default_value))
         {
             addTokens(m_type->getTokens());
             addTokens(m_identifier->getTokens());
@@ -76,12 +76,10 @@ namespace linc
 
         inline const Token& getTypeSpecifier() const { return m_typeSpecifier; }
         inline const TypeExpression* const getType() const { return m_type.get(); }
-        inline const IdentifierExpression* const getIdentifier() const { return m_identifier.get(); }
         inline const std::optional<ValueAssignment>& getDefaultValue() const { return m_defaultValue; }
     private:
         const Token& m_typeSpecifier;
         const std::unique_ptr<const TypeExpression> m_type;
-        const std::unique_ptr<const IdentifierExpression> m_identifier;
         const std::optional<ValueAssignment> m_defaultValue;
     };
 }

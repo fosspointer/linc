@@ -3,7 +3,7 @@
 namespace linc
 {
     BoundVariableDeclaration::BoundVariableDeclaration(Types::type type, const std::string& name, std::unique_ptr<const BoundExpression> default_value)
-        :m_actualType(type), m_name(name), m_defaultValue(std::move(default_value))
+        :BoundDeclaration(name), m_actualType(type), m_defaultValue(std::move(default_value))
     {}
 
     std::unique_ptr<const BoundDeclaration> BoundVariableDeclaration::clone() const

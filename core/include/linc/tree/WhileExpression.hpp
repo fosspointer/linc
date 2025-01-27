@@ -14,10 +14,10 @@ namespace linc
             m_testExpression(std::move(test_expression)), m_whileBody(std::move(while_body)), m_finallyBody(std::move(finally_body)),
             m_elseBody(std::move(else_body))
         {
-            if(label)
+            if(m_label)
             {
-                addToken(label->specifier);
-                addTokens(label->identifier->getTokens());
+                addToken(m_label->specifier);
+                addTokens(m_label->identifier->getTokens());
             }
 
             addToken(m_whileKeyword);
