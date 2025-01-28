@@ -83,7 +83,7 @@ namespace linc
         /// @brief Enumeration of supported number system bases.
         enum class NumberBase: unsigned char
         {
-            Decimal, Hexadecimal, Binary
+            Decimal, Hexadecimal, Binary, Octal
         };
         
         /// @brief Convert a given number base to its corresponding integer (in decimal).

@@ -599,13 +599,19 @@ namespace linc
     {
         auto value = expression->getValue();
         auto find = m_boundDeclarations.find(value);
+        if(!m_matchIdentifiers.empty())
+        {
+            auto name = std::move(m_matchIdentifiers.top());
+            m_matchIdentifiers.pop();
+            return std::make_unique<const BoundIdentifierExpression>(name, Types::voidType);
+        }
         
         if(!find)
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .span = TextSpan::fromTokenInfo(expression->getTokenInfo()),
-                .message = Logger::format("$ Undeclared identifier '$'.", expression->getTokenInfo(), value)});
+                .message = Logger::format("$ Undeclared identifier `$`.", expression->getTokenInfo(), value)});
 
             return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
         }
@@ -859,16 +865,29 @@ namespace linc
         auto test_expression = bindExpression(expression->getTestExpression());
         auto clauses = bindNodeListClause<MatchClause>(expression->getClauses(), &Binder::bindMatchClause);
         auto type = clauses->getList().empty()? Types::voidType: clauses->getList()[0ul]->getExpression()->getType();
+        bool has_else_case{false};
 
         [&]()
         {
             for(const auto& clause: clauses->getList())
             {
+                if(has_else_case)
+                    Reporting::push(Reporting::Report{
+                        .type = Reporting::Type::Warning, .stage = Reporting::Stage::ABT,
+                        .span = TextSpan::fromTokenInfo(clause->getInfo()),
+                        .message = Logger::format("$ Unreachable pattern in match expression (preceded by an else case).",
+                            clause->getInfo())
+                    });
                 if(!type.isCompatible(clause->getExpression()->getType()))
                     type = Types::voidType;
-
                 for(const auto& value: clause->getValues()->getList())
-                    if(!value->getType().isCompatible(test_expression->getType()))
+                {
+                    if(value->getType() == Types::voidType)
+                    {
+                        has_else_case = true;
+                        continue;
+                    }
+                    else if(!value->getType().isCompatible(test_expression->getType()))
                     {
                         Reporting::push(Reporting::Report{
                             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -877,6 +896,7 @@ namespace linc
                         });
                         return;
                     }
+                }
             }
         }();
 
@@ -1411,9 +1431,11 @@ namespace linc
     const std::unique_ptr<const BoundMatchClause> Binder::bindMatchClause(const MatchClause* clause)
     {
         m_boundDeclarations.beginScope();
-        
+
         for(const auto& value: clause->getValues()->getList())
         {
+            if(auto identifier = dynamic_cast<const IdentifierExpression*>(value.node.get()))
+                m_matchIdentifiers.push(identifier->getValue());
             auto enumerator = dynamic_cast<const EnumeratorExpression*>(value.node.get());
             if(!enumerator || !enumerator->getValue()) continue;
             auto identifier = dynamic_cast<const IdentifierExpression*>(enumerator->getValue());

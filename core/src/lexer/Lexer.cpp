@@ -52,6 +52,7 @@ namespace linc
         case 'd': return Token::NumberBase::Decimal;
         case 'x': return Token::NumberBase::Hexadecimal;
         case 'b': return Token::NumberBase::Binary;
+        case 'o': return Token::NumberBase::Octal;
         default: return std::nullopt;
         }
     }
@@ -219,7 +220,7 @@ namespace linc
                 else if(peek().value() == '\\' && peek(1ul).has_value())
                 {
                     consume(); // Consume the '\' character (do not push)
-                    value_buffer.push_back(Escape::get(consume()).value_or('\0')); // Push the quote
+                    value_buffer.push_back(Escape::get(consume()).value_or('\0')); // Push the escaped character
                 }
                 else value_buffer.push_back(consume());
             }

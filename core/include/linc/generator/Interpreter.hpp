@@ -336,6 +336,8 @@ namespace linc
                         beginScope();
                         [&, this]()
                         {
+                            if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(value.get()))
+                                return m_identifiers.append(identifier->getValue(), PrimitiveValue::voidValue);
                             if(!test_expression.getIfEnumerator()) return;
                             auto enumerator = dynamic_cast<const BoundEnumeratorExpression*>(value.get());
                             if(!enumerator || match_expression->getTestExpression()->getType().kind != Types::type::Kind::Enumeration) return;
@@ -343,7 +345,8 @@ namespace linc
                             if(!identifier || m_identifiers.find(identifier->getValue())) return;
                             m_identifiers.append(identifier->getValue(), test_expression.getEnumerator().getValue());    
                         }();
-                        if(evaluateExpression(value.get()) == test_expression)
+                        if(auto clause_value = evaluateExpression(value.get());
+                            clause_value == PrimitiveValue::voidValue || clause_value == test_expression)
                         {
                             auto result = evaluateExpression(clause->getExpression());
                             endScope();

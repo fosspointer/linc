@@ -30,13 +30,8 @@ namespace linc
         /// @return Boolean corresponding to the result of the test.
         inline static bool isDigit(char c, Token::NumberBase base)
         {
-            switch(base)
-            {
-            case Token::NumberBase::Decimal: return std::isdigit(c);
-            case Token::NumberBase::Hexadecimal: return std::string("01234567890ABCDEF").contains(c);
-            case Token::NumberBase::Binary: return c == '0' || c == '1';
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(base);
-            }
+            static const std::string_view digits = "0123456789ABCDEF";
+            return digits.substr(0ul, Token::baseToInt(base)).contains(c);
         }
     private:        
         /// @brief Internal utility method to check whether the next sequence of characters is whitespace. If it is, ignore it and return true

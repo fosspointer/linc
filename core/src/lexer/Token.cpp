@@ -11,6 +11,7 @@ namespace linc
         case Token::NumberBase::Decimal: return 10;
         case Token::NumberBase::Hexadecimal: return 16;
         case Token::NumberBase::Binary: return 2;
+        case Token::NumberBase::Octal: return 8;
         default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(base);
         }
     }

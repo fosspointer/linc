@@ -16,6 +16,8 @@
 - Language: Support for type aliases (equivalent to C's typedefs) is now available with the following syntax `alias <identifier> = <type>`.
 - Language: Cleaned up the syntax for structure initializers (something like `Vec2<f32>{.x = 5, .y = 3}` now becomes `Vec2<f32>{x = 5, y = 3}`).
 - REPL: Added support for inline preprocessor definitions (`-D`, `--define <name>=<value>`) as well as an option to disable ANSI (`-a`, `--disable-ansi`).
+- Language: Added support for octal integer literals using the `0o` prefix (for example, `0o777` = `511`).
+- Language: Added support for else-case-like patterns in match expressions (undeclared identifiers match every pattern and evaluate to void).
 
 ## Future plans (in order of priority)
 
