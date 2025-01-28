@@ -20,7 +20,7 @@ For more, look into [examples](./examples/).
 ## Features
 
 - **Immutability by default:** In the majority of modern programming languages, a variable is declared mutable unless stated otherwise (most commonly achieved using the 'const' keyword). In linc, as well as a few other functional-inspired programming languages (such as Rust), the opposite is true. This serves the purpose of easing-up const-correctness (it's much more difficult to specify const, when most of the time it makes sense as the default, rather 'opting-in' for mutability on a case-by-case basis).
-- **Interpreted Shell:** Although the language is far from 'complete', one can experiment with language features and the language in general, whether by interpreting and evaluating files, or by using the Linc shell (`lincev`), which allows code to be written in a REPL environment.
+- **Interpreted Shell:** Although the language is far from 'complete', one can experiment with language features and the language in general, whether by interpreting and evaluating files, or by using the Linc shell (`lincenv`), which allows code to be written in a REPL environment.
 - **Compiler:** The `lincc` compiler backend is experimental and in development, and supports basic Linc syntax. It's currently not very stable, but is undergoing development. It currently only supports GNU/Linux + x86-64 targets.
 
 ## Requirements
