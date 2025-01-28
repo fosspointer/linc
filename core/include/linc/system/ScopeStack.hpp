@@ -97,6 +97,20 @@ namespace linc
             m_symbols.back().insert(std::pair<std::string, SYMBOL_TYPE>(std::string{name}, std::move(symbol)));
         }
 
+        void appendWith(const std::string& reference_name, const std::string& name, SYMBOL_TYPE symbol)
+        {
+            for(auto it = m_symbols.rbegin(); it != m_symbols.rend(); ++it)
+            {
+                auto find = it->find(reference_name);
+                if(find != it->end())
+                {
+                    (*it)[name] = std::move(symbol);
+                    return;
+                }
+            }
+            throw LINC_EXCEPTION_ILLEGAL_STATE(name);
+        }
+
         void update(std::string_view name, SYMBOL_TYPE symbol)
         {
             m_symbols.back()[std::string{name}] = std::move(symbol);

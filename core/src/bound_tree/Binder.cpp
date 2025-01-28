@@ -669,7 +669,7 @@ namespace linc
         if(!find)
             return (Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Undeclared identifier `$` does not result to a namespace.", expression->getTokenInfo(), name)
+                .message = Logger::format("$ Undeclared identifier `$` does not result to an enumeration.", expression->getTokenInfo(), name)
             }), std::make_unique<const BoundEnumeratorExpression>(std::string{}, -1ul, nullptr, Types::invalidType));
         else if(auto enumeration = dynamic_cast<const BoundEnumerationDeclaration*>(find.get()); !enumeration)
             return (Reporting::push(Reporting::Report{
@@ -858,7 +858,7 @@ namespace linc
 
         return std::make_unique<const BoundWhileExpression>(std::move(label), type, std::move(test_expression), std::move(while_body), std::move(finally_body),
             std::move(else_body));
-    }
+}
 
     const std::unique_ptr<const BoundMatchExpression> Binder::bindMatchExpression(const MatchExpression* expression)
     {
@@ -1435,7 +1435,11 @@ namespace linc
         for(const auto& value: clause->getValues()->getList())
         {
             if(auto identifier = dynamic_cast<const IdentifierExpression*>(value.node.get()))
-                m_matchIdentifiers.push(identifier->getValue());
+            {
+                auto find = m_boundDeclarations.find(identifier->getValue());
+                if(!find)
+                    m_matchIdentifiers.push(identifier->getValue());
+            }
             auto enumerator = dynamic_cast<const EnumeratorExpression*>(value.node.get());
             if(!enumerator || !enumerator->getValue()) continue;
             auto identifier = dynamic_cast<const IdentifierExpression*>(enumerator->getValue());
@@ -1524,7 +1528,7 @@ namespace linc
         
         const auto& type_identifiers = declaration->getTypeIdentifiers();
         const auto& type_instances = clause->getTypes()->getList();
-        auto identifier = *declaration->getDeclaration()->getIdentifier()->getIdentifierToken().value;
+        auto identifier = declaration->getDeclaration()->getIdentifier()->getValue();
         auto identifier_length = identifier.size();
 
         identifier.push_back('|');
@@ -1544,8 +1548,11 @@ namespace linc
         {
             auto new_identifier = Token{.type = Token::Type::Identifier, .value = identifier, .info = info};
             auto raw_declaration = declaration->getDeclaration()->cloneRename(std::make_unique<const IdentifierExpression>(new_identifier, nullptr));
-            auto declaration = bindDeclaration(raw_declaration.get());
-            map[key] = declaration->clone();
+            m_boundDeclarations.beginScope();
+            auto new_declaration = bindDeclaration(raw_declaration.get());
+            m_boundDeclarations.endScope();
+            m_boundDeclarations.appendWith(declaration->getName(), new_declaration->clone());
+            map[key] = std::move(new_declaration);
             return identifier;
         }
         return identifier;

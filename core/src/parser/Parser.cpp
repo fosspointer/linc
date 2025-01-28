@@ -36,9 +36,17 @@ namespace linc
 
     std::unique_ptr<const MatchClause> Parser::parseMatchClause() const
     {
+        auto info = peekInfo();
         auto value_list = parseNodeListClause(LAMBDA_PARSE(Expression), Token::Type::Arrow);
         auto then_keyword = match(Token::Type::Arrow);
         auto expression = parseExpression();
+
+        if(!expression)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfoRange(then_keyword.info, peekInfo()),
+                .message = Logger::format("$ Invalid result expression given to match clause.", info)
+            }), nullptr);
 
         return std::make_unique<const MatchClause>(then_keyword, std::move(expression), std::move(value_list));
     }

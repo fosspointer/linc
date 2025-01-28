@@ -122,10 +122,10 @@ namespace linc
             result.append("): " + function.returnType->toString());
             break;
         case type::Kind::Enumeration:
-            result.append("enum(");
+            result.append("enum{");
             for(type::Enumeration::size_type i{0ul}; i < enumeration.size(); ++i)
-                result.append((i == 0ul? "": ", ") + enumeration[i].first);
-            result.push_back(')');
+                result.append((i == 0ul? "": ", ") + enumeration[i].first + (enumeration[i].second == Types::voidType? std::string{}: '(' + enumeration[i].second.toString() + ')'));
+            result.push_back('}');
             break;
         default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
         }   

@@ -29,6 +29,11 @@ namespace linc
         
         [[nodiscard]] std::unique_ptr<const class BoundDeclaration> find(const std::string& name, bool top_only = false) const;
         [[nodiscard]] bool push(std::unique_ptr<const class BoundDeclaration> symbol);
+        inline void appendWith(const std::string& name, std::unique_ptr<const class BoundDeclaration> symbol)
+        {
+            auto symbol_name = symbol->getName();
+            m_scopes.appendWith(name, std::move(symbol_name), std::move(symbol));
+        }
 
         [[nodiscard]] inline std::string findLabel(const std::string& name)
         {

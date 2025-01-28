@@ -29,7 +29,7 @@ return_type operator op() const_keyword \
     return_type operator op(const Value& other) const_keyword \
     { \
         if(other.m_kind != m_kind) \
-            throw LINC_EXCEPTION_INVALID_INPUT("Invalid operator for array and primitive operands."); \
+            throw LINC_EXCEPTION_ILLEGAL_STATE(other.m_kind); \
         switch(m_kind) \
         { \
         case Kind::Primitive: return m_primitive op other.m_primitive; \
@@ -41,7 +41,7 @@ return_type operator op() const_keyword \
     return_type operator op(const Value& other) const_keyword \
     { \
         if(other.m_kind != m_kind) \
-            throw LINC_EXCEPTION_INVALID_INPUT("Invalid operator for array and primitive operands."); \
+            throw LINC_EXCEPTION_ILLEGAL_STATE(other.m_kind); \
         switch(m_kind) \
         { \
         case Kind::Primitive: return m_primitive op other.m_primitive; \

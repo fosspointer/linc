@@ -346,7 +346,7 @@ namespace linc
                             m_identifiers.append(identifier->getValue(), test_expression.getEnumerator().getValue());    
                         }();
                         if(auto clause_value = evaluateExpression(value.get());
-                            clause_value == PrimitiveValue::voidValue || clause_value == test_expression)
+                            clause_value == test_expression || value->getType() == Types::voidType)
                         {
                             auto result = evaluateExpression(clause->getExpression());
                             endScope();
