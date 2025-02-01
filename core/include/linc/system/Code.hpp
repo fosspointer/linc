@@ -26,8 +26,8 @@ namespace linc
         /// @brief Structure representation of a single line of code, along with the corresponding file and line it belongs to.
         struct Line final
         {
-            std::string text, file;
-            std::size_t line;
+            std::string text;
+            std::size_t file, line;
         };
 
         /// @brief Structure representation of a character, along with the corresponding line and file it belongs to.
@@ -35,8 +35,7 @@ namespace linc
         struct Character final
         {
             char character;
-            std::string file;
-            std::size_t line, characterIndex;
+            std::size_t file, line, characterIndex;
 
             inline operator char() const { return character; }
             inline Token::Info getInfo() const { return Token::Info{.file = file, .line = line, .characterStart = characterIndex, .characterEnd = characterIndex + 1ul}; }
@@ -63,7 +62,22 @@ namespace linc
         /// @param raw_source The original, raw source code.
         /// @param filepath The filepath of the source file (can be arbitrary if from a buffer, e.g. from stdin).
         /// @return The resulting source code.
-        [[nodiscard]] static Source toSource(std::string raw_source, const std::string& filepath = "")
+        [[nodiscard]] static Source toSource(const std::string& raw_source, const std::string& filepath)
+        {
+            auto absolute = Files::toAbsolute(filepath);
+            auto find = std::find(Files::beginFilepaths(), Files::endFilepaths(), absolute);
+            auto file_index = std::distance(Files::beginFilepaths(), find);
+            if(find == Files::endFilepaths())
+                Files::pushFilepath(absolute);
+
+            return toSource(raw_source, file_index);
+        }
+
+        /// @brief Convert raw source code to the 'source' structure in use. Use the given filenames and compute the line numbers for each line.
+        /// @param raw_source The original, raw source code.
+        /// @param file The index corresponding to the file's path.
+        /// @return The resulting source code.
+        [[nodiscard]] static Source toSource(std::string raw_source, std::size_t file)
         {
             Source result{};
             std::string buffer{};
@@ -75,14 +89,14 @@ namespace linc
                 buffer.push_back(c);
                 if(c == '\n')
                 {
-                    result.push_back(Line{.text = buffer, .file = filepath, .line = ++line_count});
+                    result.push_back(Line{.text = buffer, .file = file, .line = ++line_count});
                     buffer = {};
                 }
             }
 
             return result;
         }
-
+        
         /// @brief Compute the character at a specified offset past the given indices of a source structure, which may also be out of bounds for the
         /// current line. If so, the following line is checked for accordingly.
         /// @param source The source code to test for.

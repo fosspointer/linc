@@ -10,7 +10,7 @@
 [[nodiscard]] static std::unique_ptr<const linc::BoundExpression> const evaluateExpression(const std::string& expression_raw, linc::Binder& binder)
 {
     const auto test_path = "testing";
-    auto code = linc::Code::toSource(expression_raw);
+    auto code = linc::Code::toSource(expression_raw, test_path);
     linc::Lexer lexer(code, true);
     linc::Preprocessor preprocessor;
     preprocessor.set(lexer(), test_path);

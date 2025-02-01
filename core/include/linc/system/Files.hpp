@@ -32,7 +32,13 @@ namespace linc
         /// @param filepath_string The filepath to write to in string format.
         /// @param contents The new contents of the file.
         static void write(const std::string& filepath_string, const std::string& contents);
+
+        [[nodiscard]] static inline std::vector<std::string>::const_iterator beginFilepaths() { return s_filepaths.begin(); }
+        [[nodiscard]] static inline std::vector<std::string>::const_iterator endFilepaths() { return s_filepaths.end(); }
+        [[nodiscard]] static inline const std::string& getFilepath(std::vector<std::string>::size_type index) { return s_filepaths.at(index); }
+        static inline void pushFilepath(const std::string& filepath) { s_filepaths.push_back(filepath); }
     private:
+        static std::vector<std::string> s_filepaths;
         static std::unordered_map<std::filesystem::path, std::fstream*> s_fileMap;
     };
 }

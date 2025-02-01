@@ -3,6 +3,7 @@
 #include <linc/system/Printable.hpp>
 #include <linc/system/Colors.hpp>
 #include <linc/system/Code.hpp>
+#include <linc/lexer/Token.hpp>
 #include <linc/Include.hpp>
 
 namespace linc
@@ -10,8 +11,7 @@ namespace linc
     /// @brief Class representing a color-annotated line of source code.
     struct TextSpan final
     {
-        std::string::size_type lineStart, lineEnd, spanStart, spanEnd;
-        std::string file;
+        std::string::size_type lineStart, lineEnd, spanStart, spanEnd, file;
 
         bool operator==(const TextSpan&) const = default;
         bool operator!=(const TextSpan&) const = default;

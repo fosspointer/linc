@@ -169,12 +169,12 @@ try
     {
         for(std::size_t i{0ul}; i < evaluate_expressions.size(); ++i)
         {
-            const auto path = "constant-input-" + std::to_string(i);
+            const auto path = "eval-input" + std::to_string(i);
             linc::Binder binder;
             linc::Interpreter interpreter(binder);
             linc::Parser parser;
 
-            auto code = linc::Code::toSource(evaluate_expressions[i]);
+            auto code = linc::Code::toSource(evaluate_expressions[i], path);
             linc::Lexer lexer(code, true);
             linc::Preprocessor preprocessor;
             preprocessor.set(lexer(), path);
@@ -182,6 +182,8 @@ try
             
             const auto node = parser.parseVariant();
             const auto bound_node = binder.bindNode(node.get());
+
+            if(linc::Reporting::hasError()) break;
             linc::Logger::println("$::`$` >> $", linc::PrimitiveValue{i}, 
                 std::string{linc::Colors::toANSI(linc::Colors::Cyan)} + evaluate_expressions[i] + std::string{linc::Colors::toANSI(linc::Colors::Reset)},
                 interpreter.evaluateNode(bound_node.get()));

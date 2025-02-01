@@ -23,7 +23,7 @@ namespace linc
             std::string message;
             bool isInvalid() const
             {
-                return message == std::string{} || span == Report{}.span || span.lineStart == 0ul || span.lineStart == -1ul || span.lineEnd > span.lineStart || span.file == std::string{};
+                return message == std::string{} || span == Report{}.span || span.lineStart == 0ul || span.lineStart == -1ul || span.lineEnd > span.lineStart || span.file == -1ul;
             }
 
             std::string toString() const

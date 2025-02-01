@@ -106,14 +106,14 @@ namespace linc
         /// @return Optionally returns the requested character if that exists, otherwise returning nullopt.
         [[nodiscard]] inline std::optional<Code::Character> peek(std::string::size_type offset = 0ul) const
         {
-            return Code::peek(m_sourceCode, m_characterIndex, m_lineIndex, offset);
+            return Code::peek(m_sourceCode, m_characterIndex, m_line, offset);
         }
 
         /// @brief Return the current character, and increment the index pointer by one.
         /// @return The character that was consumed.
         inline Code::Character consume() const
         {
-            return Code::consume(m_sourceCode, m_characterIndex, m_lineIndex);
+            return Code::consume(m_sourceCode, m_characterIndex, m_line);
         }
 
         /// @brief Check whether a given character represents a valid symbol in Linc. 
@@ -129,7 +129,7 @@ namespace linc
         [[nodiscard]] static bool hasDigit(std::string_view str, Token::NumberBase base);
 
         const Code::Source m_sourceCode;
-        mutable std::string::size_type m_characterIndex{}, m_lineIndex{};
+        mutable std::string::size_type m_characterIndex{}, m_line{};
         mutable std::vector<std::string> m_includeDirectories{"/usr/include", "/usr/local/include", LINC_INSTALL_PATH "/include"};
     };
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include <linc/system/Exception.hpp>
 #include <linc/system/Logger.hpp>
+#include <linc/system/Files.hpp>
 #include <linc/Include.hpp>
 
 namespace linc
@@ -13,11 +14,10 @@ namespace linc
         /// @brief Struct holding data useful for error handling and logging
         struct Info final 
         {
-            std::string file;
-            std::size_t line, characterStart, characterEnd;
+            std::size_t file, line, characterStart, characterEnd;
 
             bool operator==(const Info& other) const = default;
-            std::string toString() const { return file + ':' + std::to_string(line); }
+            std::string toString() const { return Files::getFilepath(file) + ':' + std::to_string(line); }
         };
 
         /// @brief The type of a Token

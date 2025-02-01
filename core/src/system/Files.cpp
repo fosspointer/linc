@@ -3,6 +3,7 @@
 namespace linc
 {
     std::unordered_map<std::filesystem::path, std::fstream*> Files::s_fileMap;
+    std::vector<std::string> Files::s_filepaths;
 
     std::string Files::toAbsolute(const std::string& filepath_string)
     {
