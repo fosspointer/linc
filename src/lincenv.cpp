@@ -23,7 +23,19 @@
 #define LINC_EXCEPTION_WARNING "This is probaby not intended, please contact the developer of this software to fix it."
 #endif
 
-static int evaluateFile(std::string filepath, int argc, const char** argv, Arguments& argument_handler, std::string& definitions_code)
+void showLexer(std::vector<linc::Token>& tokens)
+{
+    for(auto& token: tokens)
+        linc::Logger::println("$:#4Token$:#3 {type: $:$:$}",
+            linc::Logger::format("$:#2$:$:#1", linc::Token::typeToString(token.type), 
+                linc::Colors::pop(), linc::Colors::push(token.isValid()? linc::Colors::Yellow: linc::Colors::Red)),
+            token.value? linc::Logger::format(", value: $", linc::PrimitiveValue(*token.value)): std::string{},
+            token.numberBase? linc::Logger::format(", base: $", linc::PrimitiveValue(linc::Token::baseToInt(*token.numberBase))): std::string{},
+            linc::Colors::pop(), linc::Colors::push(linc::Colors::Purple));
+}
+
+static int evaluateFile(std::string filepath, int argc, const char** argv, Arguments& argument_handler, std::string& definitions_code,
+    bool show_tree, bool show_lexer)
 {
     filepath = linc::Files::toAbsolute(filepath);
 
@@ -47,6 +59,9 @@ static int evaluateFile(std::string filepath, int argc, const char** argv, Argum
     preprocessor.set(tokens, filepath);
     auto processed_code = preprocessor();
 
+    if(show_lexer)
+        showLexer(processed_code);
+
     linc::Parser parser;
     parser.set(processed_code, filepath);
     linc::Binder binder;
@@ -54,25 +69,28 @@ static int evaluateFile(std::string filepath, int argc, const char** argv, Argum
     auto program = parser();
     auto bound_program = binder.bindProgram(&program);
     
-    if(!linc::Reporting::hasError())
-    {
-        linc::Interpreter interpreter(binder);
-        std::vector<linc::NodeListClause<linc::Expression>::DelimitedNode> arguments;
-        for(int i{argument_handler.getFirstDefaultIndex()}; i < argc; ++i)
-            arguments.push_back(linc::NodeListClause<linc::Expression>::DelimitedNode{
-                .delimiter = i == argc - 1? std::nullopt: std::make_optional(linc::Token{.type = linc::Token::Type::Comma}),
-                .node = std::make_unique<const linc::LiteralExpression>(linc::Token{
-                    .type = linc::Token::Type::StringLiteral,
-                    .value = argv[i]
-                })
-            });
+    if(linc::Reporting::hasError())
+        return LINC_EXIT_COMPILATION_FAILURE;
 
-        return interpreter.evaluateProgram(&bound_program, std::make_unique<const linc::ArrayInitializerExpression>(
-            linc::Token{.type = linc::Token::Type::SquareLeft}, linc::Token{.type = linc::Token::Type::SquareRight}, 
-            std::make_unique<const linc::NodeListClause<linc::Expression>>(std::move(arguments), linc::Token::Info{})
-        ));
-    }
-    else return LINC_EXIT_COMPILATION_FAILURE;
+    linc::Interpreter interpreter(binder);
+    if(show_tree)
+        for(const auto& node: bound_program.declarations)
+        interpreter.printNodeTree(node.get(), std::string{});
+
+    std::vector<linc::NodeListClause<linc::Expression>::DelimitedNode> arguments;
+    for(int i{argument_handler.getFirstDefaultIndex()}; i < argc; ++i)
+        arguments.push_back(linc::NodeListClause<linc::Expression>::DelimitedNode{
+            .delimiter = i == argc - 1? std::nullopt: std::make_optional(linc::Token{.type = linc::Token::Type::Comma}),
+            .node = std::make_unique<const linc::LiteralExpression>(linc::Token{
+                .type = linc::Token::Type::StringLiteral,
+                .value = argv[i]
+            })
+        });
+
+    return interpreter.evaluateProgram(&bound_program, std::make_unique<const linc::ArrayInitializerExpression>(
+        linc::Token{.type = linc::Token::Type::SquareLeft}, linc::Token{.type = linc::Token::Type::SquareRight}, 
+        std::make_unique<const linc::NodeListClause<linc::Expression>>(std::move(arguments), linc::Token::Info{})
+    ));
 }
 void clear()
 {
@@ -90,7 +108,7 @@ try
     linc::Windows::enableAnsi();
 #endif
     const static auto option_include = 'i', option_eval = 'e', option_version = 'v', option_optimization = 'O', option_notice = 'C', option_define = 'D', option_log = 'L',
-        option_disable_ansi = 'a';
+        option_disable_ansi = 'a', option_show_lexer = 't', option_show_tree = 'p';
     constexpr const char* notice = 
         #include "notice"
     ;
@@ -104,6 +122,8 @@ try
         std::pair(option_define, Arguments::Option{.description = "Specify a preprocessor definition."}),
         std::pair(option_log, Arguments::Option{.description = "Write logs to a file."}),
         std::pair(option_disable_ansi, Arguments::Option{.description = "Disable ANSI output.", .flag = true}),
+        std::pair(option_show_lexer, Arguments::Option{.description = "Display lexer token output before parsing.", .flag = true}),
+        std::pair(option_show_tree, Arguments::Option{.description = "Display the final AST structure.", .flag = true}),
     }, std::vector<std::pair<std::string, char>>{
         std::pair("--include", option_include),
         std::pair("--eval", option_eval),
@@ -113,6 +133,8 @@ try
         std::pair("--define", option_define),
         std::pair("--log", option_log),
         std::pair("--disable-ansi", option_disable_ansi),
+        std::pair("--show-lexer", option_show_lexer),
+        std::pair("--show-tree", option_show_tree),
     });
     std::string log_file{};
     linc::Colors::toggleANSISupport(argument_handler.get(option_disable_ansi).empty());
@@ -191,9 +213,13 @@ try
         return linc::Reporting::getReports().size()? LINC_EXIT_COMPILATION_FAILURE: LINC_EXIT_SUCCESS;
     }
 
+    bool show_tree{!argument_handler.get(option_show_tree).empty()},
+        show_lexer{!argument_handler.get(option_show_lexer).empty()},
+        optimization{!argument_handler.get(option_optimization).empty()};
+        
     if(!files.empty())
     {
-        auto result = evaluateFile(*files.at(0ul).value, argument_count, arguments, argument_handler, definitions_code);
+        auto result = evaluateFile(*files.at(0ul).value, argument_count, arguments, argument_handler, definitions_code, show_tree, show_lexer);
         if(!log_file.empty())
         {
             std::string report_list;
@@ -203,7 +229,6 @@ try
         }
         return result;
     }
-    bool show_tree{false}, show_lexer{false}, optimization{!argument_handler.get(option_optimization).empty()};
 
     linc::Preprocessor preprocessor;
     linc::Binder binder;
@@ -346,7 +371,7 @@ try
             _arguments[0ul] = arguments[0ul];
             _arguments[1ul] = filename.c_str();
 
-            evaluateFile(filename, 2ul, _arguments, argument_handler, definitions_code);
+            evaluateFile(filename, 2ul, _arguments, argument_handler, definitions_code, show_tree, show_lexer);
             delete[] _arguments;
             continue;
         }
@@ -384,13 +409,7 @@ try
         auto tokens = preprocessor();
 
         if(show_lexer)
-            for(auto& token: tokens)
-                linc::Logger::println("$:#4Token$:#3 {type: $:$:$}",
-                    linc::Logger::format("$:#2$:$:#1", linc::Token::typeToString(token.type), 
-                        linc::Colors::pop(), linc::Colors::push(token.isValid()? linc::Colors::Yellow: linc::Colors::Red)),
-                    token.value? linc::Logger::format(", value: $", linc::PrimitiveValue(*token.value)): std::string{},
-                    token.numberBase? linc::Logger::format(", base: $", linc::PrimitiveValue(linc::Token::baseToInt(*token.numberBase))): std::string{},
-                    linc::Colors::pop(), linc::Colors::push(linc::Colors::Purple));
+            showLexer(tokens);
         if(linc::Reporting::hasError()){ linc::Reporting::clearReports(); success = false; continue; }
                 
         parser.set(tokens, shell_name);

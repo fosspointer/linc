@@ -18,6 +18,7 @@
 - REPL: Added support for inline preprocessor definitions (`-D`, `--define <name>=<value>`) as well as an option to disable ANSI (`-a`, `--disable-ansi`).
 - Language: Added support for octal integer literals using the `0o` prefix (for example, `0o777` = `511`).
 - Language: Added support for else-case-like patterns in match expressions (undeclared identifiers match every pattern and evaluate to void).
+- REPL: Added command line options for displaying the AST 'pretty-printed' and lexer output (`-p` and `-t` respectively).
 
 ## Future plans (in order of priority)
 

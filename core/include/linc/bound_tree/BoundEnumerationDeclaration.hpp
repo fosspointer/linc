@@ -32,7 +32,17 @@ namespace linc
 
         virtual std::string toStringInner() const final override
         {
-            return "Enumeration Declaration";
+            using namespace std::string_literals;
+            auto result = "Enumeration Declaration ("s;
+            for(std::size_t i{0ul}; i < m_enumerators->getList().size(); ++i)
+            {
+                auto& enumerator = m_enumerators->getList()[i];
+                result.append((i != 0ul? ", "s: ""s) + enumerator->getName() + ": "s + PrimitiveValue(enumerator->getActualType()).toString());
+            }
+
+            result.push_back(')');
+
+            return result;
         }
         const std::unique_ptr<const BoundNodeListClause<BoundEnumeratorClause>> m_enumerators;
         const Types::type m_actualType;

@@ -1,5 +1,4 @@
 #guard
-
 fn readFile(filename: string): string {
     file_descriptor := sys_open(filename, 0i32, 0u16);
     
@@ -27,4 +26,21 @@ fn readFile(filename: string): string {
 
     sys_close(file_descriptor);
     result
+}
+
+fn writeFile(filename: string, content: string, mode: i32 = 0x40i32 | 0x200i32) {
+    file_descriptor := sys_open(filename, 0x1i32 | mode, 0o644u16);
+    
+    if file_descriptor < 0i32 {
+        putln("Error: unable to open file. Error code: " + @(-file_descriptor));
+        sys_exit(1i32);
+    };
+
+    bytes_written := sys_write(file_descriptor, content, +content);
+    if bytes_written == -1i64 {
+        putln("Error: unable write to file. Error code: " + @(-file_descriptor));
+        sys_exit(1i32);
+    };
+
+    sys_close(file_descriptor);
 }
