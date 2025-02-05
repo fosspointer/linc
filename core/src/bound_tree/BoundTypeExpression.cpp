@@ -17,6 +17,10 @@ namespace linc
     BoundTypeExpression::BoundTypeExpression(Types::type::Function function, bool is_mutable, BoundArraySpecifiers specifiers)
         :BoundExpression(Types::fromKind(Types::Kind::type)), m_root(std::move(function)), m_isMutable(is_mutable), m_arraySpecifiers(std::move(specifiers))
     {}
+
+    BoundTypeExpression::BoundTypeExpression(Root root, bool is_mutable, BoundArraySpecifiers specifiers)
+        :BoundExpression(Types::fromKind(Types::Kind::type)), m_root(std::move(root)), m_isMutable(is_mutable), m_arraySpecifiers(std::move(specifiers))
+    {}
     
     std::unique_ptr<const BoundExpression> BoundTypeExpression::clone() const
     {

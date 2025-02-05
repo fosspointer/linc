@@ -657,7 +657,6 @@ namespace linc
         }
 
         auto name = expression->getEnumerationIdentifier()->getValue();
-        
         auto find = m_boundDeclarations.find(name);
         if(auto generic = expression->getEnumerationIdentifier()->getGeneric(); generic && find && dynamic_cast<const BoundGenericDeclaration*>(find.get()))
         {
@@ -769,12 +768,11 @@ namespace linc
             }
             else if(auto alias_declaration = dynamic_cast<const BoundAliasDeclaration*>(find.get()))
             {
-                if(!specifiers.empty())
-                    Reporting::push(Reporting::Report{
-                        .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                        .message = Logger::format("$ Cannot add specifiers to aliased type '$'.", expression->getTokenInfo(), name)
-                    });
-                return Types::uniqueCast<const BoundTypeExpression>(alias_declaration->getType()->clone());
+                auto aliased_specifiers = alias_declaration->getType()->getArraySpecifiers();
+                for(const auto& specifier: specifiers)
+                    aliased_specifiers.push_back(std::move(specifier));
+                return std::make_unique<const BoundTypeExpression>(alias_declaration->getType()->cloneRoot(), expression->getMutabilityKeyword().has_value(),
+                    std::move(aliased_specifiers));
             }
             else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(find.get()))
             {
@@ -1336,6 +1334,12 @@ namespace linc
     {
         auto name = expression->getIdentifier()->getValue();
         auto find = m_boundDeclarations.find(name);
+        if(auto generic = expression->getIdentifier()->getGeneric(); generic && find && dynamic_cast<const BoundGenericDeclaration*>(find.get()))
+        {
+            auto declaration = static_cast<const BoundGenericDeclaration*>(find.get());
+            name = bindGenericClause(generic, declaration, expression->getTokenInfo());
+            find = m_boundDeclarations.find(name);
+        }
 
         if(!find)
         {
@@ -1351,7 +1355,7 @@ namespace linc
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Identifier $ in structure initializer is not a structure type.",
+                .message = Logger::format("$ Identifier $ in structure initializer is not of structure type.",
                     expression->getTokenInfo(), PrimitiveValue(name))
             });
             return std::make_unique<const BoundStructureInitializerExpression>(name, std::vector<std::unique_ptr<const BoundExpression>>{},

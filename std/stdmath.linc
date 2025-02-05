@@ -40,5 +40,41 @@ gen<T> fn round(number: T) {
     if number > zero { floor<T>(number + half) } else { ceil<T>(number - half) }
 }
 
+gen<T> fn sqrt(number: T, iterations: u64 = 16u64): T {
+    if number <= as T(0) { return as T(0); };
+    guess mut := number * as T(0.5f64);
+    for _ in 0u64..iterations
+        guess = as T(0.5f64) * (guess + number / guess);
+    guess
+}
+
+gen<T> fn exp(x: T, iterations: u64 = 32u64): T {
+    result mut := as T(1);
+    term mut := as T(1);
+
+    for index in 1u64..iterations {
+        term = term * x / as mut T(index);
+        result = result + term;
+    };
+
+    result
+}
+
+gen<T> fn log(number: T, precision: u8 = 10u8): T {
+    if number <= as T(0) { return as T(0); };
+    epsilon := as T(1u64 << precision);
+    guess mut := number - as T(1);
+    exp_guess mut := exp<T>(guess);
+    delta mut := (exp_guess - number) / exp_guess;
+    while abs<T>(delta) * epsilon > as T(1) {
+        guess -= delta;
+        exp_guess = exp<T>(guess);
+        delta = (exp_guess - number) / exp_guess;
+    };
+    guess
+}
+
+eulerF32 := 2.71828182845904523536028747135266249f32
+eulerF64 := 2.71828182845904523536028747135266249f64
 piF32 := 3.14159265358979323846264338327950288f32
 piF64 := 3.14159265358979323846264338327950288f64

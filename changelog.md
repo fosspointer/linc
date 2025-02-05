@@ -19,6 +19,10 @@
 - Language: Added support for octal integer literals using the `0o` prefix (for example, `0o777` = `511`).
 - Language: Added support for else-case-like patterns in match expressions (undeclared identifiers match every pattern and evaluate to void).
 - REPL: Added command line options for displaying the AST 'pretty-printed' and lexer output (`-p` and `-t` respectively).
+- Misc: Fixed type identifiers to generic structures not working properly.
+- Language: Added support for appending array specifiers to aliased types.
+- Language: Added common math utilities to `stdmath.linc` (`sqrt`, `exp`, `log`), as well as lexical comparison (`lexicalCompare`) to `stdstring.linc`.
+- Language: Introduced `stdfunctional.linc` (contains functions for `map`, `filter`, `find`, `reverse`, `reduce` and `bubbleSort` (temporary)).
 
 ## Future plans (in order of priority)
 

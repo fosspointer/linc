@@ -630,10 +630,17 @@ namespace linc
 
     std::unique_ptr<const StructureInitializerExpression> Parser::parseStructureInitializerExpression() const
     {
-        if(!peek(1ul) || peek()->type != Token::Type::Identifier || !isValidTypeDefinition(*peek()->value) || peek(1ul)->type != Token::Type::BraceLeft)
+        if(!peek()->isIdentifier() || findDefinition(peek()->value.value_or(std::string{})) != Definition::Typename)
             return nullptr;
 
-        auto identifier = std::make_unique<const IdentifierExpression>(consume(), nullptr);
+        auto position = m_index;
+        auto identifier = parseIdentifierExpression(true);
+        if(!identifier || !peek() || peek()->type != Token::Type::BraceLeft)
+        {
+            m_index = position;
+            return nullptr;
+        }
+
         auto left_brace = consume();
         std::vector<StructureInitializerExpression::Argument> arguments;
 

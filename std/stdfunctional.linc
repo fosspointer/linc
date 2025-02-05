@@ -1,0 +1,50 @@
+#guard
+#include `stdoption.linc`
+
+gen<T, U> fn map(array: T[], conversion: fn(T): U) {
+    result: mut U[] = [];
+    for element in array result += [conversion(element)];
+    result
+}
+
+gen<T> fn filter(array: T[], condition: fn(T): bool) {
+    result: mut U[] = [];
+    for element in array
+        if condition(element)
+            result += [element];
+    result
+}
+
+gen<T> fn find(array: T[], condition: fn(T): bool): Option<T> {
+    for element in array if condition(element) { return Option<T> ::Some(element); };
+    Option<T> ::None
+}
+
+gen<T> fn reverse(array: T[]) {
+    result: mut T[] = [];
+    for i in -(0u64..(+array))
+        result += [array[i]];
+    result
+}
+
+gen<T, U> fn reduce(array: T[], initial: U, operation: fn(U, T): U) {
+    result: mut U = initial;
+    for element in array result = operation(result, element);
+    result
+}
+
+gen<T> fn bubbleSort(array: mut T[], condition: fn(T, T): bool) {
+    for i in 0u64..(+array) {
+        mutated mut := false;
+        for j in 0u64..(+array - i - 1u64) {
+            if condition(array[j], array[j + 1u64]) {
+                temporary := array[j];
+                array[j] = array[j + 1u64];
+                array[j + 1u64] = temporary;
+                mutated = true;
+            };
+        };
+        if !mutated { break; }
+    };
+    array
+}

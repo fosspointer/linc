@@ -39,7 +39,7 @@ namespace linc
         }
 
         auto info = !m_sourceCode.empty()? Token::Info{.file = m_sourceCode.back().file, .line = m_sourceCode.back().line,
-            .characterStart = m_sourceCode.back().text.size() - 1ul, .characterEnd = m_sourceCode.back().text.size() - 1ul}: Token::Info{};
+            .characterStart = m_sourceCode.back().text.size() - 1ul, .characterEnd = m_sourceCode.back().text.size()}: Token::Info{};
         tokens.push_back(Token{.type = Token::Type::EndOfFile, .info = info});
 
         m_line = m_characterIndex = {};

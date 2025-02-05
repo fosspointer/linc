@@ -14,6 +14,7 @@ namespace linc
         BoundTypeExpression(Types::type::Structure structure, bool is_mutable, BoundArraySpecifiers specifiers);
         BoundTypeExpression(Types::type::Enumeration structure, bool is_mutable, BoundArraySpecifiers specifiers);
         BoundTypeExpression(Types::type::Function function, bool is_mutable, BoundArraySpecifiers specifiers);
+        BoundTypeExpression(Root root, bool is_mutable, BoundArraySpecifiers specifiers);
 
         [[nodiscard]] inline bool getMutable() const { return m_isMutable; }
         [[nodiscard]] inline bool getArray() const { return !m_arraySpecifiers.empty(); }
@@ -49,6 +50,17 @@ namespace linc
 
                 return result;
             }
+        }
+
+        [[nodiscard]] inline Root cloneRoot() const
+        {
+            if(auto kind = std::get_if<Types::type::Primitive>(&m_root))
+                return *kind;
+            else if(auto structure = std::get_if<Types::type::Structure>(&m_root))
+                return Types::type::cloneStructure(*structure, m_isMutable);
+            else if(auto enumeration = std::get_if<Types::type::Enumeration>(&m_root))
+                return *enumeration;
+            else return Types::type::cloneFunction(&std::get<Types::type::Function>(m_root));
         }
 
         virtual std::unique_ptr<const BoundExpression> clone() const final override;

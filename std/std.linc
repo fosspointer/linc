@@ -4,3 +4,4 @@
 #include `stdstring.linc`
 #include `stdoption.linc`
 #include `stdlimits.linc`
+#include `stdfunctional.linc`
