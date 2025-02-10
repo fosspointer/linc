@@ -29,6 +29,7 @@ namespace linc
         
         [[nodiscard]] std::unique_ptr<const class BoundDeclaration> find(const std::string& name, bool top_only = false) const;
         [[nodiscard]] bool push(std::unique_ptr<const class BoundDeclaration> symbol);
+        void update(std::unique_ptr<const class BoundDeclaration> symbol);
         inline void appendWith(const std::string& name, std::unique_ptr<const class BoundDeclaration> symbol)
         {
             auto symbol_name = symbol->getName();
@@ -99,6 +100,7 @@ namespace linc
         [[nodiscard]] const std::unique_ptr<const class BoundVariableDeclaration> bindVariableDeclaration(const class VariableDeclaration* declaration,
             bool is_argument = false);
         [[nodiscard]] const std::unique_ptr<const class BoundVariableDeclaration> bindDirectVariableDeclaration(const class DirectVariableDeclaration* declaration);
+        [[nodiscard]] const std::unique_ptr<const class BoundFunctionPrototypeDeclaration> bindFunctionPrototypeDeclaration(const class FunctionPrototypeDeclaration* declaration);
         [[nodiscard]] const std::unique_ptr<const class BoundFunctionDeclaration> bindFunctionDeclaration(const class FunctionDeclaration* declaration);
         [[nodiscard]] const std::unique_ptr<const class BoundExternalDeclaration> bindExternalDeclaration(const class ExternalDeclaration* declaration);
         [[nodiscard]] const std::unique_ptr<const class BoundStructureDeclaration> bindStructureDeclaration(const class StructureDeclaration* declaration);
@@ -132,9 +134,10 @@ namespace linc
         [[nodiscard]] BoundTypeExpression::BoundArraySpecifiers bindArraySpecifiers(const std::vector<TypeExpression::ArraySpecifier>& specifiers);
 
         BoundSymbols m_boundDeclarations;
-        Types::u64 m_inLoop{}, m_inFunction{};
+        Types::u64 m_inLoop{};
+        std::stack<Types::type> m_functionReturnTypes;
         std::stack<std::string> m_matchIdentifiers{};
         std::vector<std::unordered_map<std::string, std::unique_ptr<const BoundDeclaration>>> m_genericInstanceMaps;
-        Types::type m_currentFunctionType{Types::voidType};
+
     };
 }

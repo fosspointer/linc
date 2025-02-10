@@ -20,7 +20,7 @@ namespace linc
 
         virtual ~Declaration() = default;
         virtual std::unique_ptr<const Declaration> clone() const = 0;
-        std::unique_ptr<const Declaration> cloneRename(std::unique_ptr<const IdentifierExpression> identifier) const
+        virtual std::unique_ptr<const Declaration> cloneRename(std::unique_ptr<const IdentifierExpression> identifier) const
         {
             auto declaration = clone();
             declaration->m_identifier = std::move(identifier);

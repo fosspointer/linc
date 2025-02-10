@@ -57,11 +57,13 @@ endif()
 
 add_executable(lincenv ${CMAKE_CURRENT_SOURCE_DIR}/src/lincenv.cpp)
 add_executable(lincc ${CMAKE_CURRENT_SOURCE_DIR}/src/lincc.cpp)
+add_executable(lincexp ${CMAKE_CURRENT_SOURCE_DIR}/src/lincexp.cpp)
 target_link_libraries(lincenv linc_core)
 target_link_libraries(lincc linc_core)
+target_link_libraries(lincexp linc_core)
 include(tests/testing.cmake)
 
-install(TARGETS lincenv lincc linctest DESTINATION bin)
+install(TARGETS lincenv lincc lincexp linctest DESTINATION bin)
 
 install(FILES ${LINC_STD_SOURCES} DESTINATION include)
 set(STD_OBJECT_FILES)

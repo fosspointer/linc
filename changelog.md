@@ -23,6 +23,8 @@
 - Language: Added support for appending array specifiers to aliased types.
 - Language: Added common math utilities to `stdmath.linc` (`sqrt`, `exp`, `log`), as well as lexical comparison (`lexicalCompare`) to `stdstring.linc`.
 - Language: Introduced `stdfunctional.linc` (contains functions for `map`, `filter`, `find`, `reverse`, `reduce` and `bubbleSort` (temporary)).
+- Language: Introduced function prototypes, allowing for recursion and future optimizations.
+- Misc: Added control flow graph generation to the compilation pipeline.
 
 ## Future plans (in order of priority)
 

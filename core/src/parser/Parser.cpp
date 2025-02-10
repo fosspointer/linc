@@ -809,7 +809,7 @@ namespace linc
         return std::make_unique<const DirectVariableDeclaration>(direct_assignment, mutability_specifier, std::move(identifier), std::move(value));
     }
 
-    std::unique_ptr<const FunctionDeclaration> Parser::parseFunctionDeclaration() const
+    std::unique_ptr<const class FunctionPrototypeDeclaration> Parser::parseFunctionPrototypeDeclaration() const
     {
         if(peek() && peek()->type != Token::Type::KeywordFunction)
             return nullptr;
@@ -822,50 +822,42 @@ namespace linc
 
         auto has_type_specifier = peek()->type == Token::Type::Colon;
         auto type_specifier = has_type_specifier? consume(): Token{Token::Type::Colon};
-
-        std::unique_ptr<const Expression> body{nullptr};
-        std::unique_ptr<const TypeExpression> return_type{nullptr};
-
-        if(!has_type_specifier)
-            body = parseExpression();
-        
-        else
-        {
-            return_type = parseTypeExpression();
-            body = parseExpression();
-        }
+        auto return_type = has_type_specifier? parseTypeExpression(): nullptr;
 
         if(!function_name)
-        {
-            Reporting::push(Reporting::Report{
+            return (Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                .message = Logger::format("$ Invalid identifier expression in function declaration (function name).", function_keyword.info)
-            });
-            return nullptr;
-        }
+                .span = TextSpan::fromTokenInfoRange(function_keyword.info, left_parenthesis.info),
+                .message = Logger::format("$ Invalid name identifier in function prototype.", function_keyword.info)
+            }), nullptr);
 
         if(has_type_specifier && !return_type)
-        {
-            Reporting::push(Reporting::Report{
+            return (Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                .message = Logger::format("$ Invalid type expression in function declaration (return type).", function_keyword.info)
-            });
+                .span = TextSpan::fromTokenInfoRange(type_specifier.info, peekInfo()),
+                .message = Logger::format("$ Invalid return type in function prototype.", type_specifier.info)
+            }), nullptr);
+
+        return std::make_unique<const FunctionPrototypeDeclaration>(function_keyword, type_specifier, left_parenthesis, right_parenthesis,
+            std::move(function_name), std::move(return_type), std::move(arguments));
+    }
+
+    std::unique_ptr<const FunctionDeclaration> Parser::parseFunctionDeclaration() const
+    {
+        auto prototype = parseFunctionPrototypeDeclaration();
+        if(!prototype)
             return nullptr;
-        }
+        
+        auto body = parseExpression();
 
         if(!body)
-        {
-            Reporting::push(Reporting::Report{
+            return (Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                .message = Logger::format("$ Invalid body statement in function declaration.", function_keyword.info)
-            });
-            return nullptr;
-        }
+                .message = Logger::format("$ Invalid body statement in function declaration.", prototype->getFunctionSpecifier().info)
+            }), nullptr);
 
-        m_definitions.append(function_name->getValue(), Definition::Function);
-
-        return std::make_unique<const FunctionDeclaration>(function_keyword, type_specifier, left_parenthesis, right_parenthesis,
-            std::move(function_name), std::move(return_type), std::move(arguments), std::move(body));
+        m_definitions.append(prototype->getIdentifier()->getValue(), Definition::Function);
+        return std::make_unique<const FunctionDeclaration>(std::move(prototype), std::move(body));
     }
 
     std::unique_ptr<const ExternalDeclaration> Parser::parseExternalDeclaration() const

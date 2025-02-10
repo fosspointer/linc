@@ -550,7 +550,7 @@ namespace linc
                 m_emitter.pop(Registers::getArgumentName(0));
                 m_isMain = false;
 
-                if(declaration->getReturnType().primitive == Types::Kind::_void)
+                if(declaration->getPrototype()->getReturnType().primitive == Types::Kind::_void)
                     m_emitter.binary(Emitter::BinaryInstruction::Move, Registers::getArgumentName(0), std::to_string(0));
                     
                 m_emitter.unary(Emitter::UnaryInstruction::Call, s_systemExit);
@@ -564,10 +564,10 @@ namespace linc
             m_emitter.label(declaration->getName());
             m_emitter.prologue();
             
-            for(std::size_t i{0ul}; i < declaration->getArguments().size(); ++i)
+            for(std::size_t i{0ul}; i < declaration->getPrototype()->getArguments()->getList().size(); ++i)
             {
                 m_emitter.push(Registers::getArgumentName(i));
-                m_variables.append(declaration->getArguments()[i]->getName(), m_emitter.getStackPosition());
+                m_variables.append(declaration->getPrototype()->getArguments()->getList()[i]->getName(), m_emitter.getStackPosition());
             }
 
             generateExpression(declaration->getBody());

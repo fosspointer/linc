@@ -24,6 +24,7 @@
 #include <linc/bound_tree/BoundDeclaration.hpp>
 #include <linc/bound_tree/BoundVariableDeclaration.hpp>
 #include <linc/bound_tree/BoundFunctionDeclaration.hpp>
+#include <linc/bound_tree/BoundFunctionPrototypeDeclaration.hpp>
 #include <linc/bound_tree/BoundExternalDeclaration.hpp>
 #include <linc/bound_tree/BoundStructureDeclaration.hpp>
 #include <linc/bound_tree/BoundEnumerationDeclaration.hpp>

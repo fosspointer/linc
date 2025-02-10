@@ -107,6 +107,11 @@ namespace linc
         else return false;
     }
 
+    void BoundSymbols::update(std::unique_ptr<const class BoundDeclaration> symbol)
+    {
+        m_scopes.update(symbol->getName(), std::move(symbol));
+    }
+
     BoundProgram Binder::bindProgram(const Program* program)
     {
         BoundProgram bound_program;
@@ -288,26 +293,22 @@ namespace linc
     {
         auto expression = statement->getExpression()? bindExpression(statement->getExpression()): nullptr;
         
-        if(!m_inFunction)
+        if(m_functionReturnTypes.empty())
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Return statement used outside of function scope.",
                     statement->getTokenInfo())
             });
-
-        else if(m_currentFunctionType == Types::invalidType)
-            Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Cannot use return statements in functions with implicit return types.",
-                    statement->getTokenInfo())
-            });
-
-        else if(expression && !expression->getType().isAssignableTo(m_currentFunctionType))
+            
+        else if(expression && m_functionReturnTypes.top() != Types::invalidType && !expression->getType().isAssignableTo(m_functionReturnTypes.top()))
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Return statement doesn't match the function's return type (`$` -> `$`).",
-                    statement->getTokenInfo(), expression->getType(), m_currentFunctionType)
+                    statement->getTokenInfo(), expression->getType(), m_functionReturnTypes.top())
             });
+
+        if(m_functionReturnTypes.top() == Types::invalidType)
+            m_functionReturnTypes.top() = expression->getType();
 
         return std::make_unique<const BoundReturnStatement>(std::move(expression));
     }
@@ -414,7 +415,7 @@ namespace linc
         return variable;
     }
 
-    const std::unique_ptr<const BoundFunctionDeclaration> Binder::bindFunctionDeclaration(const FunctionDeclaration* declaration)
+    const std::unique_ptr<const BoundFunctionPrototypeDeclaration> Binder::bindFunctionPrototypeDeclaration(const FunctionPrototypeDeclaration* declaration)
     {
         auto return_type = declaration->getReturnType()? bindTypeExpression(declaration->getReturnType())->getActualType(): Types::invalidType;
         auto name = declaration->getIdentifier()->getValue();
@@ -424,8 +425,7 @@ namespace linc
         arguments.reserve(declaration->getArguments()->getList().size());
         argument_types.reserve(declaration->getArguments()->getList().size());
 
-        m_boundDeclarations.beginScope();
-        bool has_default_value{false}, has_error{false};
+        bool has_default_value{false};
 
         for(std::size_t i{0ul}; i < declaration->getArguments()->getList().size(); ++i)
         {
@@ -446,23 +446,13 @@ namespace linc
                     .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("Argument $ in function '$'.", i, name)
                 });
-
-                has_error = true;
                 break;
             }
-
             arguments.push_back(std::move(bound_argument));
         }
 
         for(const auto& argument: arguments)
             argument_types.push_back(argument->getActualType());
-
-        ++m_inFunction;
-        m_currentFunctionType = return_type;
-        auto body = bindExpression(declaration->getBody());
-        if(return_type == Types::invalidType) { return_type = body->getType(); return_type.isMutable = false; }
-        m_currentFunctionType = Types::voidType;
-        --m_inFunction;
 
         if(return_type.isMutable)
             Reporting::push(Reporting::Report{
@@ -471,21 +461,56 @@ namespace linc
                 .message = Logger::format("$ Mutable modifier is ineffective on function return types.", declaration->getTokenInfo())});
 
         auto function_type = Types::type{Types::type::Function{return_type.clone(), std::move(argument_types)}, return_type.isMutable};
-        auto function = std::make_unique<const BoundFunctionDeclaration>(function_type, name, std::move(arguments), std::move(body));
+    return std::make_unique<const BoundFunctionPrototypeDeclaration>(std::move(function_type), name, 
+            std::make_unique<const BoundNodeListClause<BoundVariableDeclaration>>(std::move(arguments), declaration->getTokenInfo()));
+    }
 
-        if(!function->getBody()->getType().isAssignableTo(function->getReturnType()))
+    const std::unique_ptr<const BoundFunctionDeclaration> Binder::bindFunctionDeclaration(const FunctionDeclaration* declaration)
+    {
+        m_boundDeclarations.beginScope();
+        auto prototype = bindFunctionPrototypeDeclaration(declaration->getPrototype());
+        m_functionReturnTypes.push(prototype->getReturnType());
+        if(!m_boundDeclarations.push(prototype->clone()))
+        {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
-                .message = Logger::format("$ Function '$' declared with return type `$`, but it evaluates to type `$`.",
-                    declaration->getTokenInfo(), name, function->getReturnType(), function->getBody()->getType())});
-        
-        m_boundDeclarations.endScope();
-
-        if(!has_error && !m_boundDeclarations.push(function->clone()))
-            Reporting::push(Reporting::Report{
-                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(declaration->getPrototype()->getTypeSpecifier().info),
                 .message = Logger::format("$ Redefinition of symbol '$' as function declaration.",
-                    declaration->getTokenInfo(), name)});
+                    declaration->getTokenInfo(), prototype->getName())});
+            
+            auto function = std::make_unique<const BoundFunctionDeclaration>(std::move(prototype), bindExpression(declaration->getBody()));
+            m_boundDeclarations.endScope();
+            m_functionReturnTypes.pop();
+            return function;
+        }
+
+        auto body = bindExpression(declaration->getBody());
+        if(m_functionReturnTypes.top() == Types::invalidType)
+        {
+            m_functionReturnTypes.top() = body->getType();
+            m_functionReturnTypes.top().isMutable = false;
+        }
+        auto return_type = m_functionReturnTypes.top();
+        m_functionReturnTypes.pop();
+
+        if(return_type.isMutable)
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Warning, .stage = Reporting::Stage::ABT,
+                .span = TextSpan::fromTokenInfo(declaration->getPrototype()->getTypeSpecifier().info),
+                .message = Logger::format("$ Mutable modifier is ineffective on function return types.", declaration->getTokenInfo())});
+
+        const_cast<Types::type&>(prototype->getReturnType()) = return_type;
+        m_boundDeclarations.endScope();
+        auto function = std::make_unique<const BoundFunctionDeclaration>(std::move(prototype), std::move(body));
+
+        if(!function->getBody()->getType().isAssignableTo(function->getPrototype()->getReturnType()))
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = Logger::format("$ Function '$' declared with return type `$`, but evaluates to `$`.",
+                    declaration->getPrototype()->getTokenInfo(), function->getName(), function->getPrototype()->getReturnType(), function->getBody()->getType())});
+        
+        else if(!m_boundDeclarations.push(function->clone()))
+            throw LINC_EXCEPTION_ILLEGAL_STATE(m_boundDeclarations);
 
         return function;
     }
@@ -619,8 +644,11 @@ namespace linc
             return std::make_unique<const BoundIdentifierExpression>(value, variable->getActualType());
 
         else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find.get()))
-            return std::make_unique<const BoundIdentifierExpression>(value, function->getFunctionType());
+            return std::make_unique<const BoundIdentifierExpression>(value, function->getPrototype()->getFunctionType());
         
+        else if(auto prototype = dynamic_cast<const BoundFunctionPrototypeDeclaration*>(find.get()))
+            return std::make_unique<const BoundIdentifierExpression>(value, prototype->getFunctionType());
+
         else if(auto external = dynamic_cast<const BoundExternalDeclaration*>(find.get()))
             return std::make_unique<const BoundIdentifierExpression>(value, external->getActualType()->getActualType());
 
@@ -932,6 +960,18 @@ namespace linc
         {
             const auto& list = expression->getArguments()->getList();
             const auto& function_type = function->getType().function;
+            if(*function_type.returnType == Types::invalidType && m_functionReturnTypes.top() == Types::invalidType)
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .message = Logger::format("$ Cannot call function with invalid return type.",
+                        expression->getTokenInfo())});
+                
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
+                    .message = "Maybe try explicitly specifying the function's return type?"
+                });
+            }
             std::vector<std::unique_ptr<const BoundExpression>> default_arguments;
             [&]()
             {
@@ -944,7 +984,7 @@ namespace linc
                 auto function = dynamic_cast<const BoundFunctionDeclaration*>(find.get());
                 if(!function) return;
                 
-                for(const auto& argument: function->getArguments())
+                for(const auto& argument: function->getPrototype()->getArguments()->getList())
                     if(argument->getDefaultValue())
                         default_arguments.push_back(argument->getDefaultValue()->clone());
             }();
@@ -987,7 +1027,7 @@ namespace linc
             {
                 if(!identifier) break;
                 auto function = static_cast<const BoundFunctionDeclaration*>(find.get());
-                arguments.push_back(function->getArguments().at(i)->getDefaultValue()->clone());
+                arguments.push_back(function->getPrototype()->getArguments()->getList().at(i)->getDefaultValue()->clone());
             }
 
             return std::make_unique<const BoundFunctionCallExpression>(*function_type.returnType, std::move(function), std::move(arguments));

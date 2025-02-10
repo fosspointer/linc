@@ -92,6 +92,56 @@ static int evaluateFile(std::string filepath, int argc, const char** argv, Argum
         std::make_unique<const linc::NodeListClause<linc::Expression>>(std::move(arguments), linc::Token::Info{})
     ));
 }
+
+void printSymbolInfo(const linc::BoundDeclaration* symbol, std::size_t i)
+{               
+    linc::Logger::print(linc::Colors::push(linc::Colors::Yellow));
+
+    const auto index = linc::PrimitiveValue(i).toString();
+
+    if(symbol->getName().contains('|')) return;
+    else if(auto generic = dynamic_cast<const linc::BoundGenericDeclaration*>(symbol))
+    {
+        auto declaration = generic->getDeclaration();
+        std::string symbol_kind;
+        if(dynamic_cast<const linc::FunctionDeclaration*>(declaration))
+            symbol_kind = "function";
+
+        else if(dynamic_cast<const linc::ExternalDeclaration*>(declaration))
+            symbol_kind = "external function";
+
+        else if(dynamic_cast<const linc::StructureDeclaration*>(declaration))
+            symbol_kind = "structure";
+
+        else if(dynamic_cast<const linc::EnumerationDeclaration*>(declaration))
+            symbol_kind = "enumeration";
+            
+        linc::Logger::println("[$]: generic $ $", index, symbol_kind, linc::PrimitiveValue(declaration->getIdentifier()->getValue()));
+    }
+    else if(auto variable = dynamic_cast<const linc::BoundVariableDeclaration*>(symbol))
+        linc::Logger::println("[$]: variable $ of type `$`", index, linc::PrimitiveValue(variable->getName()),
+        linc::PrimitiveValue(variable->getActualType()));
+    
+    else if(auto function = dynamic_cast<const linc::BoundFunctionDeclaration*>(symbol))
+        linc::Logger::println("[$]: function $ of type `$`", index,
+            linc::PrimitiveValue(function->getName()), linc::PrimitiveValue(function->getPrototype()->getFunctionType()));
+
+    else if(auto external_function = dynamic_cast<const linc::BoundExternalDeclaration*>(symbol))
+        linc::Logger::println("[$]: external function $ with return type '$' (# of args: $)", index,
+            linc::PrimitiveValue(external_function->getName()), linc::PrimitiveValue(external_function->getActualType()->getActualType()),
+            linc::PrimitiveValue(external_function->getArguments().size()));
+
+    else if(auto structure = dynamic_cast<const linc::BoundStructureDeclaration*>(symbol))
+        linc::Logger::println("[$]: structure $ of type $", index, linc::PrimitiveValue(structure->getName()),
+            structure->getActualType());
+
+    else if(auto enumeration = dynamic_cast<const linc::BoundEnumerationDeclaration*>(symbol))
+        linc::Logger::println("[$]: enumeration: $ of type `$`", index, linc::PrimitiveValue(enumeration->getName()),
+            linc::PrimitiveValue(enumeration->getActualType()));
+
+    linc::Colors::pop();
+}
+
 void clear()
 {
 #ifdef LINC_WINDOWS
@@ -323,37 +373,8 @@ try
         {
             auto list = binder.getSymbols();
             
-            for(size_t i{0ul}; i < list.size(); i++)
-            {
-                const auto& symbol = list[i];
-                
-                linc::Logger::print(linc::Colors::push(linc::Colors::Yellow));
-
-                const auto index = linc::PrimitiveValue(i).toString();
-
-                if(auto variable = dynamic_cast<const linc::BoundVariableDeclaration*>(symbol->get()))
-                    linc::Logger::println("[$]: variable $ of type `$`", index, linc::PrimitiveValue(variable->getName()),
-                    linc::PrimitiveValue(variable->getActualType()));
-                
-                else if(auto function = dynamic_cast<const linc::BoundFunctionDeclaration*>(symbol->get()))
-                    linc::Logger::println("[$]: function $ of type `$`", index,
-                        linc::PrimitiveValue(function->getName()), linc::PrimitiveValue(function->getFunctionType()));
-
-                else if(auto external_function = dynamic_cast<const linc::BoundExternalDeclaration*>(symbol->get()))
-                    linc::Logger::println("[$]: external function $ with return type '$' (# of args: $)", index,
-                        linc::PrimitiveValue(external_function->getName()), linc::PrimitiveValue(external_function->getActualType()->getActualType()),
-                        linc::PrimitiveValue(external_function->getArguments().size()));
-
-                else if(auto structure = dynamic_cast<const linc::BoundStructureDeclaration*>(symbol->get()))
-                    linc::Logger::println("[$]: structure $ of type $", index, linc::PrimitiveValue(structure->getName()),
-                        structure->getActualType());
-
-                else if(auto enumeration = dynamic_cast<const linc::BoundEnumerationDeclaration*>(symbol->get()))
-                    linc::Logger::println("[$]: enumeration: $ of type `$`", index, linc::PrimitiveValue(enumeration->getName()),
-                        linc::PrimitiveValue(enumeration->getActualType()));
-
-                linc::Colors::pop();
-            }
+            for(std::size_t i{0ul}; i < list.size(); i++)
+                printSymbolInfo(list[i]->get(), i);
             
             if(list.empty())
                 linc::Logger::println("No symbols have been declared.");

@@ -49,7 +49,7 @@ namespace linc
             auto main = static_cast<const BoundFunctionDeclaration*>(find_main.get());
             auto main_argument_list = std::vector<NodeListClause<Expression>::DelimitedNode>{};
 
-            if(!main->getArguments().empty())
+            if(!main->getPrototype()->getArguments()->getList().empty())
                 main_argument_list.push_back(NodeListClause<Expression>::DelimitedNode{
                     .delimiter = std::nullopt,
                     .node = std::move(argument_list)
@@ -139,8 +139,8 @@ namespace linc
             else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
             {
                 std::vector<std::string> argument_names;
-                argument_names.reserve(function_declaration->getArguments().size());
-                for(const auto& argument: function_declaration->getArguments())
+                argument_names.reserve(function_declaration->getPrototype()->getArguments()->getList().size());
+                for(const auto& argument: function_declaration->getPrototype()->getArguments()->getList())
                     argument_names.push_back(argument->getName());
                 FunctionValue value(function_declaration->getName(), std::move(argument_names), function_declaration->getBody()->clone());
                 m_identifiers.append(function_declaration->getName(), value);

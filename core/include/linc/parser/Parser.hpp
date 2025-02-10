@@ -102,6 +102,9 @@ namespace linc
         /// @brief Parse the following tokens as a direct variable declaration (implicit typing). 
         std::unique_ptr<const class DirectVariableDeclaration> parseDirectVariableDeclaration() const;
         
+        /// @brief Parse the following tokens as an AST function prototype declaration;
+        std::unique_ptr<const class FunctionPrototypeDeclaration> parseFunctionPrototypeDeclaration() const;
+
         /// @brief Parse the following tokens as an AST function declaration.
         std::unique_ptr<const class FunctionDeclaration> parseFunctionDeclaration() const;
         

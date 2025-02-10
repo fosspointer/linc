@@ -1,4 +1,6 @@
 #guard
+#include `stdmath.linc`
+
 #define STD_SIZE u64#
 fn toLowerChar(ch: char)
     if +ch >= +'A' && +ch <= +'Z'

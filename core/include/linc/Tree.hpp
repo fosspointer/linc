@@ -26,6 +26,7 @@
 #include <linc/tree/VariableDeclaration.hpp>
 #include <linc/tree/DirectVariableDeclaration.hpp>
 #include <linc/tree/FunctionDeclaration.hpp>
+#include <linc/tree/FunctionPrototypeDeclaration.hpp>
 #include <linc/tree/ExternalDeclaration.hpp>
 #include <linc/tree/StructureDeclaration.hpp>
 #include <linc/tree/EnumerationDeclaration.hpp>

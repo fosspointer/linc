@@ -161,19 +161,23 @@ namespace linc
             if(auto variable_declaration = dynamic_cast<const BoundVariableDeclaration*>(declaration))
                 return optimizeVariableDeclaration(std::move(variable_declaration));
 
-            else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
+            else if(auto function_prototype = dynamic_cast<const BoundFunctionPrototypeDeclaration*>(declaration))
             {
-                auto body = optimizeExpression(function_declaration->getBody());
                 std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments;
-                arguments.reserve(function_declaration->getArguments().size());
-                for(const auto& argument: function_declaration->getArguments())
+                arguments.reserve(function_prototype->getArguments()->getList().size());
+                for(const auto& argument: function_prototype->getArguments()->getList())
                 {
                     auto optimized_argument = Types::uniqueCast<const BoundVariableDeclaration>(optimizeDeclaration(argument.get()));
                     arguments.push_back(std::move(optimized_argument));
                 }
-
-                auto function_type = Types::type{Types::type::Function{function_declaration->getReturnType().clone(), function_declaration->getFunctionType().function.argumentTypes}};
-                return std::make_unique<const BoundFunctionDeclaration>(function_type, function_declaration->getName(), std::move(arguments), std::move(body));
+                return std::make_unique<const BoundFunctionPrototypeDeclaration>(function_prototype->getFunctionType(), function_prototype->getName(), 
+                    std::make_unique<const BoundNodeListClause<BoundVariableDeclaration>>(std::move(arguments), declaration->getInfo()));
+            }
+            else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
+            {
+                auto prototype = Types::uniqueCast<const BoundFunctionPrototypeDeclaration>(optimizeDeclaration(function_declaration->getPrototype()));
+                auto body = optimizeExpression(function_declaration->getBody());
+                return std::make_unique<const BoundFunctionDeclaration>(std::move(prototype), std::move(body));
             }
             return declaration->clone();
         }
