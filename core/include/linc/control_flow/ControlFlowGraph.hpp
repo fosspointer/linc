@@ -24,16 +24,27 @@ namespace linc
 
     struct MapBlock final
     {
-        std::vector<std::pair<std::unique_ptr<const BoundExpression>, std::size_t>> cases;
+        struct Case final
+        {
+            std::unique_ptr<const BoundExpression> candidateExpression;
+            std::size_t testIndex, resultIndex;
+        };
+        std::unique_ptr<const BoundExpression> testExpression;
+        std::vector<Case> cases;
+        std::size_t edgeExit;
     };
 
-    using Block = std::variant<ControlBlock, BasicBlock, ConditionalBlock, UnreachableBlock>;
+    using Block = std::variant<ControlBlock, BasicBlock, ConditionalBlock, UnreachableBlock, MapBlock>;
     struct ControlFlowGraph final
     {
-        const BoundFunctionPrototypeDeclaration* prototype;
+        std::unique_ptr<const BoundFunctionPrototypeDeclaration> prototype;
         std::vector<Block> blocks;
         std::unique_ptr<const BoundExpression> returnValue;  
     };
     
-    using ControlFlowProgram = std::vector<ControlFlowGraph>;
+    struct ControlFlowProgram
+    {
+        std::vector<std::pair<std::string, Types::type>> globals;
+        std::vector<ControlFlowGraph> functions;
+    };
 }

@@ -25,6 +25,8 @@
 - Language: Introduced `stdfunctional.linc` (contains functions for `map`, `filter`, `find`, `reverse`, `reduce` and `bubbleSort` (temporary)).
 - Language: Introduced function prototypes, allowing for recursion and future optimizations.
 - Misc: Added control flow graph generation to the compilation pipeline.
+- Backend: Introduced experimental interpreter backend, in progress.
+- Misc: the lowerer now mangles the names of variable identifier based on scope.
 
 ## Future plans (in order of priority)
 

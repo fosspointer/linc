@@ -366,7 +366,7 @@ namespace linc
         auto name = declaration->getIdentifier()->getIdentifierToken().value.value();
         auto default_value = declaration->getDefaultValue().has_value()? bindExpression(declaration->getDefaultValue()->getExpression()): nullptr;
 
-        auto variable = std::make_unique<const BoundVariableDeclaration>(type, name, std::move(default_value));
+        auto variable = std::make_unique<const BoundVariableDeclaration>(type, name, std::move(default_value), m_boundDeclarations.getScopeIndex());
 
         if(variable->getDefaultValue() && !variable->getDefaultValue()->getType().isAssignableTo(type))
             Reporting::push(Reporting::Report{
@@ -404,7 +404,7 @@ namespace linc
         type.isMutable = declaration->getMutabilitySpecifier().has_value(); 
         auto name = declaration->getIdentifier()->getValue();
 
-        auto variable = std::make_unique<const BoundVariableDeclaration>(type, name, std::move(value));
+        auto variable = std::make_unique<const BoundVariableDeclaration>(type, name, std::move(value), m_boundDeclarations.getScopeIndex());
 
         if(!m_boundDeclarations.push(variable->clone()))
             Reporting::push(Reporting::Report{
@@ -628,7 +628,7 @@ namespace linc
         {
             auto name = std::move(m_matchIdentifiers.top());
             m_matchIdentifiers.pop();
-            return std::make_unique<const BoundIdentifierExpression>(name, Types::voidType);
+            return std::make_unique<const BoundIdentifierExpression>(name, Types::voidType, m_boundDeclarations.getScopeIndex());
         }
         
         if(!find)
@@ -638,10 +638,10 @@ namespace linc
                 .span = TextSpan::fromTokenInfo(expression->getTokenInfo()),
                 .message = Logger::format("$ Undeclared identifier `$`.", expression->getTokenInfo(), value)});
 
-            return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
+            return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType, -1ul);
         }
         else if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(find.get()))
-            return std::make_unique<const BoundIdentifierExpression>(value, variable->getActualType());
+            return std::make_unique<const BoundIdentifierExpression>(value, variable->getActualType(), variable->getScopeIndex());
 
         else if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find.get()))
             return std::make_unique<const BoundIdentifierExpression>(value, function->getPrototype()->getFunctionType());
@@ -660,7 +660,7 @@ namespace linc
                     .span = TextSpan::fromTokenInfo(expression->getTokenInfo()),
                     .message = Logger::format("$ Cannot use generic identifier `$` without instantiating its type arguments.",
                         expression->getTokenInfo(), expression->getValue())
-                }), std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType));
+                }), std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType, -1ul));
 
             auto token = expression->getIdentifierToken();
             *token.value = bindGenericClause(expression->getGeneric(), generic, expression->getTokenInfo());
@@ -672,7 +672,7 @@ namespace linc
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
             .message = Logger::format("$ Cannot reference identifier `$`, as it does not refer to value.", expression->getTokenInfo(), value)});
 
-        return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType);
+        return std::make_unique<const BoundIdentifierExpression>(value, Types::invalidType, -1ul);
     }
 
     const std::unique_ptr<const BoundEnumeratorExpression> Binder::bindEnumeratorExpression(const EnumeratorExpression* expression)
@@ -718,7 +718,7 @@ namespace linc
         {
             const auto& enumerator = enumeration->getEnumerators()->getList().at(enumerator_index);
             if(!m_boundDeclarations.push(std::make_unique<const BoundVariableDeclaration>(
-                enumerator->getActualType(), match_identifier, nullptr)))
+                enumerator->getActualType(), match_identifier, nullptr, m_boundDeclarations.getScopeIndex())))
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .span = TextSpan::fromTokenInfo(expression->getValue()->getTokenInfo()),
@@ -1547,7 +1547,7 @@ namespace linc
             .span = TextSpan::fromTokenInfo(value->getTokenInfo()),
             .message = Logger::format("$ Expression given to ranged for clause is not iterable.", value->getTokenInfo())
         });
-        auto variable_declaration = std::make_unique<const BoundVariableDeclaration>(type, name, nullptr);
+        auto variable_declaration = std::make_unique<const BoundVariableDeclaration>(type, name, nullptr, m_boundDeclarations.getScopeIndex());
 
         if(!m_boundDeclarations.push(variable_declaration->clone()))
             Reporting::push(Reporting::Report{

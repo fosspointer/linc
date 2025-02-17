@@ -58,7 +58,7 @@ fn main(args: string[]): i32 {
     else if +args > 2u64 {
         putln("Usage:");
         putln(args[1u64] + ": interpret code from stdin.");
-        putln(args[1u64] + "[FILE]: interpret code from a file.");
+        putln(args[1u64] + " [FILE]: interpret code from a file.");
         return -1i32;
     };
 

@@ -29,6 +29,7 @@ namespace linc
         
         [[nodiscard]] std::unique_ptr<const class BoundDeclaration> find(const std::string& name, bool top_only = false) const;
         [[nodiscard]] bool push(std::unique_ptr<const class BoundDeclaration> symbol);
+        [[nodiscard]] std::size_t getScopeIndex() const { return m_scopes.getSize(); }
         void update(std::unique_ptr<const class BoundDeclaration> symbol);
         inline void appendWith(const std::string& name, std::unique_ptr<const class BoundDeclaration> symbol)
         {

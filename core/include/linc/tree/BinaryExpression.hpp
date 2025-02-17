@@ -14,12 +14,7 @@ namespace linc
             addToken(m_operatorToken);
             addTokens(m_right->getTokens());
 
-            if(!m_operatorToken.isBinaryOperator())
-            {
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::AST,
-                    .message = "Binary expression expected a binary operator"});
-            }
+            LINC_NODE_ASSERT_BINARY(m_operatorToken);
         }
 
         virtual std::unique_ptr<const Expression> clone() const final override

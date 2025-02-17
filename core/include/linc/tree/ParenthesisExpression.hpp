@@ -6,42 +6,28 @@ namespace linc
     class ParenthesisExpression final : public Expression
     {
     public:
-        ParenthesisExpression(const Token& left_parenthesis_token, const Token& right_parenthesis_token, std::unique_ptr<const Expression> expression)
+        ParenthesisExpression(const Token& left_parenthesis, const Token& right_parenthesis, std::unique_ptr<const Expression> expression)
             :Expression(NodeInfo{
-                .tokenList = {left_parenthesis_token}, .info = left_parenthesis_token.info}),
-            m_expression(std::move(expression)), m_leftParenthesisToken(left_parenthesis_token), m_rightParenthesisToken(right_parenthesis_token)
+                .tokenList = {left_parenthesis}, .info = left_parenthesis.info}),
+            m_expression(std::move(expression)), m_leftParenthesis(left_parenthesis), m_rightParenthesis(right_parenthesis)
         {
+            LINC_NODE_ASSERT(m_leftParenthesis, Token::Type::ParenthesisLeft);
+            LINC_NODE_ASSERT(m_rightParenthesis, Token::Type::ParenthesisRight);
             addTokens(m_expression->getTokens());
-            addToken(m_rightParenthesisToken);
-
-            if(m_leftParenthesisToken.type != Token::Type::ParenthesisLeft)
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error,
-                    .stage = Reporting::Stage::AST,
-                    .message = linc::Logger::format("Parenthesis expression expected opening parenthesis, got '$' instead.", 
-                        Token::typeToString(m_leftParenthesisToken.type))
-                });
-            
-            if(m_rightParenthesisToken.type != Token::Type::ParenthesisRight)
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error,
-                    .stage = Reporting::Stage::AST,
-                    .message = linc::Logger::format("Parenthesis expression expected opening parenthesis, got '$' instead.", 
-                        Token::typeToString(m_rightParenthesisToken.type))
-                });
+            addToken(m_rightParenthesis);
         }
 
         virtual std::unique_ptr<const Expression> clone() const final override
         {
-            return std::make_unique<const ParenthesisExpression>(m_leftParenthesisToken, m_rightParenthesisToken, m_expression->clone());
+            return std::make_unique<const ParenthesisExpression>(m_leftParenthesis, m_rightParenthesis, m_expression->clone());
         }
 
         inline const Expression* const getExpression() const { return m_expression.get(); }
         inline const Expression* const getExpression() { return m_expression.get(); }
-        inline const Token& getLeftParenthesis() const { return m_leftParenthesisToken; }
-        inline const Token& getRightParenthesis() const { return m_rightParenthesisToken; }
+        inline const Token& getLeftParenthesis() const { return m_leftParenthesis; }
+        inline const Token& getRightParenthesis() const { return m_rightParenthesis; }
     private:
         const std::unique_ptr<const Expression> m_expression;
-        const Token m_leftParenthesisToken, m_rightParenthesisToken;
+        const Token m_leftParenthesis, m_rightParenthesis;
     };
 }

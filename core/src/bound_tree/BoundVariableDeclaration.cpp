@@ -2,13 +2,13 @@
 
 namespace linc
 {
-    BoundVariableDeclaration::BoundVariableDeclaration(Types::type type, const std::string& name, std::unique_ptr<const BoundExpression> default_value)
-        :BoundDeclaration(name), m_actualType(type), m_defaultValue(std::move(default_value))
+    BoundVariableDeclaration::BoundVariableDeclaration(Types::type type, const std::string& name, std::unique_ptr<const BoundExpression> default_value, std::size_t scope_index)
+        :BoundDeclaration(name), m_actualType(type), m_defaultValue(std::move(default_value)), m_scopeIndex(scope_index)
     {}
 
     std::unique_ptr<const BoundDeclaration> BoundVariableDeclaration::clone() const
     {
-        return std::make_unique<const BoundVariableDeclaration>(m_actualType, m_name, m_defaultValue? m_defaultValue->clone(): nullptr);
+        return std::make_unique<const BoundVariableDeclaration>(m_actualType, m_name, m_defaultValue? m_defaultValue->clone(): nullptr, m_scopeIndex);
     }
     
     std::string BoundVariableDeclaration::toStringInner() const

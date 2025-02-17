@@ -153,7 +153,7 @@ namespace linc
         static std::unique_ptr<const BoundVariableDeclaration> optimizeVariableDeclaration(const BoundVariableDeclaration* declaration)
         {
             auto value = declaration->getDefaultValue()? optimizeExpression(declaration->getDefaultValue()): nullptr;
-            return std::make_unique<const BoundVariableDeclaration>(declaration->getActualType(), declaration->getName(), std::move(value));
+            return std::make_unique<const BoundVariableDeclaration>(declaration->getActualType(), declaration->getName(), std::move(value), declaration->getScopeIndex());
         }
 
         static std::unique_ptr<const BoundDeclaration> optimizeDeclaration(const BoundDeclaration* declaration)

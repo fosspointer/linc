@@ -9,8 +9,8 @@ namespace linc
     class BoundFunctionDeclaration final : public BoundDeclaration
     {
     public:
-    BoundFunctionDeclaration(std::unique_ptr<const BoundFunctionPrototypeDeclaration> prototype, std::unique_ptr<const BoundExpression> body);
-    ~BoundFunctionDeclaration();
+        BoundFunctionDeclaration(std::unique_ptr<const BoundFunctionPrototypeDeclaration> prototype, std::unique_ptr<const BoundExpression> body);
+        ~BoundFunctionDeclaration();
 
         [[nodiscard]] inline const BoundFunctionPrototypeDeclaration* const getPrototype() const { return m_prototype.get(); };
         [[nodiscard]] inline const BoundExpression* const getBody() const { return m_body.get(); }

@@ -20,6 +20,7 @@ namespace linc
             m_symbols.pop_back();
         }
 
+        [[nodiscard]] inline std::size_t getSize() const { return m_symbols.size(); }
         [[nodiscard]] inline decltype(auto) top(this auto& self) { return self.m_symbols.back(); }
         [[nodiscard]] decltype(auto) get(this auto& self, const std::string& name)
         {

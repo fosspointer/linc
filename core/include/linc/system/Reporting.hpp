@@ -12,7 +12,7 @@ namespace linc
         using Type = Logger::Type;
         enum class Stage
         {
-            Environment, Lexer, Preprocessor, Parser, AST, ABT, Generator, 
+            Environment, Lexer, Preprocessor, Parser, ABT, Generator, CFG
         };
 
         struct Report

@@ -6,13 +6,6 @@
 #include <linc/tree/NodeListClause.hpp>
 #include <linc/system/Types.hpp>
 
-#define LINC_EXTERNAL_DECLARATION_TOKEN_TYPE_ASSERT(field_name, token_type) \
-    if(field_name.type != token_type) \
-        Reporting::push(Reporting::Report{ \
-            .type = Reporting::Type::Error, .stage = Reporting::Stage::AST, \
-            .message = Logger::format("Expected '$'. Got '$' instead", \
-                Token::typeToString(token_type), Token::typeToString(field_name.type))});
-
 namespace linc
 {
     class ExternalDeclaration final : public Declaration
@@ -25,10 +18,10 @@ namespace linc
             m_rightParenthesis(right_parenthesis), m_typeSpecifier(type_specifier), m_actualType(std::move(type)),
             m_arguments(std::move(arguments)) 
         {
-            LINC_EXTERNAL_DECLARATION_TOKEN_TYPE_ASSERT(m_externalKeyword, Token::Type::KeywordExternal);
-            LINC_EXTERNAL_DECLARATION_TOKEN_TYPE_ASSERT(m_leftParenthesis, Token::Type::ParenthesisLeft);
-            LINC_EXTERNAL_DECLARATION_TOKEN_TYPE_ASSERT(m_rightParenthesis, Token::Type::ParenthesisRight);
-            LINC_EXTERNAL_DECLARATION_TOKEN_TYPE_ASSERT(m_typeSpecifier, Token::Type::Colon);
+            LINC_NODE_ASSERT(m_externalKeyword, Token::Type::KeywordExternal);
+            LINC_NODE_ASSERT(m_leftParenthesis, Token::Type::ParenthesisLeft);
+            LINC_NODE_ASSERT(m_rightParenthesis, Token::Type::ParenthesisRight);
+            LINC_NODE_ASSERT(m_typeSpecifier, Token::Type::Colon);
             
             addTokens(std::vector<Token>{m_externalKeyword, m_leftParenthesis});
             addTokens(m_arguments->getTokens());

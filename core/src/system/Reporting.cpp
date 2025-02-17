@@ -16,10 +16,10 @@ namespace linc
         case Stage::Environment:  return color + "ENVIRONMENT"s + Colors::toANSI(Colors::Reset);
         case Stage::Lexer:        return color + "LEXER"s + Colors::toANSI(Colors::Reset);
         case Stage::Preprocessor: return color + "PREPROCESSOR"s + Colors::toANSI(Colors::Reset);
-        case Stage::Parser:       return color + "PARSER"s + Colors::toANSI(Colors::Reset);
-        case Stage::AST:          return color + "AST"s + Colors::toANSI(Colors::Reset);
+        case Stage::Parser:       return color + "SYNTAX"s + Colors::toANSI(Colors::Reset);
         case Stage::ABT:          return color + "ABT"s + Colors::toANSI(Colors::Reset);
         case Stage::Generator:    return color + "GENERATOR"s + Colors::toANSI(Colors::Reset);
+        case Stage::CFG:          return color + "CFG"s + Colors::toANSI(Colors::Reset);
         default:
             throw LINC_EXCEPTION_OUT_OF_BOUNDS(stage);
         }

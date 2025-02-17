@@ -10,15 +10,7 @@ namespace linc
         LiteralExpression(const Token& token)
             :Expression({.tokenList = {token}, .info = token.info}), m_token(token)
         {
-            if(!m_token.isLiteral())
-                Reporting::push(Reporting::Report{
-                        .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
-                        .message = linc::Logger::format("Literal Expression expected literal token. Got '$' instead.",
-                            Token::typeToString(m_token.type))});
-            else if(!m_token.value.has_value())
-                Reporting::push(Reporting::Report{
-                        .type = Reporting::Type::Warning, .stage = Reporting::Stage::AST,
-                        .message = "Literal token has no value."});
+            LINC_NODE_ASSERT_LITERAL(m_token);
         }
 
         inline std::string getValue() const { return m_token.value.value_or(""); }

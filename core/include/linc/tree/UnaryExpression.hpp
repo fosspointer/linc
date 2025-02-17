@@ -10,13 +10,8 @@ namespace linc
             :Expression(operator_token.info),
             m_operand(std::move(operand)), m_operatorToken(operator_token)
         {
+            LINC_NODE_ASSERT_UNARY(m_operatorToken);
             addToken(m_operatorToken);
-            addTokens(m_operand->getTokens());
-
-            if(!m_operatorToken.isUnaryOperator())
-                Reporting::push(Reporting::Report{
-                        .type = Reporting::Type::Error, .stage = Reporting::Stage::AST,
-                        .message = "Unary expression expected a unary operator"});
         }
 
         virtual std::unique_ptr<const Expression> clone() const final override
