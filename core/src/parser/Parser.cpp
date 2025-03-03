@@ -647,11 +647,20 @@ namespace linc
         while(peek()->isIdentifier())
         {
             auto identifier = parseIdentifierExpression();
-            auto equality_specifier = match(Token::Type::OperatorAssignment);
-            auto expression = parseExpression();
+            Token assignment_specifier;
+            std::unique_ptr<const Expression> expression;
+            if(peek()->type != Token::Type::OperatorAssignment)
+            {
+                assignment_specifier = Token{.type = Token::Type::OperatorAssignment, .info = peekInfo()};
+                expression = identifier->clone();
+            }
+            else
+            {    
+                assignment_specifier = consume();
+                expression = parseExpression();
+            }
             auto separator = peek()->type == Token::Type::Comma? consume(): match(Token::Type::BraceRight);
-
-            arguments.push_back(StructureInitializerExpression::Argument{equality_specifier, separator, std::move(identifier), std::move(expression)});
+            arguments.push_back(StructureInitializerExpression::Argument{assignment_specifier, separator, std::move(identifier), std::move(expression)});
         }
 
         return std::make_unique<const StructureInitializerExpression>(left_brace, std::move(identifier), std::move(arguments));

@@ -28,6 +28,7 @@
 - Backend: Introduced experimental interpreter backend, in progress.
 - Misc: the lowerer now mangles the names of variable identifier based on scope.
 - Misc: Improved lowering support and fixed bugs.
+- Language: Simplified structure initializer assignments for identifiers where the field name is the same as the value assigned to it, by making the assignment implicit (e.g. `Player{xp = xp, name = name}` can now be shortened to `Player{xp, name}`).
 
 ## Future plans (in order of priority)
 
