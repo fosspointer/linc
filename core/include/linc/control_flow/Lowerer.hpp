@@ -31,7 +31,7 @@ namespace linc
                 {
                     m_program.globals.push_back(std::make_pair(mangleScope(variable->getName(), variable->getScopeIndex()), variable->getActualType()));
                     lowerExpression(variable->getDefaultValue());
-                    appendAssignment(variable->getName(), variable->getActualType());
+                    appendAssignment(variable->getName());
                 }
             
             for(auto& declaration: program.declarations)
@@ -85,6 +85,21 @@ namespace linc
             graph().returnValue = std::make_unique<const BoundBlockExpression>(std::vector<std::unique_ptr<const BoundStatement>>{}, nullptr);
         }
 
+        void appendIdentifier(const std::string& name, const Types::type& type)
+        {
+            graph().returnValue = std::make_unique<const BoundIdentifierExpression>(name, type);
+        }
+
+        void appendLiteral(Types::Kind primitive, const PrimitiveValue& value)
+        {
+            graph().returnValue = std::make_unique<const BoundLiteralExpression>(value, Types::fromKind(primitive));
+        }
+
+        void appendDefaultLiteral(Types::Kind primitive)
+        {
+            graph().returnValue = std::make_unique<const BoundLiteralExpression>(PrimitiveValue::fromDefault(primitive), Types::fromKind(primitive));
+        }
+
         std::string appendVariable(Types::type type, const std::string& name, std::size_t scope_index)
         {
             type.isMutable = true;
@@ -100,8 +115,9 @@ namespace linc
             return appendVariable(type, LINC_LOWERER_CONTROL_FLOW_IDENTIFIER_PREFIX + std::to_string(m_identifierCounter++), 0ul);
         }
 
-        void appendAssignment(const std::string& name, const Types::type& type)
+        void appendAssignment(const std::string& name)
         {
+            const auto& type = graph().returnValue->getType();
             auto type_mutable = type;
             type_mutable.isMutable = true;
             auto assignment = std::make_unique<const BoundBinaryExpression>(
@@ -210,13 +226,9 @@ namespace linc
         void lowerVariableDeclaration(const BoundVariableDeclaration* declaration)
         {
             if(declaration->getDefaultValue())
-            {
                 lowerExpression(declaration->getDefaultValue());
-                auto variable = std::make_unique<const BoundVariableDeclaration>(declaration->getActualType(), mangleScope(declaration->getName(), declaration->getScopeIndex()),
-                    std::move(graph().returnValue), 0ul);
-                auto statement = std::make_unique<const BoundDeclarationStatement>(std::move(variable));
-                appendStatement(statement.get());
-            }
+
+            appendVariable(declaration->getActualType(), declaration->getName(), declaration->getScopeIndex());
         }
 
         void lowerStatement(const BoundStatement* statement)
@@ -246,8 +258,17 @@ namespace linc
                     mangleScope(identifier_expression->getValue(), identifier_expression->getScopeIndex()),
                     identifier_expression->getType());
 
+            else if(auto array_initializer_expression = dynamic_cast<const BoundArrayInitializerExpression*>(expression))
+                return lowerArrayInitializerExpression(array_initializer_expression);
+
+            else if(auto structure_initializer_expression = dynamic_cast<const BoundStructureInitializerExpression*>(expression))
+                return lowerStructureInitializerExpression(structure_initializer_expression);
+
             else if(auto type_expression = dynamic_cast<const BoundTypeExpression*>(expression))
                 graph().returnValue = type_expression->clone();
+
+            else if(auto index_expression = dynamic_cast<const BoundIndexExpression*>(expression))
+                return lowerIndexExpression(index_expression);
 
             else if(auto access_expression = dynamic_cast<const BoundAccessExpression*>(expression))
                 return lowerAccessExpression(access_expression);
@@ -286,6 +307,38 @@ namespace linc
                 return lowerMatchExpression(match_expression);
 
             else throw LINC_EXCEPTION("LOWERER: EXPRESSION TYPE NOT IMPLEMENTED");
+        }
+
+        void lowerStructureInitializerExpression(const BoundStructureInitializerExpression* expression)
+        {
+            std::vector<std::unique_ptr<const BoundExpression>> fields;
+            fields.reserve(expression->getFields().size());
+            for(const auto& field: expression->getFields())
+            {
+                lowerExpression(field.get());
+                fields.push_back(std::move(graph().returnValue));
+            }
+            graph().returnValue = std::make_unique<const BoundArrayInitializerExpression>(std::move(fields), expression->getType());
+        }
+
+        void lowerArrayInitializerExpression(const BoundArrayInitializerExpression* expression)
+        {
+            std::vector<std::unique_ptr<const BoundExpression>> values;
+            values.reserve(expression->getValues().size());
+            for(const auto& value: expression->getValues())
+            {
+                lowerExpression(value.get());
+                values.push_back(std::move(graph().returnValue));
+            }
+            graph().returnValue = std::make_unique<const BoundArrayInitializerExpression>(std::move(values), expression->getType());
+        }
+
+        void lowerIndexExpression(const BoundIndexExpression* expression)
+        {
+            lowerExpression(expression->getArray());
+            auto array = std::move(graph().returnValue);
+            lowerExpression(expression->getIndex());
+            graph().returnValue = std::make_unique<const BoundIndexExpression>(std::move(array), std::move(graph().returnValue), expression->getType());
         }
 
         void lowerAccessExpression(const BoundAccessExpression* expression)
@@ -348,13 +401,13 @@ namespace linc
             if(expression->getElseBody())
                 lowerExpression(expression->getElseBody());
             else appendVoid();
-            appendAssignment(variable, expression->getType());
+            appendAssignment(variable);
             auto end_false_index = blockIndex();
             setEdgeFalse(conditional_index, start_false_index);
 
             auto start_true_index = appendBlock(BasicBlock{});
             lowerExpression(expression->getIfBody());
-            appendAssignment(variable, expression->getType());
+            appendAssignment(variable);
             auto end_true_index = blockIndex();
             setEdgeTrue(conditional_index, start_true_index);
 
@@ -380,11 +433,11 @@ namespace linc
             auto start_true_index = appendBlock(BasicBlock{});
             lowerExpression(expression->getWhileBody());
             if(else_body)
-                appendAssignment(variable, expression->getType());
+                appendAssignment(variable);
             if(else_body || finally_body)
             {
-                graph().returnValue = std::make_unique<const BoundLiteralExpression>(PrimitiveValue{true}, Types::fromKind(Types::Kind::_bool));
-                appendAssignment(quit_variable, Types::fromKind(Types::Kind::_bool));
+                appendLiteral(Types::Kind::_bool, PrimitiveValue(true));
+                appendAssignment(quit_variable);
             }
             auto end_true_index = blockIndex();
             setEdgeTrue(end_conditional_index, start_true_index);
@@ -407,7 +460,7 @@ namespace linc
             if(else_body)
             {
                 lowerExpression(else_body);
-                appendAssignment(variable, expression->getType());
+                appendAssignment(variable);
             }
             else appendVoid();
             auto end_else_index = blockIndex();
@@ -445,7 +498,7 @@ namespace linc
 
                 auto start_body_index = appendBlock(BasicBlock{});
                 lowerExpression(expression->getBody());
-                appendAssignment(variable, expression->getType());
+                appendAssignment(variable);
                 lowerExpression(legacy_for_clause->getEndExpression());
                 appendExpression();
                 auto end_body_index = blockIndex();
@@ -461,17 +514,55 @@ namespace linc
 
             auto ranged_for_clause = clause->getSecond();
             auto identifier = ranged_for_clause->getIdentifier();
-            auto iterable = ranged_for_clause->getExpression();
+            lowerExpression(ranged_for_clause->getExpression());
+            auto iterable = std::move(graph().returnValue);
+            std::string secondary_variable{};
+            auto secondary_type = Types::type(Types::Kind::u64, true);
+            auto base_type = iterable->getType().kind == Types::type::Kind::Array? *iterable->getType().array.baseType:
+                Types::fromKind(Types::Kind::_char);
 
-            if(iterable->getType().kind == Types::type::Kind::Structure)
+            switch(iterable->getType().kind)
             {
+            case Types::type::Kind::Structure:
                 graph().returnValue = std::make_unique<const BoundAccessExpression>(iterable->clone(), 0ul, identifier->getType());
                 appendVariable(identifier->getType(), identifier->getValue(), identifier->getScopeIndex());
+                break;
+            case Types::type::Kind::Primitive:
+                if(iterable->getType().primitive != Types::Kind::string)
+                    throw LINC_EXCEPTION_ILLEGAL_VALUE(iterable);
+                [[fallthrough]];
+            case Types::type::Kind::Array:
+            {
+                appendDefaultLiteral(Types::Kind::u64);
+                auto index = graph().returnValue->clone();
+                secondary_variable = appendVariable(secondary_type);
+
+                graph().returnValue = std::make_unique<const BoundIndexExpression>(iterable->clone(), std::move(index), base_type);
+                appendVariable(identifier->getType(), identifier->getValue(), identifier->getScopeIndex());
+                break;
+            } 
+            default: throw LINC_EXCEPTION_ILLEGAL_STATE(iterable->getType().kind);
             }
+
             auto start_conditional_index = appendBlockEdge(BasicBlock{});
             auto variable = appendVariable(expression->getType());
-            auto end = std::make_unique<const BoundAccessExpression>(iterable->clone(), 1ul, identifier->getType());
-            lowerExpression(identifier);
+            std::unique_ptr<const BoundExpression> end;
+            switch(iterable->getType().kind)
+            {
+            case Types::type::Kind::Structure:
+                end = std::make_unique<const BoundAccessExpression>(iterable->clone(), 1ul, identifier->getType());
+                lowerExpression(identifier);
+                break;
+            case Types::type::Kind::Array:
+            case Types::type::Kind::Primitive:
+                end = std::make_unique<const BoundUnaryExpression>(
+                    std::make_unique<const BoundUnaryOperator>(BoundUnaryOperator::Kind::UnaryPlus, iterable->getType()),
+                    iterable->clone());
+                graph().returnValue = std::make_unique<const BoundIdentifierExpression>(secondary_variable, secondary_type);
+                break;
+            default: throw LINC_EXCEPTION_ILLEGAL_STATE(iterable->getType().kind);
+            }
+
             auto lowered_identifier = std::move(graph().returnValue);
             graph().returnValue = std::make_unique<const BoundBinaryExpression>(std::make_unique<const BoundBinaryOperator>(BoundBinaryOperator::Kind::Less,
                 identifier->getType(), identifier->getType()), std::move(lowered_identifier), std::move(end));
@@ -479,10 +570,27 @@ namespace linc
             as<ConditionalBlock>(end_conditional_index).condition = std::move(graph().returnValue);
 
             auto start_body_index = appendBlock(BasicBlock{});
+            if(iterable->getType().kind != Types::type::Kind::Structure)
+            {
+                graph().returnValue = std::make_unique<const BoundIndexExpression>(iterable->clone(),
+                    std::make_unique<const BoundIdentifierExpression>(secondary_variable, secondary_type),
+                    base_type);
+                appendAssignment(mangleScope(identifier->getValue(), identifier->getScopeIndex()));
+            }
+
             lowerExpression(expression->getBody());
-            appendAssignment(variable, expression->getType());
-            graph().returnValue = std::make_unique<const BoundUnaryExpression>(
-                std::make_unique<const BoundUnaryOperator>(BoundUnaryOperator::Kind::Increment, identifier->getType()), identifier->clone());
+            appendAssignment(variable);
+            if(iterable->getType().kind == Types::type::Kind::Structure)
+            {
+                std::unique_ptr<const BoundExpression> increment = std::make_unique<const BoundUnaryExpression>(
+                    std::make_unique<const BoundUnaryOperator>(BoundUnaryOperator::Kind::Increment, identifier->getType()), identifier->clone());
+                lowerExpression(increment.get());
+            }
+            else
+                graph().returnValue = std::make_unique<const BoundUnaryExpression>(
+                    std::make_unique<const BoundUnaryOperator>(BoundUnaryOperator::Kind::Increment, secondary_type),
+                        std::make_unique<const BoundIdentifierExpression>(secondary_variable, secondary_type, 0ul));
+
             appendExpression();
             auto end_body_index = blockIndex();
             setEdgeTrue(end_conditional_index, start_body_index);
@@ -533,15 +641,22 @@ namespace linc
             {
                 auto result_block = appendBlock(BasicBlock{});
                 lowerExpression(clause->getExpression());
-                appendAssignment(variable, expression->getType());
+                appendAssignment(variable);
                 setEdge(blockIndex(), control_block);
 
                 for(const auto& value: clause->getValues()->getList())
                 {
-                    auto test_expression = appendBlock(BasicBlock{});
-                    lowerExpression(value.get());
+                    auto test_block = appendBlock(BasicBlock{});
+                    auto identifier = dynamic_cast<const BoundIdentifierExpression*>(value.get());
+                    if(identifier && value->getType() == Types::voidType)
+                    {
+                        appendVariable(identifier->getType(), identifier->getValue(), identifier->getScopeIndex());
+                        lowerExpression(expression->getTestExpression());
+                    }
+                    else
+                        lowerExpression(value.get());
                     appendBlockEdge(UnreachableBlock{});
-                    as<MapBlock>(map_index).cases.emplace_back(MapBlock::Case{std::move(graph().returnValue), test_expression, result_block});
+                    as<MapBlock>(map_index).cases.emplace_back(MapBlock::Case{std::move(graph().returnValue), test_block, result_block});
                 }
             }
 

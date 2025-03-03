@@ -30,20 +30,21 @@ public:
 
     struct Blocker
     {
-        void operator()(linc::ControlBlock& block) { *block_pointer = block.edge; }
+        void operator()(linc::ControlBlock& block) { interpreter.m_callStack.top().second = block.edge; }
         void operator()(linc::BasicBlock& block)
         {
             for(const auto& statement: block.statements)
                 interpreter.evaluateStatement(statement.get());
-            *block_pointer = block.edge;
+            interpreter.m_callStack.top().second = block.edge;
         }
-        void operator()(linc::UnreachableBlock& block) { *block_pointer = -1ul; }
+        void operator()(linc::UnreachableBlock& block) { interpreter.m_callStack.top().second = -1ul; }
         void operator()(linc::ConditionalBlock& block)
         {
             auto condition = interpreter.evaluateExpression(block.condition.get());
             if(condition.getPrimitive().getBool())
-                *block_pointer = block.edgeTrue;
-            else *block_pointer = block.edgeFalse;
+                interpreter.m_callStack.top().second = block.edgeTrue;
+            else 
+                interpreter.m_callStack.top().second = block.edgeFalse;
         }
         void operator()(linc::MapBlock& block)
         {
@@ -57,15 +58,14 @@ public:
                 interpreter.m_callStack.pop();
                 if(candidate == test)
                 {
-                    *block_pointer = _case.resultIndex;
+                    interpreter.m_callStack.top().second = _case.resultIndex;
                     matched = true;
-                    break;
+                    return;
                 }
             }
             if(!matched)
-                *block_pointer = block.edgeExit;
+                interpreter.m_callStack.top().second = block.edgeExit;
         }
-        std::size_t* block_pointer;
         TestInterpreter& interpreter;
     };
     
@@ -91,13 +91,9 @@ public:
 
     void walkCurrentContext()
     {
-        static Blocker blocker{nullptr, *this};
+        static Blocker blocker{*this};
         while(m_callStack.top().second != -1ul)
-        {
-            auto& [function_pointer, block_pointer] = m_callStack.top();
-            blocker.block_pointer = &block_pointer;
             std::visit(blocker, m_program.functions[m_callStack.top().first].blocks[m_callStack.top().second]);
-        }
     }
 
     void evaluateDeclaration(const BoundDeclaration* declaration)
@@ -123,6 +119,9 @@ public:
 
         else if(auto literal_expression = dynamic_cast<const BoundLiteralExpression*>(expression))
             return literal_expression->getValue();
+
+        else if(auto type_expression = dynamic_cast<const BoundTypeExpression*>(expression))
+            return PrimitiveValue(type_expression->getActualType());
 
         else if(auto external_call = dynamic_cast<const BoundExternalCallExpression*>(expression))
         {
@@ -425,7 +424,65 @@ public:
         }
 
         else if(auto function_call_expression = dynamic_cast<const BoundFunctionCallExpression*>(expression))
-            evaluateFunctionCallExpression(function_call_expression);
+            return evaluateFunctionCallExpression(function_call_expression);
+
+        else if(auto array_initializer_expression = dynamic_cast<const BoundArrayInitializerExpression*>(expression))
+        {
+            ArrayValue result = ArrayValue::fromDefault(*expression->getType().array.baseType, array_initializer_expression->getValues().size());
+
+            for(std::size_t i{0ul}; i < array_initializer_expression->getValues().size(); ++i)
+                result.set(i, evaluateExpression(array_initializer_expression->getValues()[i].get()));
+
+            return std::move(result);
+        }
+        else if(auto structure_initializer_expression = dynamic_cast<const BoundStructureInitializerExpression*>(expression))
+        {
+            std::vector<Value> values;
+
+            for(const auto& value: structure_initializer_expression->getFields())
+                values.push_back(evaluateExpression(value.get()));
+
+            return Value(std::move(values));
+        }
+        else if(auto index_expression = dynamic_cast<const BoundIndexExpression*>(expression))
+        {
+            auto array = evaluateExpression(index_expression->getArray());
+            auto index = evaluateExpression(index_expression->getIndex());
+            auto type = index_expression->getArray()->getType();
+
+            if(type.kind == Types::type::Kind::Primitive && type.primitive == Types::Kind::string)
+                return PrimitiveValue(array.getPrimitive().getString().at(index.getPrimitive().getU64()));
+
+            else if(type.kind == Types::type::Kind::Array)
+                return array.getArray().get(index.getPrimitive().getU64());
+            
+            else return PrimitiveValue::invalidValue;
+        }
+        else if(auto access_expression = dynamic_cast<const BoundAccessExpression*>(expression))
+        {
+            auto base = evaluateExpression(access_expression->getBase());
+            auto index = access_expression->getIndex();
+
+            if(!base.getIfStructure())
+                return (Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Info, .stage = Reporting::Stage::Generator,
+                    .message = "Tried to evaluate access expression on non structure operand."
+                }), PrimitiveValue::invalidValue);
+
+            if(index >= base.getStructure().size())
+                return (Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Info, .stage = Reporting::Stage::Generator,
+                    .message = "Tried to access value outside of array's bounds."
+                }), base.getStructure().empty()? Value(PrimitiveValue::invalidValue): base.getStructure().at(0ul));
+
+            return base.getStructure().at(index);
+        }
+        else if(auto range_expression = dynamic_cast<const BoundRangeExpression*>(expression))
+        {
+            auto begin = evaluateExpression(range_expression->getBegin());
+            auto end = evaluateExpression(range_expression->getEnd());
+            return Value(std::vector<Value>{begin, end, PrimitiveValue{false}});
+        }
 
         return PrimitiveValue::voidValue;
     }

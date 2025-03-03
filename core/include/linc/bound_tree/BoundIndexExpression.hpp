@@ -7,8 +7,7 @@ namespace linc
     class BoundIndexExpression final : public BoundExpression
     {
     public:
-        BoundIndexExpression(std::unique_ptr<const BoundExpression> identifier, std::unique_ptr<const BoundExpression> index,
-            const Types::type& type);
+        BoundIndexExpression(std::unique_ptr<const BoundExpression> array, std::unique_ptr<const BoundExpression> index, const Types::type& type);
 
         [[nodiscard]] inline const BoundExpression* const getArray() const { return m_array.get(); } 
         [[nodiscard]] inline const BoundExpression* const getIndex() const { return m_index.get(); } 

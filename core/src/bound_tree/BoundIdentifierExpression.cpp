@@ -2,7 +2,7 @@
 
 namespace linc
 {
-    BoundIdentifierExpression::BoundIdentifierExpression(const std::string& value, const Types::type type, std::size_t scope_index)
+    BoundIdentifierExpression::BoundIdentifierExpression(const std::string& value, const Types::type& type, std::size_t scope_index)
         :BoundExpression(type), m_value(value), m_scopeIndex(scope_index)
     {}
 
@@ -17,6 +17,4 @@ namespace linc
     {
         return Logger::format("Identifier Expression (=$)", PrimitiveValue(m_value));
     }
-    
-    const std::string m_value;
 }

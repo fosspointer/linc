@@ -92,7 +92,7 @@ namespace linc
                 if(type == Type::Debug)
                     return;
             #endif
-            std::string type_string = logTypeToString(type);
+            std::string type_string = logTypeToString(type) + Colors::toANSI(Colors::getCurrentColor());
             std::fputs(format(s_logFormat + '\n', type_string, format(str, args...)).c_str(), getLogTypeFile(type));
         }
     private:
