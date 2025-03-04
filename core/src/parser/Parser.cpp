@@ -321,8 +321,8 @@ namespace linc
         if(!peek()->isIdentifier() || !peek()->value.has_value())
             return nullptr;
 
-        auto identifier = consume();
         auto find = m_definitions.find(*peek()->value);
+        auto identifier = consume();
 
         if(!find || *find == Definition::Variable)
             return std::make_unique<const IdentifierExpression>(std::move(identifier), nullptr);
@@ -1016,7 +1016,7 @@ namespace linc
         if(declaration)
             m_definitions.append(declaration->getIdentifier()->getValue(), definition);
 
-        if(!declaration) return nullptr;
+        else return nullptr;
 
         return std::make_unique<const GenericDeclaration>(generic_keyword, left_angled_bracket, right_angled_bracket, std::move(type_identifiers),
             std::move(declaration));

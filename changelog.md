@@ -26,9 +26,13 @@
 - Language: Introduced function prototypes, allowing for recursion and future optimizations.
 - Misc: Added control flow graph generation to the compilation pipeline.
 - Backend: Introduced experimental interpreter backend, in progress.
-- Misc: the lowerer now mangles the names of variable identifier based on scope.
-- Misc: Improved lowering support and fixed bugs.
+- Backend: The lowerer now mangles the names of variable identifier based on scope.
+- Backend: Improved lowering support and fixed bugs.
 - Language: Simplified structure initializer assignments for identifiers where the field name is the same as the value assigned to it, by making the assignment implicit (e.g. `Player{xp = xp, name = name}` can now be shortened to `Player{xp, name}`).
+- Backend: Introduced lowering for `break` and `continue` statements (labels are properly supported).
+- Backend: Fixed demangling for functions (as the last occurence of `:` indicates the scope index, not the first).
+- Misc: Fixed identifier bug in the parser.
+- Misc: Doxyfile now uses the CMake project's version.
 
 ## Future plans (in order of priority)
 

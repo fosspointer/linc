@@ -112,7 +112,7 @@ public:
             auto find = m_variables[m_callStack.top().first].find(identifier_expression->getValue());
             if(find != m_variables[m_callStack.top().first].end()) return find->second;
             auto actual_name = identifier_expression->getValue();
-            actual_name = actual_name.substr(0ul, actual_name.find_first_of(':'));
+            actual_name = actual_name.substr(0ul, actual_name.find_last_of(':'));
             auto& function = m_program.functions[m_functions.at(actual_name)];
             return PrimitiveValue(function.prototype->getName());
         }
@@ -472,7 +472,7 @@ public:
             if(index >= base.getStructure().size())
                 return (Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Info, .stage = Reporting::Stage::Generator,
-                    .message = "Tried to access value outside of array's bounds."
+                    .message = "Tried to access value outside of structure's bounds."
                 }), base.getStructure().empty()? Value(PrimitiveValue::invalidValue): base.getStructure().at(0ul));
 
             return base.getStructure().at(index);
@@ -482,6 +482,12 @@ public:
             auto begin = evaluateExpression(range_expression->getBegin());
             auto end = evaluateExpression(range_expression->getEnd());
             return Value(std::vector<Value>{begin, end, PrimitiveValue{false}});
+        }
+
+        else if(auto conversion_expression = dynamic_cast<const BoundConversionExpression*>(expression))
+        {
+            auto value = evaluateExpression(conversion_expression->getExpression());
+            return value.getPrimitive().convert(conversion_expression->getType().primitive);
         }
 
         return PrimitiveValue::voidValue;
@@ -503,9 +509,9 @@ public:
         walkCurrentContext();
         auto result = evaluateExpression(m_program.functions[m_callStack.top().first].returnValue.get());
         m_callStack.pop();
-        static EdgeMover mover;
-        mover.block_pointer = &m_callStack.top().second;
-        std::visit(mover, m_program.functions[m_callStack.top().first].blocks[m_callStack.top().second]);
+        // static EdgeMover mover;
+        // mover.block_pointer = &m_callStack.top().second;
+        // std::visit(mover, m_program.functions[m_callStack.top().first].blocks[m_callStack.top().second]);
         return result;
     }
 

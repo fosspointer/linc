@@ -6,6 +6,12 @@
 
 namespace linc
 {
+    struct LoopControlFlowInfo final
+    {
+        std::string label;
+        std::size_t continueEdge, breakEdge;
+    };
+    
     class Lowerer final
     {
     public:
@@ -100,11 +106,11 @@ namespace linc
             graph().returnValue = std::make_unique<const BoundLiteralExpression>(PrimitiveValue::fromDefault(primitive), Types::fromKind(primitive));
         }
 
-        std::string appendVariable(Types::type type, const std::string& name, std::size_t scope_index)
+        std::string appendVariable(Types::type type, const std::string& name, std::size_t scope_index, std::unique_ptr<const BoundExpression> value = nullptr)
         {
             type.isMutable = true;
             auto mangled_name = mangleScope(name, scope_index);
-            auto variable = std::make_unique<const BoundVariableDeclaration>(type, mangled_name, nullptr, 0ul);
+            auto variable = std::make_unique<const BoundVariableDeclaration>(type, mangled_name, std::move(value), 0ul);
             auto statement = std::make_unique<const BoundDeclarationStatement>(std::move(variable));
             appendStatement(statement.get());
             return mangled_name;
@@ -168,6 +174,12 @@ namespace linc
             return blockIndex();
         }
 
+        inline std::size_t reserveBlock()
+        {
+            graph().blocks.push_back(ControlBlock{});
+            return blockIndex();
+        }
+
         [[nodiscard]] static inline std::string mangleScope(const std::string& base, std::size_t scope_index)
         {
             return base + ':' + std::to_string(scope_index);
@@ -228,7 +240,7 @@ namespace linc
             if(declaration->getDefaultValue())
                 lowerExpression(declaration->getDefaultValue());
 
-            appendVariable(declaration->getActualType(), declaration->getName(), declaration->getScopeIndex());
+            appendVariable(declaration->getActualType(), declaration->getName(), declaration->getScopeIndex(), std::move(graph().returnValue));
         }
 
         void lowerStatement(const BoundStatement* statement)
@@ -237,6 +249,28 @@ namespace linc
             {
                 lowerExpression(return_statement->getExpression());
                 appendBlockEdge(UnreachableBlock{});
+            }
+            else if(auto break_statement = dynamic_cast<const BoundBreakStatement*>(statement))
+            {
+                appendBlockEdge(ControlBlock{});
+                for(std::size_t i = m_loops.size(); i != 0ul; --i)
+                    if(m_loops[i - 1ul].label == break_statement->getLabel())
+                    {
+                        setEdge(blockIndex(), m_loops[i - 1ul].breakEdge);
+                        break;
+                    }
+                appendBlock(BasicBlock{});
+            }
+            else if(auto continue_statement = dynamic_cast<const BoundContinueStatement*>(statement))
+            {
+                appendBlockEdge(ControlBlock{});
+                for(std::size_t i = m_loops.size(); i != 0ul; --i)
+                    if(m_loops[i - 1ul].label == continue_statement->getLabel())
+                    {
+                        setEdge(blockIndex(), m_loops[i - 1ul].continueEdge);
+                        break;
+                    }
+                appendBlock(BasicBlock{});
             }
             else if(auto expression_statement = dynamic_cast<const BoundExpressionStatement*>(statement))
             {
@@ -318,7 +352,7 @@ namespace linc
                 lowerExpression(field.get());
                 fields.push_back(std::move(graph().returnValue));
             }
-            graph().returnValue = std::make_unique<const BoundArrayInitializerExpression>(std::move(fields), expression->getType());
+            graph().returnValue = std::make_unique<const BoundStructureInitializerExpression>(expression->getName(), std::move(fields), expression->getType());
         }
 
         void lowerArrayInitializerExpression(const BoundArrayInitializerExpression* expression)
@@ -430,8 +464,11 @@ namespace linc
             auto end_conditional_index = appendBlockEdge(ConditionalBlock{});
             as<ConditionalBlock>(end_conditional_index).condition = std::move(graph().returnValue);
             
+            auto exit_control_index = reserveBlock();
+            m_loops.push_back(LoopControlFlowInfo{.label = expression->getLabel(), .continueEdge = start_conditional_index, .breakEdge = exit_control_index});
             auto start_true_index = appendBlock(BasicBlock{});
             lowerExpression(expression->getWhileBody());
+            m_loops.pop_back();
             if(else_body)
                 appendAssignment(variable);
             if(else_body || finally_body)
@@ -445,8 +482,9 @@ namespace linc
 
             if(!else_body && !finally_body)
             {
-                auto quit_index = appendBlock(BasicBlock{});
-                setEdgeFalse(end_conditional_index, quit_index);
+                appendBlock(BasicBlock{});
+                setEdgeFalse(end_conditional_index, blockIndex());
+                setEdge(exit_control_index, blockIndex());
                 return;
             }
 
@@ -477,6 +515,7 @@ namespace linc
             setEdgeTrue(end_quit_conditional_index, start_finally_index);
 
             appendBlock(BasicBlock{});
+            setEdge(exit_control_index, blockIndex());            
             setEdge(end_else_index, blockIndex());
             setEdge(end_finally_index, blockIndex());
             
@@ -496,8 +535,14 @@ namespace linc
                 auto end_conditional_index = appendBlockEdge(ConditionalBlock{});
                 as<ConditionalBlock>(end_conditional_index).condition = std::move(graph().returnValue);
 
+                auto exit_control_index = reserveBlock();
+                auto end_expression_control_index = reserveBlock();
                 auto start_body_index = appendBlock(BasicBlock{});
+                m_loops.push_back(LoopControlFlowInfo{.label = expression->getLabel(), .continueEdge = end_expression_control_index, .breakEdge = exit_control_index});
                 lowerExpression(expression->getBody());
+                m_loops.pop_back();
+                appendBlockEdge(BasicBlock{});
+                setEdge(end_expression_control_index, blockIndex());
                 appendAssignment(variable);
                 lowerExpression(legacy_for_clause->getEndExpression());
                 appendExpression();
@@ -505,6 +550,7 @@ namespace linc
                 setEdgeTrue(end_conditional_index, start_body_index);
 
                 appendBlock(BasicBlock{});
+                setEdge(exit_control_index, blockIndex());
                 setEdgeFalse(end_conditional_index, blockIndex());
                 setEdge(end_body_index, start_conditional_index);
                 
@@ -525,7 +571,7 @@ namespace linc
             {
             case Types::type::Kind::Structure:
                 graph().returnValue = std::make_unique<const BoundAccessExpression>(iterable->clone(), 0ul, identifier->getType());
-                appendVariable(identifier->getType(), identifier->getValue(), identifier->getScopeIndex());
+                appendVariable(identifier->getType(), identifier->getValue(), identifier->getScopeIndex(), std::move(graph().returnValue));
                 break;
             case Types::type::Kind::Primitive:
                 if(iterable->getType().primitive != Types::Kind::string)
@@ -569,6 +615,8 @@ namespace linc
             auto end_conditional_index = appendBlockEdge(ConditionalBlock{});
             as<ConditionalBlock>(end_conditional_index).condition = std::move(graph().returnValue);
 
+            auto exit_control_index = reserveBlock();
+            auto increment_control_index = reserveBlock();
             auto start_body_index = appendBlock(BasicBlock{});
             if(iterable->getType().kind != Types::type::Kind::Structure)
             {
@@ -578,7 +626,11 @@ namespace linc
                 appendAssignment(mangleScope(identifier->getValue(), identifier->getScopeIndex()));
             }
 
+            m_loops.push_back(LoopControlFlowInfo{.label = expression->getLabel(), .continueEdge = increment_control_index, .breakEdge = exit_control_index});
             lowerExpression(expression->getBody());
+            m_loops.pop_back();
+            appendBlockEdge(BasicBlock{});
+            setEdge(increment_control_index, blockIndex());
             appendAssignment(variable);
             if(iterable->getType().kind == Types::type::Kind::Structure)
             {
@@ -596,6 +648,7 @@ namespace linc
             setEdgeTrue(end_conditional_index, start_body_index);
 
             appendBlock(BasicBlock{});
+            setEdge(exit_control_index, blockIndex());
             setEdgeFalse(end_conditional_index, blockIndex());
             setEdge(end_body_index, start_conditional_index);
             
@@ -668,6 +721,7 @@ namespace linc
     private:
         mutable ControlFlowProgram m_program;
         mutable std::size_t m_identifierCounter;
+        mutable std::vector<LoopControlFlowInfo> m_loops;
         const Binder* m_binder{nullptr};
     };
 }

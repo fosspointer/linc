@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(linc DESCRIPTION "Linc Is Not C" VERSION 0.7.3 LANGUAGES CXX)
+project(linc DESCRIPTION "Linc Is Not C" VERSION 0.7.4 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,10 +39,9 @@ target_compile_definitions(linc_core PUBLIC
 target_compile_definitions(linc_core PUBLIC LINC_INSTALL_PATH="${CMAKE_INSTALL_PREFIX}")
 target_precompile_headers(linc_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/include/linc/Include.hpp)
 
-option(doxygen "Use doxygen to generate documentation" OFF)
-
-find_package(Doxygen)
-if(doxygen)
+option(enable_doxygen "Use doxygen to generate documentation" OFF)
+if(enable_doxygen)
+    find_package(Doxygen REQUIRED)
     set(docs_dir ${CMAKE_CURRENT_SOURCE_DIR}/docs)
     set(doxyfile_in ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile)
     set(doxyfile_out ${docs_dir}/Doxyfile)
