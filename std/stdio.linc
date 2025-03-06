@@ -36,7 +36,7 @@ fn writeFile(filename: string, content: string, mode: i32 = 0x40i32 | 0x200i32) 
         sys_exit(1i32);
     };
 
-    bytes_written := sys_write(file_descriptor, content, +content);
+    bytes_written := sys_write(file_descriptor, content, as u64(+content));
     if bytes_written == -1i64 {
         putln("Error: unable write to file. Error code: " + @(-file_descriptor));
         sys_exit(1i32);

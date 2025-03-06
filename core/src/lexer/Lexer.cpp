@@ -187,6 +187,8 @@ namespace linc
             case Types::Kind::u16: tokens.push_back(Token{.type = Token::Type::U16Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
             case Types::Kind::u32: tokens.push_back(Token{.type = Token::Type::U32Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
             case Types::Kind::u64: tokens.push_back(Token{.type = Token::Type::U64Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::usize: tokens.push_back(Token{.type = Token::Type::USizeLiteral, .value = value_buffer, .numberBase = base, .info = info}); break;
+            case Types::Kind::isize: tokens.push_back(Token{.type = Token::Type::ISizeLiteral, .value = value_buffer, .numberBase = base, .info = info}); break;
             case Types::Kind::f32: tokens.push_back(Token{.type = Token::Type::F32Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
             case Types::Kind::f64: tokens.push_back(Token{.type = Token::Type::F64Literal, .value = value_buffer, .numberBase = base, .info = info}); break;
             case Types::Kind::_bool: tokens.push_back(Token{.type = Types::parseBoolean(value_buffer)? Token::Type::KeywordTrue: Token::Type::KeywordFalse,

@@ -33,10 +33,13 @@
 - Backend: Fixed demangling for functions (as the last occurence of `:` indicates the scope index, not the first).
 - Misc: Fixed identifier bug in the parser.
 - Misc: Doxyfile now uses the CMake project's version.
+- Language: Added `usize` and `isize` primitive types (with `us` and `is` suffixes respectively) with size equal to `sizeof(void*)` (architecture dependent).
+- Language: Array access and array/string size operations now use `usize` instead of `u64`.
 
 ## Future plans (in order of priority)
 
 - More standard library tooling.
+- Proper namespacing (and syntactical sugar for "member functions").
 - References (non-nullable pointers to types, syntax still to be decided).
 - Distinction between static and dynamic arrays.
 - Module system?

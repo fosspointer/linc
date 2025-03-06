@@ -62,10 +62,10 @@ namespace linc
             OperatorBitwiseAnd, OperatorBitwiseOr, OperatorBitwiseXor, OperatorBitwiseNot, OperatorBitwiseShiftLeft, OperatorBitwiseShiftRight,
             
             // Signed integer literals
-            I8Literal, I16Literal, I32Literal, I64Literal,
+            I8Literal, I16Literal, I32Literal, I64Literal, ISizeLiteral,
             
             // Unsigned integer literals
-            U8Literal, U16Literal, U32Literal, U64Literal,
+            U8Literal, U16Literal, U32Literal, U64Literal, USizeLiteral,
             
             // Floating-point literals
             F32Literal, F64Literal,

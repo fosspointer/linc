@@ -232,11 +232,12 @@ namespace linc
             case Types::Kind::u16:
             case Types::Kind::u32:
             case Types::Kind::u64:
-                return 0u;
             case Types::Kind::i8:
             case Types::Kind::i16:
             case Types::Kind::i32:
             case Types::Kind::i64:
+            case Types::Kind::usize:
+            case Types::Kind::isize:
                 return 0;
             case Types::Kind::f32: return 0.0f;
             case Types::Kind::f64: return 0.0;
@@ -305,11 +306,13 @@ namespace linc
         LINC_PRIMITIVE_VALUE_GETTERS(u16, U16, Unsigned, unsigned)
         LINC_PRIMITIVE_VALUE_GETTERS(u32, U32, Unsigned, unsigned)
         LINC_PRIMITIVE_VALUE_GETTERS(u64, U64, Unsigned, unsigned)
+        LINC_PRIMITIVE_VALUE_GETTERS(usize, USize, Unsigned, unsigned)
 
         LINC_PRIMITIVE_VALUE_GETTERS(i8, I8, Signed, signed)
         LINC_PRIMITIVE_VALUE_GETTERS(i16, I16, Signed, signed)
         LINC_PRIMITIVE_VALUE_GETTERS(i32, I32, Signed, signed)
         LINC_PRIMITIVE_VALUE_GETTERS(i64, I64, Signed, signed)
+        LINC_PRIMITIVE_VALUE_GETTERS(isize, ISize, Signed, signed)
 
         LINC_PRIMITIVE_VALUE_GETTERS(string, String, String, string)
         LINC_PRIMITIVE_VALUE_GETTERS(type, Type, Type, type)
@@ -359,24 +362,6 @@ namespace linc
             }
         }
 
-        Types::Variant toVariant() const
-        {
-            switch(m_kind)
-            {
-            case Kind::Invalid: return m_value_invalid;
-            case Kind::Void: return m_value_void;
-            case Kind::Boolean: return m_value_bool;
-            case Kind::Character: return m_value_char;
-            case Kind::Unsigned: return m_value_unsigned;
-            case Kind::Signed: return m_value_signed;
-            case Kind::Float: return m_value_float;
-            case Kind::Double: return m_value_double;
-            case Kind::String: return m_value_string;
-            case Kind::Type: return m_value_type;
-            default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(m_kind);
-            }
-        }
-
         PrimitiveValue convert(Kind kind) const
         {
             switch(kind)
@@ -410,6 +395,8 @@ namespace linc
             case Types::Kind::i16: return convert<Types::i16>();
             case Types::Kind::i32: return convert<Types::i32>();
             case Types::Kind::i64: return convert<Types::i64>();
+            case Types::Kind::usize: return convert<Types::usize>();
+            case Types::Kind::isize: return convert<Types::isize>();
             case Types::Kind::f32: return convert<Types::f32>();
             case Types::Kind::f64: return convert<Types::f64>();
             case Types::Kind::string: return toApplicationString();
@@ -450,27 +437,6 @@ namespace linc
                     throw LINC_EXCEPTION("Invalid boolean expression");
                 
                 return integral != 0;
-            }
-        }
-
-        static PrimitiveValue fromString(const std::string& value, Types::Kind type)
-        {
-            switch(type)
-            {
-            case Types::Kind::u8: return PrimitiveValue(static_cast<Types::u8>(std::stoul(value)));
-            case Types::Kind::u16: return PrimitiveValue(static_cast<Types::u16>(std::stoul(value)));
-            case Types::Kind::u32: return PrimitiveValue(static_cast<Types::u32>(std::stoul(value)));
-            case Types::Kind::u64: return PrimitiveValue(static_cast<Types::u64>(std::stoull(value)));
-            case Types::Kind::i8: return PrimitiveValue(static_cast<Types::i8>(std::stol(value)));
-            case Types::Kind::i16: return PrimitiveValue(static_cast<Types::i16>(std::stol(value)));
-            case Types::Kind::i32: return PrimitiveValue(static_cast<Types::i32>(std::stol(value)));
-            case Types::Kind::i64: return PrimitiveValue(static_cast<Types::i64>(std::stoll(value)));
-            case Types::Kind::f32: return PrimitiveValue(static_cast<Types::f32>(std::stof(value)));
-            case Types::Kind::f64: return PrimitiveValue(static_cast<Types::f64>(std::stod(value)));
-            case Types::Kind::_char: return PrimitiveValue(static_cast<Types::_char>(value[0]));
-            case Types::Kind::_bool: return PrimitiveValue(static_cast<Types::_bool>(stringToBool(value)));
-            case Types::Kind::string: return PrimitiveValue(value);
-            default: throw LINC_EXCEPTION("Type out of valid range in variant conversion");
             }
         }
 

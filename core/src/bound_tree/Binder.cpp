@@ -1128,6 +1128,12 @@ namespace linc
         case Token::Type::I64Literal:
             return std::make_unique<const BoundLiteralExpression>(parseString<Types::i64>(expression->getValue(), expression->getNumberBase().value()).value_or(static_cast<Types::i64>(0)),
                 Types::fromKind(Types::Kind::i64));
+        case Token::Type::USizeLiteral:
+            return std::make_unique<const BoundLiteralExpression>(parseString<Types::usize>(expression->getValue(), expression->getNumberBase().value()).value_or(static_cast<Types::usize>(0)),
+                Types::fromKind(Types::Kind::usize));
+        case Token::Type::ISizeLiteral:
+            return std::make_unique<const BoundLiteralExpression>(parseString<Types::isize>(expression->getValue(), expression->getNumberBase().value()).value_or(static_cast<Types::isize>(0)),
+                Types::fromKind(Types::Kind::isize));
         case Token::Type::F32Literal:
             return std::make_unique<const BoundLiteralExpression>(parseString<Types::f32>(expression->getValue(), expression->getNumberBase().value()).value_or(static_cast<Types::f32>(0)),
                 Types::fromKind(Types::Kind::f32));
@@ -1291,18 +1297,18 @@ namespace linc
         auto array = bindExpression(expression->getArray());
         auto index = bindExpression(expression->getIndex());
 
-        if(index->getType().kind != Types::type::Kind::Primitive || index->getType().primitive != Types::Kind::u64)
+        if(index->getType().kind != Types::type::Kind::Primitive || index->getType().primitive != Types::Kind::usize)
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                 .message = Logger::format("$ Incompatible type in array indexing: expected `$`, found `$`.",
-                    expression->getTokenInfo(), Types::fromKind(Types::Kind::u64), index->getType())
+                    expression->getTokenInfo(), Types::fromKind(Types::Kind::usize), index->getType())
             });
             return std::make_unique<const BoundIndexExpression>(std::move(array), std::move(index), Types::invalidType);
         }
         else if(auto literal = dynamic_cast<const BoundLiteralExpression*>(index.get()))
         {
-            auto value = literal->getValue().getIfU64().value_or(0ul);
+            auto value = literal->getValue().getIfUSize().value_or(0ul);
 
             if(array->getType().kind == Types::type::Kind::Array && array->getType().array.count && value >= *array->getType().array.count)
                 Reporting::push(Reporting::Report{
@@ -1364,7 +1370,7 @@ namespace linc
         for(const auto& specifier: specifiers)
         {
             std::unique_ptr<const BoundLiteralExpression> count_literal = specifier.count? bindLiteralExpression(specifier.count.get()): nullptr;
-            result.push_back(count_literal? std::make_optional(count_literal->getValue().getU64()): std::nullopt);
+            result.push_back(count_literal? std::make_optional(count_literal->getValue().getUSize()): std::nullopt);
         }
 
         return result;

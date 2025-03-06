@@ -13,7 +13,7 @@ struct Player {
 fn parseU64(str: string) {
     result: mut u64 = 0u64;
 
-    for index in 0u64..(+str)
+    for index in 0us..(+str)
         if +str[index] >= +'0' && +str[index] <= +'9'
             result = result * 10u64 + as u64(+str[index] - +'0');
 
@@ -30,9 +30,10 @@ fn getPosessiveNumeral(number: u64): string {
 }
 
 fn main() {
-    players: mut Player[3u64];
-    for i in 0u64..(+players) {
-        num := i + 1u64;
+    players: mut Player[3us];
+    
+    for i in 0us..(+players) {
+        num := as mut u64(i) + 1u64;
         players[i] = Player{
             name = readln(@num + getPosessiveNumeral(num) + " player's name: "),
             health = parseU64(readln(@num + getPosessiveNumeral(num) + " player's health: "))};

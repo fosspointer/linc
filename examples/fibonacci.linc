@@ -12,7 +12,7 @@ fn display_fibonacci(count: u8) {
         index
     };
 
-    putln("The fibonacci number count displayed was " + @number_of_fibonacci + '.');
+    putln("The fibonacci number count displayed was " + @(number_of_fibonacci + 1u8) + '.');
 }
 
 fn main() {

@@ -8,8 +8,8 @@ fn filter(array: string[], function: fn(string): bool) {
 
 fn main() {
     fn endsInPunctuation(str: string): bool {
-        if +str == 0u64 { return false; };
-        last := str[+str - 1u64];
+        if +str == 0us { return false; };
+        last := str[+str - 1us];
         last == '!' || last == '.' || last == '?'
     };
     array := ["hello", "world", "foo!", "goodbye.", "bar?", "hey"];

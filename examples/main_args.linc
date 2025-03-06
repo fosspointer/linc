@@ -2,7 +2,7 @@
 #include `std.linc`
 
 fn main(args: string[]) {
-    index: mut u64;
+    index: mut usize;
     for argument in args {
         puts('#' + @index + ": " + argument + '\n');
         ++index;

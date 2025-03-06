@@ -22,7 +22,7 @@ gen<T> fn find(array: T[], condition: fn(T): bool): Option<T> {
 
 gen<T> fn reverse(array: T[]) {
     result: mut T[] = [];
-    for i in -(0u64..(+array))
+    for i in -(0us..(+array))
         result += [array[i]];
     result
 }
@@ -34,13 +34,13 @@ gen<T, U> fn reduce(array: T[], initial: U, operation: fn(U, T): U) {
 }
 
 gen<T> fn bubbleSort(array: mut T[], condition: fn(T, T): bool) {
-    for i in 0u64..(+array) {
+    for i in 0us..(+array) {
         mutated mut := false;
-        for j in 0u64..(+array - i - 1u64) {
-            if condition(array[j], array[j + 1u64]) {
+        for j in 0us..(+array - i - 1us) {
+            if condition(array[j], array[j + 1us]) {
                 temporary := array[j];
-                array[j] = array[j + 1u64];
-                array[j + 1u64] = temporary;
+                array[j] = array[j + 1us];
+                array[j + 1us] = temporary;
                 mutated = true;
             };
         };

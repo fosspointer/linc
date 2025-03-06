@@ -43,7 +43,7 @@ namespace linc
         if(operand_type.kind == Types::type::Kind::Array)
         {
             if(operator_kind == Kind::UnaryPlus)
-                return Types::fromKind(Types::Kind::u64);
+                return Types::fromKind(Types::Kind::usize);
             else return Types::invalidType;
         }
         else if(operand_type.kind == Types::type::Kind::Structure)
@@ -80,7 +80,7 @@ namespace linc
             else if(operand_type.primitive == Types::Kind::_char || operand_type.primitive == Types::Kind::_bool)
                 return Types::fromKind(Types::Kind::i32);
             else if(operand_type.primitive == Types::Kind::string)
-                return Types::fromKind(Types::Kind::u64);
+                return Types::fromKind(Types::Kind::usize);
             else return Types::invalidType;
         case Kind::UnaryMinus:
             if(Types::isSigned(operand_type.primitive) || Types::isFloating(operand_type.primitive))

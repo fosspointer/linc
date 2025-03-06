@@ -19,6 +19,9 @@ namespace linc
         LINC_TYPE_MAP_PAIR("i64", i64),
         LINC_TYPE_MAP_PAIR("i8", i8),
 
+        LINC_TYPE_MAP_PAIR("isize", isize),
+        LINC_TYPE_MAP_PAIR("usize", usize),
+
         LINC_TYPE_MAP_PAIR("f32", f32),
         LINC_TYPE_MAP_PAIR("f64", f64),
 
@@ -42,6 +45,9 @@ namespace linc
         LINC_TYPE_MAP_PAIR("i64", i64),
         LINC_TYPE_MAP_PAIR("i", i32),
 
+        LINC_TYPE_MAP_PAIR("is", isize),
+        LINC_TYPE_MAP_PAIR("us", usize),
+
         LINC_TYPE_MAP_PAIR("f32", f32),
         LINC_TYPE_MAP_PAIR("f64", f64),
         LINC_TYPE_MAP_PAIR("f", f32),
@@ -50,27 +56,6 @@ namespace linc
         LINC_TYPE_MAP_PAIR("c", _char),
         LINC_TYPE_MAP_PAIR("b", _bool)
     };
-
-    Types::Variant Types::toVariant(Kind kind, const std::string& value)
-    {
-        switch(kind)
-        {
-        case Kind::u8: return static_cast<u8>(std::stoul(value)); 
-        case Kind::u16: return static_cast<u16>(std::stoul(value));
-        case Kind::u32: return static_cast<u32>(std::stoul(value));
-        case Kind::u64: return static_cast<u64>(std::stoull(value));
-        case Kind::i8: return static_cast<i8>(std::stoi(value)); 
-        case Kind::i16: return static_cast<i16>(std::stoi(value));
-        case Kind::i32: return static_cast<i32>(std::stoi(value));
-        case Kind::i64: return static_cast<i64>(std::stoull(value));
-        case Kind::f32: return static_cast<f32>(std::stof(value));
-        case Kind::f64: return static_cast<f64>(std::stod(value));
-        case Kind::_char: return static_cast<_char>(value.at(0));
-        case Kind::_bool: return parseBoolean(value);
-        case Kind::string: return value.c_str();
-        default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
-        }
-    }
 
     std::string Types::kindToString(Kind kind)
     {
@@ -85,6 +70,8 @@ namespace linc
         case Kind::i16: return "i16";
         case Kind::i32: return "i32";
         case Kind::i64: return "i64";
+        case Kind::usize: return "usize";
+        case Kind::isize: return "isize";
         case Kind::f32: return "f32";
         case Kind::f64: return "f64";
         case Kind::_char: return "char";
@@ -186,6 +173,9 @@ namespace linc
         case Kind::i64:
         case Kind::string:
             return Size::QuadWord;
+        case Kind::usize:
+        case Kind::isize:
+            return static_cast<Size>(sizeof(void*));
         case Kind::_void:
         case Kind::invalid:
         default:
@@ -233,6 +223,8 @@ namespace linc
         case Kind::i16:
         case Kind::i32:
         case Kind::i64:
+        case Kind::usize:
+        case Kind::isize:
         case Kind::u8:
         case Kind::u16:
         case Kind::u32:
@@ -252,6 +244,8 @@ namespace linc
         case Kind::i16:
         case Kind::i32:
         case Kind::i64:
+        case Kind::usize:
+        case Kind::isize:
         case Kind::u8:
         case Kind::u16:
         case Kind::u32:
@@ -269,6 +263,7 @@ namespace linc
         case Kind::i16:
         case Kind::i32:
         case Kind::i64:
+        case Kind::isize:
             return true;
         default: return false;
         }
@@ -282,6 +277,7 @@ namespace linc
         case Kind::u16:
         case Kind::u32:
         case Kind::u64:
+        case Kind::usize:
             return true;
         default: return false;
         }

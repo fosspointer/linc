@@ -1,14 +1,14 @@
 // Brainfuck interpreter in linc!
 
 #include `std.linc`
-tape: mut u8[32768u64]
-position: mut u64
+tape: mut u8[32768us]
+position: mut usize
 
 fn interpret(input: string) {
     current_char: mut char;
     loop: mut u32 = 0u;
 
-    for i mut := 0u64; i < +input; ++i {
+    for i mut := 0us; i < +input; ++i {
         current_char = input[i];
 
         match current_char {
@@ -49,16 +49,16 @@ fn interpret(input: string) {
 }
 
 fn main(args: string[]): i32 {
-    if +args == 2u64 {
-        filename: string = args[1u64];
+    if +args == 2us {
+        filename: string = args[1us];
         str := readFile(filename);
         interpret(str);
         return 0i32;
     }
-    else if +args > 2u64 {
+    else if +args > 2us {
         putln("Usage:");
-        putln(args[1u64] + ": interpret code from stdin.");
-        putln(args[1u64] + " [FILE]: interpret code from a file.");
+        putln(args[1us] + ": interpret code from stdin.");
+        putln(args[1us] + " [FILE]: interpret code from a file.");
         return -1i32;
     };
 

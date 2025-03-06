@@ -95,7 +95,7 @@ namespace linc
                 }
                 depth += local_depth;
                 std::fputc('\n', stdout);
-                result += line;
+                result += line + '\n';
                 if(!prompt.empty() && prompt[0ul] != '.')
                 {
                     prompt.clear();
@@ -227,6 +227,7 @@ namespace linc
             throw LINC_EXCEPTION_ILLEGAL_STATE(old_action);
 
         tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
+        result.pop_back();
         return result;
     #else
         std::fputs(std::string{prompt}.c_str(), stdout);

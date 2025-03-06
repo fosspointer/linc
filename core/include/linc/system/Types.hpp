@@ -6,6 +6,23 @@
 
 namespace linc
 {   
+    template <std::size_t COUNT>
+    struct IntegralType
+    {
+        static_assert(COUNT == 1ul || COUNT == 2ul || COUNT == 4ul || COUNT == 8ul, "Unsupported size");
+        using unsignedType =
+            std::conditional_t<COUNT == 1ul, std::uint8_t,
+            std::conditional_t<COUNT == 2ul, std::uint16_t,
+            std::conditional_t<COUNT == 4ul, std::uint32_t,
+            std::conditional_t<COUNT == 8ul, std::uint64_t, void>>>>;
+
+        using signedType =
+            std::conditional_t<COUNT == 1ul, std::int8_t,
+            std::conditional_t<COUNT == 2ul, std::int16_t,
+            std::conditional_t<COUNT == 4ul, std::int32_t,
+            std::conditional_t<COUNT == 8ul, std::int64_t, void>>>>;
+    };
+
     class Types final
     {
     public:
@@ -16,6 +33,7 @@ namespace linc
             invalid,
             u8, u16, u32, u64,
             i8, i16, i32, i64,
+            isize, usize,
             f32, f64,
             string, type,
             _char, _bool, _void
@@ -283,6 +301,9 @@ namespace linc
         using i32 = std::int32_t;
         using i64 = std::int64_t;
 
+        using usize = IntegralType<sizeof(void*)>::unsignedType;
+        using isize = IntegralType<sizeof(void*)>::signedType;
+
         using f32 = std::float32_t;
         using f64 = std::float64_t;
 
@@ -293,7 +314,6 @@ namespace linc
         struct _void_type { inline bool operator==(const _void_type&) const { return true; } };
         struct _invalid_type {};
 
-        using Variant = std::variant<_invalid_type, _void_type, _bool, _char, u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, string, type>;
         using TypeMap = std::unordered_map<std::string, Kind>;
 
         static type voidType, invalidType;
@@ -319,7 +339,6 @@ namespace linc
             return std::move(result);
         }
 
-        static Variant toVariant(Kind type, const std::string& value);
         static std::string kindToString(Kind kind);
         static type fromKind(Kind kind);
         static Kind kindFromString(const std::string& value);

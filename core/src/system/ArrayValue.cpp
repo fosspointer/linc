@@ -61,6 +61,8 @@ namespace linc
         case Types::Kind::i16: return ArrayValue(count, sizeof(Types::i16), Types::fromKind(Types::Kind::i16), false);
         case Types::Kind::i32: return ArrayValue(count, sizeof(Types::i32), Types::fromKind(Types::Kind::i32), false);
         case Types::Kind::i64: return ArrayValue(count, sizeof(Types::i64), Types::fromKind(Types::Kind::i64), false);
+        case Types::Kind::usize: return ArrayValue(count, sizeof(Types::usize), Types::fromKind(Types::Kind::usize), false);
+        case Types::Kind::isize: return ArrayValue(count, sizeof(Types::isize), Types::fromKind(Types::Kind::isize), false);
         case Types::Kind::f32: return ArrayValue(count, sizeof(Types::f32), Types::fromKind(Types::Kind::f32), false);
         case Types::Kind::f64: return ArrayValue(count, sizeof(Types::f64), Types::fromKind(Types::Kind::f64), false);
         case Types::Kind::string: return ArrayValue(count, sizeof(Types::string), Types::fromKind(Types::Kind::string), false);
@@ -98,6 +100,8 @@ namespace linc
         case Types::Kind::i16: reinterpret_cast<Types::i16*>(m_data.data())[index] = value.getI16(); break;
         case Types::Kind::i32: reinterpret_cast<Types::i32*>(m_data.data())[index] = value.getI32(); break;
         case Types::Kind::i64: reinterpret_cast<Types::i64*>(m_data.data())[index] = value.getI64(); break;
+        case Types::Kind::usize: reinterpret_cast<Types::usize*>(m_data.data())[index] = value.getUSize(); break;
+        case Types::Kind::isize: reinterpret_cast<Types::isize*>(m_data.data())[index] = value.getISize(); break;
         case Types::Kind::f32: reinterpret_cast<Types::f32*>(m_data.data())[index] = value.getF32(); break;
         case Types::Kind::f64: reinterpret_cast<Types::f64*>(m_data.data())[index] = value.getF64(); break;
         case Types::Kind::string: reinterpret_cast<Types::string*>(m_data.data())[index] = value.getString(); break;
@@ -135,6 +139,8 @@ namespace linc
         case Types::Kind::i16: return reinterpret_cast<const Types::i16*>(m_data.data())[index];
         case Types::Kind::i32: return reinterpret_cast<const Types::i32*>(m_data.data())[index];
         case Types::Kind::i64: return reinterpret_cast<const Types::i64*>(m_data.data())[index];
+        case Types::Kind::usize: return reinterpret_cast<const Types::usize*>(m_data.data())[index];
+        case Types::Kind::isize: return reinterpret_cast<const Types::isize*>(m_data.data())[index];
         case Types::Kind::f32: return reinterpret_cast<const Types::f32*>(m_data.data())[index];
         case Types::Kind::f64: return reinterpret_cast<const Types::f64*>(m_data.data())[index];
         case Types::Kind::string: return reinterpret_cast<const Types::string*>(m_data.data())[index];

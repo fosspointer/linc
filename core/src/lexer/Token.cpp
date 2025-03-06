@@ -96,6 +96,8 @@ namespace linc
         case Type::U16Literal: return "U16 Literal";
         case Type::U32Literal: return "U32 Literal";
         case Type::U64Literal: return "U64 Literal";
+        case Type::USizeLiteral: return "Unsigned Size Literal";
+        case Type::ISizeLiteral: return "Signed Size Literal";
         case Type::F32Literal: return "F32 Literal";
         case Type::F64Literal: return "F64 Literal";
         case Type::CharacterLiteral: return "Character Literal";
@@ -131,6 +133,8 @@ namespace linc
         case Type::U16Literal:
         case Type::U32Literal:
         case Type::U64Literal:
+        case Type::USizeLiteral:
+        case Type::ISizeLiteral:
         case Type::F32Literal:
         case Type::F64Literal:
         case Type::CharacterLiteral:
