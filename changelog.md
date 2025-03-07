@@ -35,6 +35,7 @@
 - Misc: Doxyfile now uses the CMake project's version.
 - Language: Added `usize` and `isize` primitive types (with `us` and `is` suffixes respectively) with size equal to `sizeof(void*)` (architecture dependent).
 - Language: Array access and array/string size operations now use `usize` instead of `u64`.
+- Backend: Introduced lowering for `return` statements.
 
 ## Future plans (in order of priority)
 

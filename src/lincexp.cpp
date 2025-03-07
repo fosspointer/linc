@@ -84,7 +84,7 @@ public:
         for(std::size_t i{1ul}; i < m_program.functions.size(); ++i)
             m_functions.insert(std::make_pair(m_program.functions[i].prototype->getName(), i));
 
-        m_callStack.push(std::make_pair(m_program.functions.size() - 1ul, 0ul));
+        m_callStack.push(std::make_pair(m_program.functions.size() - 1ul, 1ul));
         walkCurrentContext();
         return LINC_EXIT_SUCCESS;
     }
@@ -505,7 +505,7 @@ public:
             auto name = m_program.functions.at(function_index).prototype->getArguments()->getList()[i]->getName();
             m_variables[function_index].insert_or_assign(name, value);
         }
-        m_callStack.push(std::make_pair(function_index, 0ul));
+        m_callStack.push(std::make_pair(function_index, 1ul));
         walkCurrentContext();
         auto result = evaluateExpression(m_program.functions[m_callStack.top().first].returnValue.get());
         m_callStack.pop();

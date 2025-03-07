@@ -2,16 +2,23 @@
 #include <linc/BoundTree.hpp>
 #include <linc/Binder.hpp>
 #include <linc/control_flow/ControlFlowGraph.hpp>
+#include <unistd.h>
 #define LINC_LOWERER_CONTROL_FLOW_IDENTIFIER_PREFIX '!'
 
 namespace linc
 {
-    struct LoopControlFlowInfo final
+    struct LoopControlFlow final
     {
         std::string label;
         std::size_t continueEdge, breakEdge;
     };
     
+    struct FunctionControlFlow final
+    {
+        std::string returnVariable;
+        std::size_t returnEdge;
+    };
+
     class Lowerer final
     {
     public:
@@ -200,9 +207,17 @@ namespace linc
         void lowerFunction(const BoundFunctionDeclaration* function)
         {
             m_program.functions.push_back(ControlFlowGraph{.prototype = manglePrototype(function->getPrototype())});
+            
+            auto return_block = reserveBlock();
             appendBlock(BasicBlock{});
+            auto variable = appendVariable(function->getPrototype()->getReturnType());
+            m_functions.push(FunctionControlFlow{.returnVariable = variable, .returnEdge = return_block});
             lowerExpression(function->getBody());
+            appendAssignment(variable);
+            appendIdentifier(variable, function->getPrototype()->getReturnType());
+            m_functions.pop();
             appendBlockEdge(ControlBlock{});
+            setEdge(return_block, blockIndex());
         }
 
         void lowerDeclaration(const BoundDeclaration* declaration)
@@ -228,10 +243,7 @@ namespace linc
         {
             auto current_graph = std::move(m_program.functions.back());
             m_program.functions.pop_back();
-            m_program.functions.push_back(ControlFlowGraph{.prototype = manglePrototype(declaration->getPrototype())});
-            appendBlock(BasicBlock{});
-            lowerExpression(declaration->getBody());
-            appendBlockEdge(ControlBlock{});
+            lowerFunction(declaration);
             m_program.functions.push_back(std::move(current_graph));
         }
 
@@ -248,7 +260,10 @@ namespace linc
             if(auto return_statement = dynamic_cast<const BoundReturnStatement*>(statement))
             {
                 lowerExpression(return_statement->getExpression());
-                appendBlockEdge(UnreachableBlock{});
+                appendAssignment(m_functions.top().returnVariable);
+                appendBlockEdge(ControlBlock{});
+                setEdge(blockIndex(), m_functions.top().returnEdge);
+                appendBlock(BasicBlock{});
             }
             else if(auto break_statement = dynamic_cast<const BoundBreakStatement*>(statement))
             {
@@ -465,7 +480,7 @@ namespace linc
             as<ConditionalBlock>(end_conditional_index).condition = std::move(graph().returnValue);
             
             auto exit_control_index = reserveBlock();
-            m_loops.push_back(LoopControlFlowInfo{.label = expression->getLabel(), .continueEdge = start_conditional_index, .breakEdge = exit_control_index});
+            m_loops.push_back(LoopControlFlow{.label = expression->getLabel(), .continueEdge = start_conditional_index, .breakEdge = exit_control_index});
             auto start_true_index = appendBlock(BasicBlock{});
             lowerExpression(expression->getWhileBody());
             m_loops.pop_back();
@@ -538,7 +553,7 @@ namespace linc
                 auto exit_control_index = reserveBlock();
                 auto end_expression_control_index = reserveBlock();
                 auto start_body_index = appendBlock(BasicBlock{});
-                m_loops.push_back(LoopControlFlowInfo{.label = expression->getLabel(), .continueEdge = end_expression_control_index, .breakEdge = exit_control_index});
+                m_loops.push_back(LoopControlFlow{.label = expression->getLabel(), .continueEdge = end_expression_control_index, .breakEdge = exit_control_index});
                 lowerExpression(expression->getBody());
                 m_loops.pop_back();
                 appendBlockEdge(BasicBlock{});
@@ -626,7 +641,7 @@ namespace linc
                 appendAssignment(mangleScope(identifier->getValue(), identifier->getScopeIndex()));
             }
 
-            m_loops.push_back(LoopControlFlowInfo{.label = expression->getLabel(), .continueEdge = increment_control_index, .breakEdge = exit_control_index});
+            m_loops.push_back(LoopControlFlow{.label = expression->getLabel(), .continueEdge = increment_control_index, .breakEdge = exit_control_index});
             lowerExpression(expression->getBody());
             m_loops.pop_back();
             appendBlockEdge(BasicBlock{});
@@ -721,7 +736,8 @@ namespace linc
     private:
         mutable ControlFlowProgram m_program;
         mutable std::size_t m_identifierCounter;
-        mutable std::vector<LoopControlFlowInfo> m_loops;
+        mutable std::stack<FunctionControlFlow> m_functions;
+        mutable std::vector<LoopControlFlow> m_loops;
         const Binder* m_binder{nullptr};
     };
 }
