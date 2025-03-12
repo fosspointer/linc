@@ -26,12 +26,17 @@
 void showLexer(std::vector<linc::Token>& tokens)
 {
     for(auto& token: tokens)
-        linc::Logger::println("$:#4Token$:#3 {type: $:$:$}",
-            linc::Logger::format("$:#2$:$:#1", linc::Token::typeToString(token.type), 
-                linc::Colors::pop(), linc::Colors::push(token.isValid()? linc::Colors::Yellow: linc::Colors::Red)),
-            token.value? linc::Logger::format(", value: $", linc::PrimitiveValue(*token.value)): std::string{},
-            token.numberBase? linc::Logger::format(", base: $", linc::PrimitiveValue(linc::Token::baseToInt(*token.numberBase))): std::string{},
-            linc::Colors::pop(), linc::Colors::push(linc::Colors::Purple));
+    {
+        std::string token_info;
+        linc::Logger::append(token_info, "$:!:+pToken$:!:- {type: ");
+        if(token.isValid()) linc::Logger::append(token_info, "$:+y:$:!:-", linc::Token::typeToString(token.type));
+        else linc::Logger::append(token_info, "$:+r:$:!:-", linc::Token::typeToString(token.type));
+        // linc::Logger::append(token_info, linc::Logger::format("$$:+$::$$:!:-", token.isValid()? 'y': 'r'), linc::Token::typeToString(token.type));
+        if(token.value) linc::Logger::append(token_info, ", value: $", linc::PrimitiveValue(*token.value));
+        if(token.numberBase) linc::Logger::append(token_info, ", base: $", linc::PrimitiveValue(linc::Token::baseToInt(*token.numberBase)));
+        token_info += "}\n";
+        std::fputs(token_info.c_str(), stdout);
+    }
 }
 
 static int evaluateFile(std::string filepath, int argc, const char** argv, Arguments& argument_handler, std::string& definitions_code,
@@ -412,7 +417,7 @@ try
             };
 
             for(const auto& description: command_descriptions)
-                linc::Logger::println("$:#3/$:: $:#2$.", description.first, description.second, linc::Colors::pop(), linc::Colors::push(linc::Colors::Yellow));
+                linc::Logger::println("$:!:+y/$:: $:-", description.first, description.second);
 
             continue;
         }
@@ -466,37 +471,31 @@ try
 }
 catch(const linc::Exception& e)
 {
-    linc::Logger::log(linc::Logger::Type::Error, "$:#2LINC EXCEPTION$:#1 $ " LINC_EXCEPTION_WARNING, e.info(), 
-        linc::Colors::pop(), linc::Colors::push(linc::Colors::Red));
+    linc::Logger::log(linc::Logger::Type::Error, "$:!:+rLINC EXCEPTION $:-" LINC_EXCEPTION_WARNING, e.info());
     return LINC_EXIT_FAILURE_LINC_EXCEPTION;
 }
 catch(const std::exception& e)
 {
-    linc::Logger::log(linc::Logger::Type::Error, "$:#2STANDARD EXCEPTION$:#1 $ " LINC_EXCEPTION_WARNING, e.what(),
-        linc::Colors::pop(), linc::Colors::push(linc::Colors::Red));
+    linc::Logger::log(linc::Logger::Type::Error, "$:!:+rSTANDARD EXCEPTION $:-" LINC_EXCEPTION_WARNING, e.what());
     return LINC_EXIT_FAILURE_STANDARD_EXCEPTION;
 }
 catch(const linc::BreakException& e)
 {
-    linc::Logger::log(linc::Logger::Type::Error, "$:#1UNEXPECTED EXCEPTION$:#0 Encountered unmatched control-flow exception (break) " LINC_EXCEPTION_WARNING,
-        linc::Colors::pop(), linc::Colors::push(linc::Colors::Red));
+    linc::Logger::log(linc::Logger::Type::Error, "$:!:+rUNEXPECTED EXCEPTION$:!:- Encountered unmatched control-flow exception (break). " LINC_EXCEPTION_WARNING);
     return LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION;
 }
 catch(const linc::ContinueException& e)
 {
-    linc::Logger::log(linc::Logger::Type::Error, "$:#1UNEXPECTED EXCEPTION$:#0 Encountered unmatched control-flow exception (continue) " LINC_EXCEPTION_WARNING,
-        linc::Colors::pop(), linc::Colors::push(linc::Colors::Red));
+    linc::Logger::log(linc::Logger::Type::Error, "$:!:+rUNEXPECTED EXCEPTION$:!:- Encountered unmatched control-flow exception (continue). " LINC_EXCEPTION_WARNING);
     return LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION;
 }
 catch(const linc::ReturnException& e)
 {
-    linc::Logger::log(linc::Logger::Type::Error, "$:#1UNEXPECTED EXCEPTION$:#0 Encountered unmatched control-flow exception (return) " LINC_EXCEPTION_WARNING,
-        linc::Colors::pop(), linc::Colors::push(linc::Colors::Red));
+    linc::Logger::log(linc::Logger::Type::Error, "$:!:+rUNEXPECTED EXCEPTION$:!:- Encountered unmatched control-flow exception (return). " LINC_EXCEPTION_WARNING);
     return LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION;
 }
 catch(...)
 {
-    linc::Logger::log(linc::Logger::Type::Error, "$:#1UNEXPECTED EXCEPTION$:#0 Caught unexpected exception type " LINC_EXCEPTION_WARNING,
-        linc::Colors::pop(), linc::Colors::push(linc::Colors::Red));
+    linc::Logger::log(linc::Logger::Type::Error, "$:!:+rUNEXPECTED EXCEPTION$:!:- Caught unexpected exception type. " LINC_EXCEPTION_WARNING);
     return LINC_EXIT_FAILURE_UNKNOWN_EXCEPTION;
 }

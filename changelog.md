@@ -36,6 +36,11 @@
 - Language: Added `usize` and `isize` primitive types (with `us` and `is` suffixes respectively) with size equal to `sizeof(void*)` (architecture dependent).
 - Language: Array access and array/string size operations now use `usize` instead of `u64`.
 - Backend: Introduced lowering for `return` statements.
+- Misc: Integrated color manipulation to the the system logger (color printing no longer depends on a specific argument evaluation order).
+- Misc: Improved report logging (line numbers are now displayed in text spans and empty lines are omitted).
+- Language: Added support for namespace declarations (syntax `namesp <identifier> { <list_of_declarations> } ).
+- Language: Implemented support for member functions as functions which are placed inside of the namespace with the same name as the original structure (for example, `Vec2f::add(foo, bar)` can be rewritten as `foo.add(bar)`).
+
 
 ## Future plans (in order of priority)
 

@@ -18,6 +18,7 @@ namespace linc
         virtual std::unique_ptr<const BoundDeclaration> clone() const final override;
         virtual std::vector<const BoundNode*> getChildren() const final override;
     private:
+        virtual std::unique_ptr<const BoundDeclaration> cloneRename(const std::string& name) const final override;
         virtual std::string toStringInner() const final override;
     
         const std::unique_ptr<const BoundFunctionPrototypeDeclaration> m_prototype;

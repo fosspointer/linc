@@ -249,13 +249,14 @@ namespace linc
 
         for(std::string::size_type i{0ul}; i < str.size(); ++i)
         {
+            bool append_printable{true};
             if(str[i] == '$')
             {
                 if(i + 1ul < str.size() && str[i + 1ul] == '$')
                 {
                     output.push_back('$');
                     ++i;
-                }    
+                }
                 else
                 {
                     [&]()
@@ -264,6 +265,7 @@ namespace linc
                         {
                             switch(str[++i])
                             {
+                            case '!': append_printable = false; break;
                             case 'n': lexical_bool = 0; break;
                             case 'l': lexical_bool = 1; break;
                             case 'p':
@@ -276,6 +278,50 @@ namespace linc
                                     throw LINC_EXCEPTION_INVALID_INPUT("Precision specifier expects unsigned integral argument.");
                                 precision = std::stoull(buffer);
                                 --i;
+                                break;
+                            }
+                            case '+':
+                            {
+                                static const std::unordered_map<char, Colors::Color> hues{
+                                    std::pair('k', Colors::Black),
+                                    std::pair('r', Colors::Red),
+                                    std::pair('g', Colors::Green),
+                                    std::pair('y', Colors::Yellow),
+                                    std::pair('b', Colors::Blue),
+                                    std::pair('p', Colors::Purple),
+                                    std::pair('c', Colors::Cyan),
+                                    std::pair('w', Colors::White),
+                                };
+
+                                auto option = str[++i];
+                                Colors::Color color = {};
+                                if(option == 'x')
+                                {
+                                    output.append(Colors::push(Colors::Reset));
+                                    break;
+                                }
+                                if(option == 'B')
+                                {
+                                    color = color | Colors::Bold;
+                                    option = str[++i];
+                                }
+                                if(option == 'U')
+                                {
+                                    color = color | Colors::Underline;
+                                    option = str[++i];
+                                }
+                                if(option == '@')
+                                {
+                                    color = color | Colors::Background;
+                                    option = str[++i];
+                                }
+                                color = color | hues.at(option);
+                                output.append(Colors::push(color));
+                                break;
+                            }
+                            case '-':
+                            {
+                                output.append(Colors::pop());
                                 break;
                             }
                             case '#':
@@ -302,9 +348,12 @@ namespace linc
                         }
                     }();
                     --i;
-                    auto printable = args[0ul];
-                    args.erase(args.begin());
-                    appendPrintable(output, printable, lexical_bool, precision);
+                    if(append_printable) [[likely]]
+                    {
+                        auto printable = args[0ul];
+                        args.erase(args.begin());
+                        appendPrintable(output, printable, lexical_bool, precision);
+                    }
                 }
             }
             else output.push_back(str[i]);

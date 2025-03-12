@@ -40,7 +40,7 @@ namespace linc
         else if(operator_kind == Kind::Typeof)
             return Types::fromKind(Types::Kind::type);
         
-        if(operand_type.kind == Types::type::Kind::Array)
+        if(operand_type.kind == Types::type::Kind::Array || operand_type.kind == Types::type::Kind::Enumeration)
         {
             if(operator_kind == Kind::UnaryPlus)
                 return Types::fromKind(Types::Kind::usize);
@@ -48,17 +48,16 @@ namespace linc
         }
         else if(operand_type.kind == Types::type::Kind::Structure)
         {
-            if(operand_type.structure.size() != 3ul || operator_kind != Kind::UnaryMinus)
+            if(operand_type.structure.fields.size() != 3ul || operator_kind != Kind::UnaryMinus)
                 return Types::invalidType; 
 
-            auto begin_type_mutable = operand_type.structure[0ul].first;
+            auto begin_type_mutable = operand_type.structure.fields[0ul].first;
             begin_type_mutable.isMutable = true;
-            if(begin_type_mutable.isCompatible(operand_type.structure[1ul].first)
+            if(begin_type_mutable.isCompatible(operand_type.structure.fields[1ul].first)
                 && BoundUnaryOperator(BoundUnaryOperator::Kind::Increment, begin_type_mutable).getReturnType() != Types::invalidType
-                && operand_type.structure[2ul].first == Types::fromKind(Types::Kind::_bool))
+                && operand_type.structure.fields[2ul].first == Types::fromKind(Types::Kind::_bool))
                 return operand_type;
         }
-
         switch(operator_kind)
         {
         case Kind::Increment:

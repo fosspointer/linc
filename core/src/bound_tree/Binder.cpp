@@ -191,6 +191,9 @@ namespace linc
         else if(auto generic_declaration = dynamic_cast<const GenericDeclaration*>(declaration))
             return Types::uniqueCast<const BoundDeclaration>(bindGenericDeclaration(generic_declaration));
 
+        else if(auto namespace_declaration = dynamic_cast<const NamespaceDeclaration*>(declaration))
+            return Types::uniqueCast<const BoundDeclaration>(bindNamespaceDeclaration(namespace_declaration));
+
         throw LINC_EXCEPTION_INVALID_INPUT("Unrecognized declaration");
     }
 
@@ -363,7 +366,7 @@ namespace linc
     {
         auto type = bindTypeExpression(declaration->getType())->getActualType();
 
-        auto name = declaration->getIdentifier()->getIdentifierToken().value.value();
+        auto name = m_boundDeclarations.getNamespaceString() + declaration->getIdentifier()->getValue();
         auto default_value = declaration->getDefaultValue().has_value()? bindExpression(declaration->getDefaultValue()->getExpression()): nullptr;
 
         auto variable = std::make_unique<const BoundVariableDeclaration>(type, name, std::move(default_value), m_boundDeclarations.getScopeIndex());
@@ -402,7 +405,7 @@ namespace linc
         auto value = bindExpression(declaration->getValue());
         auto type = value->getType();
         type.isMutable = declaration->getMutabilitySpecifier().has_value(); 
-        auto name = declaration->getIdentifier()->getValue();
+        auto name = m_boundDeclarations.getNamespaceString() + declaration->getIdentifier()->getValue();
 
         auto variable = std::make_unique<const BoundVariableDeclaration>(type, name, std::move(value), m_boundDeclarations.getScopeIndex());
 
@@ -418,7 +421,7 @@ namespace linc
     const std::unique_ptr<const BoundFunctionPrototypeDeclaration> Binder::bindFunctionPrototypeDeclaration(const FunctionPrototypeDeclaration* declaration)
     {
         auto return_type = declaration->getReturnType()? bindTypeExpression(declaration->getReturnType())->getActualType(): Types::invalidType;
-        auto name = declaration->getIdentifier()->getValue();
+        auto name = m_boundDeclarations.getNamespaceString() + declaration->getIdentifier()->getValue();
 
         std::vector<std::unique_ptr<const BoundVariableDeclaration>> arguments;
         std::vector<Types::type> argument_types;
@@ -517,7 +520,7 @@ namespace linc
 
     const std::unique_ptr<const BoundExternalDeclaration> Binder::bindExternalDeclaration(const ExternalDeclaration* declaration)
     {
-        auto name = declaration->getIdentifier()->getValue();
+        auto name = m_boundDeclarations.getNamespaceString() + declaration->getIdentifier()->getValue();
         auto actual_type = bindTypeExpression(declaration->getActualType());
         
         std::vector<std::unique_ptr<const BoundTypeExpression>> arguments;
@@ -540,7 +543,7 @@ namespace linc
 
     const std::unique_ptr<const BoundStructureDeclaration> Binder::bindStructureDeclaration(const StructureDeclaration* declaration)
     {
-        const auto name = declaration->getIdentifier()->getValue(); 
+        const auto name = m_boundDeclarations.getNamespaceString() + declaration->getIdentifier()->getValue(); 
 
         std::vector<std::unique_ptr<const BoundVariableDeclaration>> fields;
         fields.reserve(declaration->getFields().size());
@@ -569,7 +572,7 @@ namespace linc
 
     const std::unique_ptr<const BoundEnumerationDeclaration> Binder::bindEnumerationDeclaration(const EnumerationDeclaration* declaration)
     {
-        const auto name = declaration->getIdentifier()->getValue(); 
+        const auto name = m_boundDeclarations.getNamespaceString() + declaration->getIdentifier()->getValue(); 
 
         auto enumerators = bindNodeListClause(declaration->getEnumerators(), &Binder::bindEnumeratorClause);
         auto enumeration = std::make_unique<const BoundEnumerationDeclaration>(name, std::move(enumerators));
@@ -586,7 +589,7 @@ namespace linc
 
     const std::unique_ptr<const BoundAliasDeclaration> Binder::bindAliasDeclaration(const AliasDeclaration* declaration)
     {
-        auto name = declaration->getIdentifier()->getValue();
+        auto name = m_boundDeclarations.getNamespaceString() + declaration->getIdentifier()->getValue();
         auto type = bindTypeExpression(declaration->getType());
         auto alias = std::make_unique<const BoundAliasDeclaration>(std::move(name), std::move(type));
 
@@ -619,10 +622,24 @@ namespace linc
 
         return generic;
     }
+
+    const std::unique_ptr<const BoundNamespaceDeclaration> Binder::bindNamespaceDeclaration(const NamespaceDeclaration* declaration)
+    {
+        auto name = declaration->getIdentifier()->getValue();
+        m_boundDeclarations.namespacePush(name);
+        std::vector<std::unique_ptr<const BoundDeclaration>> declarations;
+        declarations.reserve(declaration->getDeclarations().size());
+        for(const auto& sub_declaration: declaration->getDeclarations())
+            declarations.push_back(bindDeclaration(sub_declaration.get()));
+        m_boundDeclarations.namespacePop();
+
+        return std::make_unique<const BoundNamespaceDeclaration>(name, std::move(declarations));
+    }
  
     const std::unique_ptr<const BoundIdentifierExpression> Binder::bindIdentifierExpression(const IdentifierExpression* expression)
     {
-        auto value = expression->getValue();
+        auto _namespace = expression->getNamespaceClause()? expression->getNamespaceClause()->asString(): m_boundDeclarations.getNamespaceString();
+        auto value = _namespace + expression->getValue();
         auto find = m_boundDeclarations.find(value);
         if(!m_matchIdentifiers.empty())
         {
@@ -664,7 +681,8 @@ namespace linc
 
             auto token = expression->getIdentifierToken();
             *token.value = bindGenericClause(expression->getGeneric(), generic, expression->getTokenInfo());
-            auto identifier = std::make_unique<const IdentifierExpression>(std::move(token), nullptr);
+            auto namespace_clause = expression->getNamespaceClause()? expression->getNamespaceClause()->clone(): nullptr;
+            auto identifier = std::make_unique<const IdentifierExpression>(std::move(token), std::move(namespace_clause), nullptr);
             return bindIdentifierExpression(identifier.get());
         }
 
@@ -804,13 +822,13 @@ namespace linc
             }
             else if(auto structure_declaration = dynamic_cast<const BoundStructureDeclaration*>(find.get()))
             {
-                Types::type::Structure types;
-                types.reserve(structure_declaration->getFields().size());
+                Types::type::Structure structure{.name = structure_declaration->getName()};
+                structure.fields.reserve(structure_declaration->getFields().size());
 
                 for(const auto& field: structure_declaration->getFields())
-                    types.push_back(std::pair(field->getActualType(), field->getName()));
+                    structure.fields.push_back(std::pair(field->getActualType(), field->getName()));
 
-                return std::make_unique<const BoundTypeExpression>(std::move(types), expression->getMutabilityKeyword().has_value(), std::move(specifiers));
+                return std::make_unique<const BoundTypeExpression>(std::move(structure), expression->getMutabilityKeyword().has_value(), std::move(specifiers));
             }
             else if(auto enumeration_declaration = dynamic_cast<const BoundEnumerationDeclaration*>(find.get()))
             {
@@ -949,6 +967,15 @@ namespace linc
     {
         auto function = bindExpression(expression->getFunction());
         std::vector<std::unique_ptr<const BoundExpression>> arguments;
+        std::size_t member_offset;
+        if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(function.get()); identifier && dynamic_cast<const AccessExpression*>(expression->getFunction()))
+        {
+            auto access = static_cast<const AccessExpression*>(expression->getFunction());
+            auto self = bindExpression(access->getBase());
+            arguments.push_back(std::move(self));
+            member_offset = 1ul;
+        }
+        else member_offset = 0ul;
         
         if(function->getType().kind != Types::type::Kind::Function)
             Reporting::push(Reporting::Report{
@@ -989,19 +1016,17 @@ namespace linc
                         default_arguments.push_back(argument->getDefaultValue()->clone());
             }();
 
-            if(function_type.argumentTypes.size() < list.size()
-            || function_type.argumentTypes.size() - default_arguments.size() > list.size())
+            if(function_type.argumentTypes.size() < list.size() + member_offset
+            || function_type.argumentTypes.size() - default_arguments.size() > list.size() + member_offset)
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("$ Tried to call function with $ arguments, when it takes $ (with $ default arguments).", 
-                        expression->getTokenInfo(), list.size(), function_type.argumentTypes.size(),
+                        expression->getTokenInfo(), list.size() + member_offset, function_type.argumentTypes.size(),
                         default_arguments.size())});
 
-            using _size = std::vector<std::unique_ptr<const Expression>>::size_type;
-
-            for(_size i{0ul}; i < std::min(list.size(), function_type.argumentTypes.size()); i++)
+            for(std::size_t i{member_offset}; i < std::min(list.size() + member_offset, function_type.argumentTypes.size()); i++)
             {
-                const auto& argument = list[i];
+                const auto& argument = list[i - member_offset];
                 const auto& declared_argument_type = function_type.argumentTypes[i];
                 auto bound_argument = bindExpression(argument.node.get());
 
@@ -1014,7 +1039,7 @@ namespace linc
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
                         .message = Logger::format("$ Argument $ called with type `$`, expected `$`.",
-                            expression->getTokenInfo(), i, bound_argument->getType(), declared_argument_type)});
+                            expression->getTokenInfo(), i + 1ul, PrimitiveValue(bound_argument->getType()), PrimitiveValue(declared_argument_type))});
                 }
 
                 else arguments.push_back(std::move(bound_argument));
@@ -1022,7 +1047,7 @@ namespace linc
 
             auto identifier = dynamic_cast<const BoundIdentifierExpression*>(function.get());
             auto find = identifier? m_boundDeclarations.find(identifier->getValue()): nullptr;
-            for(_size i{list.size()}; i < function_type.argumentTypes.size()
+            for(std::size_t i{list.size() + member_offset}; i < function_type.argumentTypes.size()
                 && i >= function_type.argumentTypes.size() - default_arguments.size(); ++i)
             {
                 if(!identifier) break;
@@ -1335,7 +1360,7 @@ namespace linc
         return std::make_unique<const BoundIndexExpression>(std::move(array), std::move(index), type);
     }
 
-    const std::unique_ptr<const BoundAccessExpression> Binder::bindAccessExpression(const AccessExpression* expression)
+    const std::unique_ptr<const BoundExpression> Binder::bindAccessExpression(const AccessExpression* expression)
     {
         auto name = expression->getIdentifier()->getValue();
         auto base = bindExpression(expression->getBase());
@@ -1351,9 +1376,18 @@ namespace linc
         }
         auto structure = Types::type{base->getType()}.structure;
 
-        for(std::size_t index{0ul}; index < structure.size(); ++index)
-            if(structure[index].second == name)
-                return std::make_unique<const BoundAccessExpression>(std::move(base), index, structure[index].first);
+        for(std::size_t index{0ul}; index < structure.fields.size(); ++index)
+            if(structure.fields[index].second == name)
+                return std::make_unique<const BoundAccessExpression>(std::move(base), index, structure.fields[index].first);
+        
+        auto namespaced_member_name = structure.name + "::" + name;
+        auto find = m_boundDeclarations.find(namespaced_member_name);
+        if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(find.get()))
+        {
+            const auto& arguments = function->getPrototype()->getArguments()->getList();
+            if(!arguments.empty() && arguments[0ul]->getActualType().isCompatible(base->getType()))
+                return std::make_unique<const BoundIdentifierExpression>(namespaced_member_name, function->getPrototype()->getFunctionType());
+        }
 
         Reporting::push(Reporting::Report{
             .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
@@ -1450,10 +1484,10 @@ namespace linc
         auto end_expression = bindExpression(expression->getEndExpression());
         
         auto structure = Types::type::Structure{};
-        structure.reserve(3ul);
-        structure.push_back(std::make_pair(begin_expression->getType(), std::string("begin")));
-        structure.push_back(std::make_pair(end_expression->getType(), std::string("end")));
-        structure.push_back(std::make_pair(Types::fromKind(Types::Kind::_bool), std::string("reverse")));
+        structure.fields.reserve(3ul);
+        structure.fields.push_back(std::make_pair(begin_expression->getType(), std::string("begin")));
+        structure.fields.push_back(std::make_pair(end_expression->getType(), std::string("end")));
+        structure.fields.push_back(std::make_pair(Types::fromKind(Types::Kind::_bool), std::string("reverse")));
 
         if(!begin_expression->getType().isCompatible(end_expression->getType()))
             Reporting::push(Reporting::Report{
@@ -1530,14 +1564,14 @@ namespace linc
             type = *expression->getType().array.baseType;
         else if(expression->getType().kind == Types::type::Kind::Primitive && expression->getType().primitive == Types::type::Primitive::string)
             type = Types::type::Primitive::_char;
-        else if(expression->getType().kind == Types::type::Kind::Structure && expression->getType().structure.size() == 3ul)
+        else if(expression->getType().kind == Types::type::Kind::Structure && expression->getType().structure.fields.size() == 3ul)
         {
-            auto begin_type_mutable = expression->getType().structure[0ul].first;
+            auto begin_type_mutable = expression->getType().structure.fields[0ul].first;
             begin_type_mutable.isMutable = true;
 
-            if(begin_type_mutable.isCompatible(expression->getType().structure[1ul].first)
+            if(begin_type_mutable.isCompatible(expression->getType().structure.fields[1ul].first)
             && BoundUnaryOperator(BoundUnaryOperator::Kind::Increment, begin_type_mutable).getReturnType() != Types::invalidType
-            && expression->getType().structure[2ul].first == Types::fromKind(Types::Kind::_bool))
+            && expression->getType().structure.fields[2ul].first == Types::fromKind(Types::Kind::_bool))
             {
                 type = begin_type_mutable;
             }
@@ -1597,7 +1631,8 @@ namespace linc
         if(find == map.end())
         {
             auto new_identifier = Token{.type = Token::Type::Identifier, .value = identifier, .info = info};
-            auto raw_declaration = declaration->getDeclaration()->cloneRename(std::make_unique<const IdentifierExpression>(new_identifier, nullptr));
+            auto namespace_clause = declaration->getDeclaration()->getIdentifier()->getNamespaceClause();
+            auto raw_declaration = declaration->getDeclaration()->cloneRename(std::make_unique<const IdentifierExpression>(new_identifier, namespace_clause? namespace_clause->clone(): nullptr, nullptr));
             m_boundDeclarations.beginScope();
             auto new_declaration = bindDeclaration(raw_declaration.get());
             m_boundDeclarations.endScope();

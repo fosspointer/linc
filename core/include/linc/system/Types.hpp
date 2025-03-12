@@ -53,7 +53,11 @@ namespace linc
             };
 
             using Primitive = Types::Kind;
-            using Structure = std::vector<std::pair<type, std::string>>;
+            struct Structure
+            {
+                std::string name;
+                std::vector<std::pair<type, std::string>> fields;
+            };
             using Enumeration = std::vector<std::pair<std::string, type>>;
 
             struct Array final
@@ -101,7 +105,7 @@ namespace linc
                 switch(kind)
                 {
                 case Kind::Array: array.~Array(); break;
-                case Kind::Structure: structure.~vector(); break;
+                case Kind::Structure: structure.~Structure(); break;
                 case Kind::Function: function.~Function(); break;
                 case Kind::Enumeration: enumeration.~vector(); break;
                 default: break;
@@ -129,7 +133,7 @@ namespace linc
                 {
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{std::move(other.array)}; break;
-                case Kind::Structure: new (&structure) std::vector{std::move(other.structure)}; break;
+                case Kind::Structure: new (&structure) Structure{std::move(other.structure)}; break;
                 case Kind::Function: new (&function) Function{std::move(other.function)}; break;
                 case Kind::Enumeration: new (&enumeration) Enumeration{std::move(other.enumeration)}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
@@ -145,7 +149,7 @@ namespace linc
                 {
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{.baseType = other.array.baseType->clone(), .count = other.array.count}; break;
-                case Kind::Structure: new (&structure) std::vector{cloneStructure(other.structure, isMutable)}; break;
+                case Kind::Structure: new (&structure) Structure{cloneStructure(other.structure, isMutable)}; break;
                 case Kind::Function: new (&function) Function{cloneFunction(&other.function)}; break;
                 case Kind::Enumeration: new (&enumeration) Enumeration{other.enumeration}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
@@ -162,7 +166,7 @@ namespace linc
                 {
                 case Kind::Primitive: primitive = other.primitive; break;
                 case Kind::Array: new (&array) Array{std::move(other.array)}; break;
-                case Kind::Structure: new (&structure) std::vector{std::move(other.structure)}; break;
+                case Kind::Structure: new (&structure) Structure{std::move(other.structure)}; break;
                 case Kind::Function: new (&function) Function{std::move(other.function)}; break;
                 case Kind::Enumeration: new (&enumeration) Enumeration{std::move(other.enumeration)}; break;
                 default: throw LINC_EXCEPTION_OUT_OF_BOUNDS(kind);
@@ -180,11 +184,12 @@ namespace linc
                 case Kind::Array: return std::make_unique<const type>(Array{.baseType = array.baseType->clone(), .count = array.count}, isMutable);
                 case Kind::Structure:
                 {
-                    Structure structure_vector;
-                    for(const auto& member: structure)
-                        structure_vector.push_back(std::pair(member.first, member.second));
-                 
-                    return std::make_unique<const type>(std::move(structure_vector), isMutable);
+                    Structure structure_clone;
+                    for(const auto& member: structure.fields)
+                        structure_clone.fields.push_back(std::pair(member.first, member.second));
+                    structure_clone.name = structure.name;
+
+                    return std::make_unique<const type>(std::move(structure_clone), isMutable);
                 }
                 case Kind::Function:
                 {
@@ -207,10 +212,10 @@ namespace linc
                 case Kind::Array: return *array.baseType == *other.array.baseType && array.count == other.array.count;
                 case Kind::Structure: 
                 {
-                    if(structure.size() != other.structure.size()) return false;
+                    if(structure.fields.size() != other.structure.fields.size()) return false;
 
-                    for(Structure::size_type i{0ul}; i < structure.size(); ++i)
-                        if(structure[i].first != other.structure[i].first)
+                    for(std::size_t i{0ul}; i < structure.fields.size(); ++i)
+                        if(structure.fields[i].first != other.structure.fields[i].first)
                             return false;
 
                     return true;
@@ -249,10 +254,10 @@ namespace linc
                         return false;
                     else return (array.count && other.array.count && *array.count == *other.array.count) || !other.array.count;
                 case Kind::Structure:
-                    if(structure.size() != other.structure.size()) return false;
+                    if(structure.fields.size() != other.structure.fields.size()) return false;
 
-                    for(Structure::size_type i{0ul}; i < structure.size(); ++i)
-                        if(!structure[i].first.isAssignableTo(other.structure[i].first)) return false;
+                    for(std::size_t i{0ul}; i < structure.fields.size(); ++i)
+                        if(!structure.fields[i].first.isAssignableTo(other.structure.fields[i].first)) return false;
                 
                     return true;
                 case Kind::Function: return type(function) == type(other.function);
@@ -279,7 +284,7 @@ namespace linc
 
             static Structure cloneStructure(Structure structure, bool is_mutable)
             {
-                for(auto& type: structure)
+                for(auto& type: structure.fields)
                     type.first.isMutable |= type.first.isMutable;
                 
                 return structure;

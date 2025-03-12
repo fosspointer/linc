@@ -20,6 +20,12 @@ namespace linc
         return std::vector<const BoundNode*>{m_prototype.get(), m_body.get()};
     }
 
+    std::unique_ptr<const BoundDeclaration> BoundFunctionDeclaration::cloneRename(const std::string& name) const
+    {
+        auto prototype = Types::uniqueCast<const BoundFunctionPrototypeDeclaration>(m_prototype->cloneRename(name));
+        return std::make_unique<const BoundFunctionDeclaration>(std::move(prototype), m_body->clone());
+    }
+
     std::string BoundFunctionDeclaration::toStringInner() const
     {
         return Logger::format("Function Declaration (=$) (:$)", PrimitiveValue(m_name), PrimitiveValue(m_prototype->getFunctionType()));

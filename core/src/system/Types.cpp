@@ -97,9 +97,10 @@ namespace linc
             result.append(array.count? "[" + std::to_string(*array.count) + "]": "[]");
             break;
         case type::Kind::Structure:
+            result.append(structure.name);
             result.push_back('{');
-            for(type::Structure::size_type i{0ul}; i < structure.size(); ++i)
-                result.append((i == 0ul? "": ", ") + structure[i].second + ": " + structure[i].first.toString());
+            for(std::size_t i{0ul}; i < structure.fields.size(); ++i)
+                result.append((i == 0ul? "": ", ") + structure.fields[i].second + ": " + structure.fields[i].first.toString());
             result.push_back('}');
             break;
         case type::Kind::Function:

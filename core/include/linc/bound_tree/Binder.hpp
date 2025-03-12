@@ -46,12 +46,28 @@ namespace linc
         inline void popLabel() { m_labels.pop(); }
         inline void beginScope() { m_scopes.beginScope(); }
         inline void endScope() { m_scopes.endScope(); }
+        inline void namespacePush(const std::string& item) { m_namespace.push_back(item); }
+        inline void namespacePop() { m_namespace.pop_back(); }
 
         [[nodiscard]] inline std::vector<const std::unique_ptr<const class BoundDeclaration>*> getSymbols() const
         {
             return m_scopes.getSymbols();
-        } 
+        }
+
+        [[nodiscard]] inline const std::vector<std::string>& getNamespace() const
+        {
+            return m_namespace;
+        }
+
+        [[nodiscard]] std::string getNamespaceString() const
+        {
+            std::string actual_namespace;
+            for(auto it = m_namespace.begin(); it != m_namespace.end(); ++it)
+                actual_namespace += *it + "::";
+            return actual_namespace;
+        }
     private:
+        std::vector<std::string> m_namespace;
         ScopeStack<std::unique_ptr<const class BoundDeclaration>> m_scopes;
         StringStack m_labels;
     };
@@ -108,6 +124,7 @@ namespace linc
         [[nodiscard]] const std::unique_ptr<const class BoundEnumerationDeclaration> bindEnumerationDeclaration(const class EnumerationDeclaration* declaration);
         [[nodiscard]] const std::unique_ptr<const class BoundAliasDeclaration> bindAliasDeclaration(const class AliasDeclaration* declaration);
         [[nodiscard]] const std::unique_ptr<const class BoundGenericDeclaration> bindGenericDeclaration(const class GenericDeclaration* declaration);
+        [[nodiscard]] const std::unique_ptr<const class BoundNamespaceDeclaration> bindNamespaceDeclaration(const class NamespaceDeclaration* declaration);
         [[nodiscard]] const std::unique_ptr<const class BoundIdentifierExpression> bindIdentifierExpression(const class IdentifierExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundEnumeratorExpression> bindEnumeratorExpression(const class EnumeratorExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundTypeExpression> bindTypeExpression(const class TypeExpression* expression);
@@ -123,7 +140,7 @@ namespace linc
         [[nodiscard]] const std::unique_ptr<const class BoundConversionExpression> bindConversionExpression(const class ConversionExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundArrayInitializerExpression> bindArrayInitializerExpression(const class ArrayInitializerExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundIndexExpression> bindIndexExpression(const class IndexExpression* expression);
-        [[nodiscard]] const std::unique_ptr<const class BoundAccessExpression> bindAccessExpression(const class AccessExpression* expression);
+        [[nodiscard]] const std::unique_ptr<const class BoundExpression> bindAccessExpression(const class AccessExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundStructureInitializerExpression> bindStructureInitializerExpression(const class StructureInitializerExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundRangeExpression> bindRangeExpression(const class RangeExpression* expression);
         [[nodiscard]] const std::unique_ptr<const class BoundMatchClause> bindMatchClause(const class MatchClause* clause);
@@ -137,7 +154,7 @@ namespace linc
         BoundSymbols m_boundDeclarations;
         Types::u64 m_inLoop{};
         std::stack<Types::type> m_functionReturnTypes;
-        std::stack<std::string> m_matchIdentifiers{};
+        std::stack<std::string> m_matchIdentifiers;
         std::vector<std::unordered_map<std::string, std::unique_ptr<const BoundDeclaration>>> m_genericInstanceMaps;
 
     };

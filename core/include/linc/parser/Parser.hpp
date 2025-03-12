@@ -84,6 +84,9 @@ namespace linc
         /// @brief Parse the following tokens as a generic clause.
         std::unique_ptr<const class GenericClause> parseGenericClause() const;
 
+        /// @brief Parse the following tokens as a namespace clause.
+        std::unique_ptr<const class NamespaceClause> parseNamespaceClause() const;
+
         /// @brief Parse the following tokens as an optional loop identifier.
         std::optional<struct LoopLabel> parseLoopLabel() const;
 
@@ -122,6 +125,9 @@ namespace linc
 
         /// @brief Parse the following tokens as a generic declaration.
         std::unique_ptr<const class GenericDeclaration> parseGenericDeclaration() const;
+
+        /// @brief Parse the following tokens as a namespace declaration.
+        std::unique_ptr<const class NamespaceDeclaration> parseNamespaceDeclaration() const;
         
         /// @brief Parse the following tokens as an AST modifier expression.
         std::unique_ptr<const class Expression> parseModifierExpression() const;
@@ -165,6 +171,9 @@ namespace linc
         /// @brief Parse the following tokens as an AST identifier expression.
         /// @param type_inclusive Treat type identifiers as valid.
         std::unique_ptr<const class IdentifierExpression> parseIdentifierExpression(bool type_inclusive = false) const;
+
+        /// @brief Parse the following tokens as a static AST identifier expression (i.e. one with no namespace path or generic clause). 
+        std::unique_ptr<const class IdentifierExpression> parseStaticIdentifierExpression() const;
 
         /// @brief Parse the following tokens as an AST namespace access expression.
         std::unique_ptr<const class EnumeratorExpression> parseEnumeratorExpression() const;

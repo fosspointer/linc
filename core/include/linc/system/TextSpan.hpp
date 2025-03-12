@@ -42,38 +42,51 @@ namespace linc
 
             if(startIndex == -1ul) throw LINC_EXCEPTION_ILLEGAL_STATE(startIndex);
             else if(endIndex == -1ul) throw LINC_EXCEPTION_ILLEGAL_STATE(endIndex);
+            std::size_t max_trim_start{-1ul}, max_digit_count = std::to_string(source.at(endIndex).line).size();
 
             for(std::size_t i{startIndex}; i <= endIndex; ++i)
             {
-                auto line = source.at(i).text;
+                auto& line = source.at(i);
+                auto text = line.text;
                 std::string format;
 
                 if(startIndex == endIndex)
                 {
                     if(spanEnd < spanStart) throw LINC_EXCEPTION_ILLEGAL_VALUE(spanStart);
-                    format = linc::Logger::format("$:$:$:$:$", line.substr(0ul, spanStart), Colors::toANSI(highlight_color),
-                        line.substr(spanStart, spanEnd - spanStart), Colors::toANSI(Colors::Reset), line.substr(spanEnd));
+                    format = linc::Logger::format("$:$:$:$:$", text.substr(0ul, spanStart), Colors::toANSI(highlight_color),
+                        text.substr(spanStart, spanEnd - spanStart), Colors::toANSI(Colors::Reset), text.substr(spanEnd));
                 }
                 else if(i == startIndex)
                 {
-                    format = linc::Logger::format("$:$:$:$", line.substr(0ul, spanStart), Colors::toANSI(highlight_color),
-                        line.substr(spanStart), Colors::toANSI(Colors::Reset));
+                    format = linc::Logger::format("$:$:$:$", text.substr(0ul, spanStart), Colors::toANSI(highlight_color),
+                        text.substr(spanStart), Colors::toANSI(Colors::Reset));
                 }
                 else if(i == endIndex)
                 {
                     format = linc::Logger::format("$:$:$:$", Colors::toANSI(highlight_color),
-                        line.substr(0ul, spanEnd), Colors::toANSI(Colors::Reset),
-                        line.substr(spanEnd));
+                        text.substr(0ul, spanEnd), Colors::toANSI(Colors::Reset),
+                        text.substr(spanEnd));
                 }
                 else
                 {
+                    bool is_empty{true};
+                    for(char c: text)
+                        if(!std::isspace(c))
+                        {
+                            is_empty = false;
+                            break;
+                        }
+                    if(is_empty)
+                        continue;
                     format = linc::Logger::format("$:$:$", Colors::toANSI(highlight_color),
-                        line, Colors::toANSI(Colors::Reset));
+                        text, Colors::toANSI(Colors::Reset));
                 }
 
-                result += Code::trim(format);
-
-                if(i != lineEnd - 1ul) result.push_back('\n');
+                auto[trimmed_code, local_max_trim_start] = Code::trim(format, max_trim_start);
+                if(i == startIndex) max_trim_start = local_max_trim_start;
+                auto digit_count = std::to_string(line.line).size();
+                result.insert(result.end(), max_digit_count - digit_count, ' ');
+                result += Logger::format(" $:+Bc$:!:- | $", line.line, trimmed_code);
             }
 
             return result;

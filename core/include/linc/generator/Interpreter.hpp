@@ -58,7 +58,7 @@ namespace linc
             auto main_call = std::make_unique<const linc::CallExpression>(
                 linc::Token{.type = linc::Token::Type::ParenthesisLeft},
                 linc::Token{.type = linc::Token::Type::ParenthesisRight},
-                std::make_unique<const IdentifierExpression>(linc::Token{.type = linc::Token::Type::Identifier, .value = main->getName()}, nullptr),
+                std::make_unique<const IdentifierExpression>(linc::Token{.type = linc::Token::Type::Identifier, .value = main->getName()}, nullptr, nullptr),
                 std::make_unique<const NodeListClause<Expression>>(std::move(main_argument_list), Token::Info{}), false);
 
             auto bound_main_call = m_binder.bindExpression(main_call.get());
@@ -147,6 +147,11 @@ namespace linc
             }
             else if(auto generic_declaration = dynamic_cast<const BoundGenericDeclaration*>(declaration))
                 m_generics.append(generic_declaration->getName(), generic_declaration->getInstanceMapIndex());
+            else if(auto namespace_declaration = dynamic_cast<const BoundNamespaceDeclaration*>(declaration))
+            {
+                for(const auto& sub_declaration: namespace_declaration->getDeclarations())
+                    evaluateDeclaration(sub_declaration.get());
+            }
             else if(auto enumeration_declaration = dynamic_cast<const BoundEnumerationDeclaration*>(declaration))
                 m_enumerations.append(enumeration_declaration->getName(), enumeration_declaration->getActualType().enumeration);
             else if(dynamic_cast<const BoundExternalDeclaration*>(declaration));
@@ -486,8 +491,10 @@ namespace linc
                     result = PrimitiveValue(operand.toApplicationString());
                     break;
                 case BoundUnaryOperator::Kind::UnaryPlus:
-                    if(operand.getIfArray())
-                        result = PrimitiveValue(operand.getArray().getCount());
+                    if(auto array = operand.getIfArray())
+                        result = PrimitiveValue(array->getCount());
+                    else if(auto enumerator = operand.getIfEnumerator())
+                        result = PrimitiveValue(enumerator->getIndex());
                     else if(operand.getPrimitive().getKind() == PrimitiveValue::Kind::String)
                         result = PrimitiveValue(static_cast<Types::u64>(operand.getPrimitive().getString().size()));
                     else if(operand.getPrimitive().getKind() == PrimitiveValue::Kind::Character)

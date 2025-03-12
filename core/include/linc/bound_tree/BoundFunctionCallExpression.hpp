@@ -14,6 +14,7 @@ namespace linc
         [[nodiscard]] inline const std::vector<std::unique_ptr<const BoundExpression>>& getArguments() const { return m_arguments; }
 
         virtual std::unique_ptr<const BoundExpression> clone() const final override;
+        virtual std::vector<const BoundNode*> getChildren() const final override;
     private:
         virtual std::string toStringInner() const final override;
         const std::unique_ptr<const BoundExpression> m_function;

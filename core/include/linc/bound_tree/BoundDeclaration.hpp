@@ -15,7 +15,13 @@ namespace linc
         virtual ~BoundDeclaration() = default;
         [[nodiscard]] inline const std::string& getName() const { return m_name; }
         virtual std::unique_ptr<const BoundDeclaration> clone() const = 0;
+        virtual std::unique_ptr<const BoundDeclaration> cloneRename(const std::string& name) const
+        {
+            auto declaration = clone();
+            declaration->m_name = name;
+            return declaration;
+        }
     protected:
-        const std::string m_name;
+        mutable std::string m_name;
     };
 }

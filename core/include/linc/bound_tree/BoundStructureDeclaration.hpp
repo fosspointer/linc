@@ -28,12 +28,13 @@ namespace linc
 
         Types::type getActualType() const
         {
-            Types::type::Structure types;
+            Types::type::Structure structure;
             
             for(const auto& field: m_fields)
-                types.push_back(std::pair(field->getActualType(), field->getName()));
-
-            return Types::type(std::move(types));
+                structure.fields.push_back(std::pair(field->getActualType(), field->getName()));
+            
+            structure.name = m_name;
+            return Types::type(std::move(structure));
         }
 
         [[nodiscard]] inline const std::vector<std::unique_ptr<const BoundVariableDeclaration>>& getFields() const { return m_fields; }

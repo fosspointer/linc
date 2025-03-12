@@ -23,7 +23,7 @@ namespace linc
             std::string message;
             bool isInvalid() const
             {
-                return message == std::string{} || span == Report{}.span || span.lineStart == 0ul || span.lineStart == -1ul || span.lineEnd > span.lineStart || span.file == -1ul;
+                return message.empty() || span == Report{}.span || span.lineStart == 0ul || span.lineStart == -1ul || span.lineEnd < span.lineStart || span.file == -1ul;
             }
 
             std::string toString() const
@@ -31,7 +31,7 @@ namespace linc
                 if(isInvalid() || !s_spansEnabled)
                     return Logger::format("$ $", stageToString(stage), message);
                 else
-                    return Logger::format("$ $\n $:#4in$:#3 `$`", stageToString(stage), message, span.get(s_source, type == Reporting::Type::Error? Colors::Red: Colors::Blue), Colors::pop(), Colors::push(Colors::Yellow));
+                    return Logger::format("$ $\n$", stageToString(stage), message, span.get(s_source, type == Reporting::Type::Error? Colors::Red: Colors::Blue));
             }
         };
 

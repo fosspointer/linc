@@ -65,7 +65,7 @@ namespace linc
         auto has_parenthesis = peek()->type == Token::Type::ParenthesisLeft;
         auto left_parenthesis = has_parenthesis? consume(): Token{.type = Token::Type::ParenthesisLeft, .info = peekInfo()};
         auto actual_type = has_parenthesis? parseTypeExpression(): std::make_unique<const TypeExpression>(std::nullopt, std::make_unique<const IdentifierExpression>(
-            Token{.type = Token::Type::Identifier, .value = "void", .info = peekInfo()}, nullptr
+            Token{.type = Token::Type::Identifier, .value = "void", .info = peekInfo()}, nullptr, nullptr
         ), std::vector<TypeExpression::ArraySpecifier>{});
         auto right_parenthesis = has_parenthesis? match(Token::Type::ParenthesisRight): Token{.type = Token::Type::ParenthesisRight, .info = peekInfo()};
 
@@ -146,6 +146,18 @@ namespace linc
         auto right_angled_bracket = match(Token::Type::OperatorGreater);
 
         return std::make_unique<const GenericClause>(left_angled_bracket, right_angled_bracket, std::move(type_identifiers));
+    }
+
+    std::unique_ptr<const NamespaceClause> Parser::parseNamespaceClause() const
+    {
+        std::vector<NamespaceClause::Item> items;
+        while(peek(1ul) && peek()->isIdentifier() && peek()->value && peek(1ul)->type == Token::Type::DoubleColon)
+        {
+            Token identifier = consume();
+            Token access = consume();
+            items.push_back(NamespaceClause::Item{identifier, access});
+        }
+        return std::make_unique<const NamespaceClause>(std::move(items));
     }
 
     std::optional<LoopLabel> Parser::parseLoopLabel() const
@@ -261,59 +273,76 @@ namespace linc
         auto has_mutability_keyword = peek()->type == Token::Type::KeywordMutability;
         auto root_peek_offset = has_mutability_keyword? 1ul: 0ul;
         auto has_function_root = peek(root_peek_offset)->type == Token::Type::KeywordFunction && peek(root_peek_offset + 1ul)->type == Token::Type::ParenthesisLeft;
-        if(has_mutability_keyword || isTypeIdentifier(*peek()) || has_function_root)
+        auto position = m_index;
+
+        if(!has_mutability_keyword && !has_function_root && !isTypeIdentifier(*peek()))
+            return nullptr;
+        
+        auto mutability_keyword = has_mutability_keyword? std::make_optional(consume()): std::nullopt;
+        TypeExpression::Root root{nullptr};
+        auto root_info = peekInfo();
+
+        if(has_function_root)
         {
-            auto mutability_keyword = has_mutability_keyword? std::make_optional(consume()): std::nullopt;
-            TypeExpression::Root root{nullptr};
-            auto root_info = peekInfo();
+            auto function_keyword = consume();
+            auto left_parenthesis = consume();
+            auto argument_types = parseNodeListClause(LAMBDA_PARSE(TypeExpression));
+            auto right_parenthesis = match(Token::Type::ParenthesisRight);
+            auto type_specifier = match(Token::Type::Colon);
+            auto return_type = parseTypeExpression();
 
-            if(has_function_root)
-            {
-                auto function_keyword = consume();
-                auto left_parenthesis = consume();
-                auto argument_types = parseNodeListClause(LAMBDA_PARSE(TypeExpression));
-                auto right_parenthesis = match(Token::Type::ParenthesisRight);
-                auto type_specifier = match(Token::Type::Colon);
-                auto return_type = parseTypeExpression();
-
-                if(!return_type)
-                    return (Reporting::push(Reporting::Report{
-                        .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                        .span = TextSpan{.lineStart = type_specifier.info.line, .lineEnd = peekInfo().line,
-                            .spanStart = type_specifier.info.characterStart, .spanEnd = peekInfo().characterEnd},
-                        .message = Logger::format("$ Invalid return type in function pointer root.", function_keyword.info)
-                    }), nullptr);
-
-                root = TypeExpression::FunctionRoot{
-                    function_keyword, type_specifier, left_parenthesis, right_parenthesis, std::move(return_type), std::move(argument_types)
-                };
-            }
-            else root = parseIdentifierExpression(true);
-
-            if(auto identifier_root = std::get_if<0ul>(&root); identifier_root && *identifier_root == nullptr)
+            if(!return_type)
                 return (Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
-                    .message = Logger::format("$ Type root specified was invalid.", root_info)
+                    .span = TextSpan{.lineStart = type_specifier.info.line, .lineEnd = peekInfo().line,
+                        .spanStart = type_specifier.info.characterStart, .spanEnd = peekInfo().characterEnd},
+                    .message = Logger::format("$ Invalid return type in function pointer root.", function_keyword.info)
                 }), nullptr);
 
-            std::vector<TypeExpression::ArraySpecifier> specifiers;
-
-            while(peek()->type == Token::Type::SquareLeft)
-            {
-                auto left_bracket = consume();
-                auto count = peek()->isLiteral()? parseLiteralExpression(): nullptr;
-                auto right_bracket = match(Token::Type::SquareRight);
-                
-                specifiers.push_back(TypeExpression::ArraySpecifier{
-                    .leftBracket = left_bracket,
-                    .rightBracket = right_bracket,
-                    .count = std::move(count)
-                });
-            }
-
-            return std::make_unique<const TypeExpression>(mutability_keyword, std::move(root), std::move(specifiers));
+            root = TypeExpression::FunctionRoot{
+                function_keyword, type_specifier, left_parenthesis, right_parenthesis, std::move(return_type), std::move(argument_types)
+            };
         }
-        return nullptr;
+        else
+        {
+            root = parseIdentifierExpression(true);
+            auto find = isTypeIdentifier(std::get<0ul>(root)->getIdentifierToken())? Definition::Typename: Definition::Variable;
+            if(find != Definition::Typename) find = findDefinition(std::get<0ul>(root)->getValue()).value_or(Definition::Variable);               
+            if(find != Definition::Typename && find != Definition::Enumeration)
+            {
+                m_index = position;
+                return nullptr;
+            }
+        }
+
+        if(auto identifier_root = std::get_if<0ul>(&root); identifier_root && *identifier_root == nullptr)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .message = Logger::format("$ Type root specified was invalid.", root_info)
+            }), nullptr);
+
+        std::vector<TypeExpression::ArraySpecifier> specifiers;
+
+        while(peek()->type == Token::Type::SquareLeft)
+        {
+            auto left_bracket = consume();
+            auto count = peek()->isLiteral()? parseLiteralExpression(): nullptr;
+            auto right_bracket = match(Token::Type::SquareRight);
+            
+            specifiers.push_back(TypeExpression::ArraySpecifier{
+                .leftBracket = left_bracket,
+                .rightBracket = right_bracket,
+                .count = std::move(count)
+            });
+        }
+
+        return std::make_unique<const TypeExpression>(mutability_keyword, std::move(root), std::move(specifiers));
+    }
+
+    std::unique_ptr<const IdentifierExpression> Parser::parseStaticIdentifierExpression() const
+    {
+        auto identifier = match(Token::Type::Identifier);
+        return std::make_unique<const IdentifierExpression>(std::move(identifier), nullptr, nullptr);
     }
 
     std::unique_ptr<const IdentifierExpression> Parser::parseIdentifierExpression(bool type_inclusive) const
@@ -321,17 +350,19 @@ namespace linc
         if(!peek()->isIdentifier() || !peek()->value.has_value())
             return nullptr;
 
+        auto has_namespace = peek(1ul) && peek()->isIdentifier() && peek(1ul)->type == Token::Type::DoubleColon;
+        auto _namespace = has_namespace? parseNamespaceClause(): nullptr;
         auto find = m_definitions.find(*peek()->value);
         auto identifier = consume();
 
         if(!find || *find == Definition::Variable)
-            return std::make_unique<const IdentifierExpression>(std::move(identifier), nullptr);
+            return std::make_unique<const IdentifierExpression>(std::move(identifier), std::move(_namespace), nullptr);
         else if(!type_inclusive && find && (*find == Definition::Typename || *find == Definition::Enumeration))
             return nullptr;
 
         auto has_generic = peek()->type == Token::Type::OperatorLess;
         auto generic = has_generic? parseGenericClause(): nullptr;
-        return std::make_unique<const IdentifierExpression>(std::move(identifier), std::move(generic));
+        return std::make_unique<const IdentifierExpression>(std::move(identifier), std::move(_namespace), std::move(generic));
     }
 
     std::unique_ptr<const LiteralExpression> Parser::parseLiteralExpression() const
@@ -1010,6 +1041,8 @@ namespace linc
                 return (definition = Definition::Typename, std::move(structure_declaration));
             else if(auto enumeration_declaration = parseEnumerationDeclaration())
                 return (definition = Definition::Enumeration, std::move(enumeration_declaration));
+            // else if(auto namespace_declaration = parseNamespaceDeclaration())
+            //     return namespace_declaration;
             else return nullptr;
         }();
         endScope();
@@ -1020,6 +1053,30 @@ namespace linc
 
         return std::make_unique<const GenericDeclaration>(generic_keyword, left_angled_bracket, right_angled_bracket, std::move(type_identifiers),
             std::move(declaration));
+    }
+
+    std::unique_ptr<const NamespaceDeclaration> Parser::parseNamespaceDeclaration() const
+    {
+        if(peek()->type != Token::Type::KeywordNamespace)
+            return nullptr;
+
+        auto namespace_keyword = consume();
+        auto identifier = parseStaticIdentifierExpression();
+        if(!identifier)
+            return (Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfo(peekInfo()),
+                .message = Logger::format("$ Expected identifier in namespace declaration.", namespace_keyword.info)
+            }), nullptr);
+        auto left_brace = match(Token::Type::BraceLeft);
+        beginScope();
+        std::vector<std::unique_ptr<const Declaration>> declarations;
+        std::unique_ptr<const Declaration> declaration;
+        while(peek() && peek()->type != Token::Type::BraceRight && (declaration = parseDeclaration()))
+            declarations.push_back(std::move(declaration));
+        auto right_brace = match(Token::Type::BraceRight);
+        endScope();
+        return std::make_unique<const NamespaceDeclaration>(namespace_keyword, left_brace, right_brace, std::move(identifier), std::move(declarations));
     }
 
     std::unique_ptr<const Declaration> Parser::parseDeclaration() const
@@ -1040,6 +1097,8 @@ namespace linc
             return std::move(alias_declaration);
         else if(auto generic_declaration = parseGenericDeclaration())
             return std::move(generic_declaration);
+        else if(auto namespace_declaration = parseNamespaceDeclaration())
+            return std::move(namespace_declaration);
         else return nullptr;
     }
 

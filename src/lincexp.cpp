@@ -18,16 +18,6 @@ using namespace linc;
 class TestInterpreter final
 {
 public:
-    struct EdgeMover
-    {
-        void operator()(linc::ControlBlock& block) { *block_pointer = block.edge; }
-        void operator()(linc::BasicBlock& block) { *block_pointer = block.edge; }
-        void operator()(linc::UnreachableBlock& block) { throw LINC_EXCEPTION_ILLEGAL_STATE(*block_pointer); }
-        void operator()(linc::ConditionalBlock& block) { throw LINC_EXCEPTION_ILLEGAL_STATE(*block_pointer); }
-        void operator()(linc::MapBlock& block) { throw LINC_EXCEPTION_ILLEGAL_STATE(*block_pointer); }
-        std::size_t* block_pointer;
-    };
-
     struct Blocker
     {
         void operator()(linc::ControlBlock& block) { interpreter.m_callStack.top().second = block.edge; }
@@ -69,13 +59,12 @@ public:
         TestInterpreter& interpreter;
     };
     
-    int evaluateProgram(ControlFlowProgram&& program)
+    int evaluateProgram(ControlFlowProgram&& program, int argument_count, const char** arguments)
     {
         m_callStack = {};
         m_functions = {};
         m_variables = {};
         m_program = std::move(program);
-
 
         m_variables.resize(m_program.functions.size());
         for(const auto& variable: m_program.globals)
@@ -84,6 +73,19 @@ public:
         for(std::size_t i{1ul}; i < m_program.functions.size(); ++i)
             m_functions.insert(std::make_pair(m_program.functions[i].prototype->getName(), i));
 
+        m_callStack.push(std::pair(0ul, 0ul));
+        walkCurrentContext();
+        m_callStack.pop();
+
+        auto& defined_arguments = m_program.functions.back().prototype->getArguments()->getList();
+        if(!defined_arguments.empty())
+        {
+            auto base_type = Types::fromKind(Types::Kind::string);
+            auto list = ArrayValue::fromDefault(base_type, static_cast<std::size_t>(argument_count));
+            for(int index = 0; index < argument_count; ++index)
+                list.set(index, Value(std::string{arguments[index]}));
+            m_variables[m_program.functions.size() - 1ul].insert_or_assign(defined_arguments[0ul]->getName(), std::move(list));
+        }
         m_callStack.push(std::make_pair(m_program.functions.size() - 1ul, 1ul));
         walkCurrentContext();
         return LINC_EXIT_SUCCESS;
@@ -99,20 +101,25 @@ public:
     void evaluateDeclaration(const BoundDeclaration* declaration)
     {
         if(auto variable_declaration = dynamic_cast<const BoundVariableDeclaration*>(declaration))
-            m_variables[m_callStack.top().first].insert_or_assign(variable_declaration->getName(), 
-                variable_declaration->getDefaultValue()? evaluateExpression(variable_declaration->getDefaultValue()):
-                    Value::fromDefault(variable_declaration->getActualType())
-            );
+        {
+            auto value = variable_declaration->getDefaultValue()? evaluateExpression(variable_declaration->getDefaultValue()):
+                    Value::fromDefault(variable_declaration->getActualType());
+            if(auto array = value.getIfArray(); array && array->getCount() == 0ul)
+                    value = ArrayValue::fromDefault(*variable_declaration->getActualType().array.baseType, 0ul);
+            m_variables[m_callStack.top().first].insert_or_assign(variable_declaration->getName(), value);
+        }
     }
 
     Value evaluateExpression(const BoundExpression* expression)
     {
         if(auto identifier_expression = dynamic_cast<const BoundIdentifierExpression*>(expression))
         {
-            auto find = m_variables[m_callStack.top().first].find(identifier_expression->getValue());
-            if(find != m_variables[m_callStack.top().first].end()) return find->second;
             auto actual_name = identifier_expression->getValue();
+            auto find = m_variables[m_callStack.top().first].find(actual_name);
+            if(find != m_variables[m_callStack.top().first].end()) return find->second;
             actual_name = actual_name.substr(0ul, actual_name.find_last_of(':'));
+            auto global_find = m_variables[0ul].find(actual_name);
+            if(global_find != m_variables[0ul].end()) return global_find->second;
             auto& function = m_program.functions[m_functions.at(actual_name)];
             return PrimitiveValue(function.prototype->getName());
         }
@@ -388,8 +395,10 @@ public:
                 result = PrimitiveValue(operand.toApplicationString());
                 break;
             case BoundUnaryOperator::Kind::UnaryPlus:
-                if(operand.getIfArray())
-                    result = PrimitiveValue(operand.getArray().getCount());
+                if(auto array = operand.getIfArray())
+                    result = PrimitiveValue(array->getCount());
+                else if(auto enumerator = operand.getIfEnumerator())
+                    result = PrimitiveValue(enumerator->getIndex());
                 else if(operand.getPrimitive().getKind() == PrimitiveValue::Kind::String)
                     result = PrimitiveValue(static_cast<Types::u64>(operand.getPrimitive().getString().size()));
                 else if(operand.getPrimitive().getKind() == PrimitiveValue::Kind::Character)
@@ -490,7 +499,16 @@ public:
             return value.getPrimitive().convert(conversion_expression->getType().primitive);
         }
 
-        return PrimitiveValue::voidValue;
+        else if(auto enumerator_expression = dynamic_cast<const BoundEnumeratorExpression*>(expression))
+        {
+            auto index = enumerator_expression->getEnumeratorIndex();
+            auto value = enumerator_expression->getValue()? evaluateExpression(enumerator_expression->getValue()): PrimitiveValue::voidValue;
+            auto enumeration_name = enumerator_expression->getEnumerationName();
+
+            return EnumeratorValue(enumeration_name, index, value);
+        }
+
+        throw LINC_EXCEPTION_ILLEGAL_VALUE(expression);
     }
 
     Value evaluateFunctionCallExpression(const BoundFunctionCallExpression* expression)
@@ -509,9 +527,6 @@ public:
         walkCurrentContext();
         auto result = evaluateExpression(m_program.functions[m_callStack.top().first].returnValue.get());
         m_callStack.pop();
-        // static EdgeMover mover;
-        // mover.block_pointer = &m_callStack.top().second;
-        // std::visit(mover, m_program.functions[m_callStack.top().first].blocks[m_callStack.top().second]);
         return result;
     }
 
@@ -530,8 +545,15 @@ public:
 
         if(auto identifier = dynamic_cast<const BoundIdentifierExpression*>(expression))
         {
-            m_variables[m_callStack.top().first].at(identifier->getValue()) = new_value;
-            result = new_value;
+            [&](){
+                auto actual_name = identifier->getValue();
+                auto find = m_variables[m_callStack.top().first].find(actual_name);
+                if(find != m_variables[m_callStack.top().first].end()) { find->second = new_value; return; }
+                actual_name = actual_name.substr(0ul, actual_name.find_last_of(':'));
+                auto global_find = m_variables[0ul].find(actual_name);
+                if(global_find != m_variables[0ul].end()) { global_find->second = new_value; return; }
+                else throw LINC_EXCEPTION_ILLEGAL_VALUE(identifier);
+            }();
         }
         else if(auto index_expression = dynamic_cast<const BoundIndexExpression*>(expression))
         {
@@ -598,9 +620,9 @@ public:
     ControlFlowProgram m_program;
 };
 
-static int evaluateFile(std::string filepath)
+static int evaluateFile(int argument_count, const char** arguments)
 {
-    filepath = linc::Files::toAbsolute(filepath);
+    std::string filepath = linc::Files::toAbsolute(arguments[1]);
 
     if(!linc::Files::exists(filepath))
     {
@@ -633,18 +655,18 @@ static int evaluateFile(std::string filepath)
     linc::Lowerer lowerer;
     auto control_flow_program = lowerer.lowerProgram(bound_program, binder);
     TestInterpreter interpreter;
-    return interpreter.evaluateProgram(std::move(control_flow_program));
+    return interpreter.evaluateProgram(std::move(control_flow_program), argument_count - 1, &arguments[1]);
 }
 
-int main(int argc, char** argv)
+int main(int argument_count, const char** arguments)
 try
 {
-    if(argc != 2)
+    if(argument_count < 2)
     {
         std::fputs("No file specified\n", stderr);
         std::exit(LINC_EXIT_COMPILATION_FAILURE);
     }
-    return evaluateFile(argv[1]);
+    return evaluateFile(argument_count, arguments);
 }
 catch(linc::Exception& exception)
 {

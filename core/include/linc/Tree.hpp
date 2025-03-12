@@ -32,6 +32,7 @@
 #include <linc/tree/EnumerationDeclaration.hpp>
 #include <linc/tree/AliasDeclaration.hpp>
 #include <linc/tree/GenericDeclaration.hpp>
+#include <linc/tree/NamespaceDeclaration.hpp>
 #include <linc/tree/Statement.hpp>
 #include <linc/tree/ExpressionStatement.hpp>
 #include <linc/tree/DeclarationStatement.hpp>
@@ -45,4 +46,5 @@
 #include <linc/tree/RangedForClause.hpp>
 #include <linc/tree/LegacyForClause.hpp>
 #include <linc/tree/GenericClause.hpp>
+#include <linc/tree/NamespaceClause.hpp>
 #include <linc/tree/LoopLabel.hpp>

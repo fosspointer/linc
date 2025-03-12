@@ -20,6 +20,6 @@ fn parseI32(str: string): i32 {
 fn main(args: string[]) {
     result: mut i32 = parseI32(system("date +%H"));
 
-    if +args == 3us result = parseI32(args[2us]);
+    if +args == 2us result = parseI32(args[1us]);
     putln("It is " + if result > 23 || result < 0 "an error!" else if result < 12 "too early" else if result == 12 "just right" else "too late");
 }

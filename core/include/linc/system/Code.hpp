@@ -11,16 +11,16 @@ namespace linc
     public:
         Code() = delete;
         
-        static std::string trim(const std::string& text)
+        static std::pair<std::string, std::size_t> trim(const std::string& text, std::size_t max_trim_start)
         {
-            if(text.empty()) return text;
+            if(text.empty()) return std::pair(text, 0ul);
 
             std::string::size_type start = 0ul, end = text.size() - 1ul;
 
-            while(start < text.size() && std::isspace(text[start])) ++start;
+            while(start < text.size() && std::isspace(text[start]) && start < max_trim_start) ++start;
             while(end > start && std::isspace(text[end])) --end;
 
-            return text.substr(start, end - start + 1ul);
+            return std::pair(text.substr(start, end - start + 1ul), start);
         }
 
         /// @brief Structure representation of a single line of code, along with the corresponding file and line it belongs to.

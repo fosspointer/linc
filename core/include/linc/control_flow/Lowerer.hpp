@@ -40,25 +40,28 @@ namespace linc
                     }
 
             for(auto& declaration: program.declarations)
-                if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(declaration.get()); variable && variable->getDefaultValue())
+                if(auto variable = dynamic_cast<const BoundVariableDeclaration*>(declaration.get()))
                 {
-                    m_program.globals.push_back(std::make_pair(mangleScope(variable->getName(), variable->getScopeIndex()), variable->getActualType()));
-                    lowerExpression(variable->getDefaultValue());
-                    appendAssignment(variable->getName());
+                    m_program.globals.push_back(std::make_pair(variable->getName(), variable->getActualType()));
+                    if(variable->getDefaultValue())
+                    {
+                        lowerExpression(variable->getDefaultValue());
+                        appendAssignment(variable->getName());
+                    }
                 }
             
             for(auto& declaration: program.declarations)
                 if(auto function = dynamic_cast<const BoundFunctionDeclaration*>(declaration.get()))
                     lowerFunction(function);
             
-            auto main = std::make_unique<const BoundIdentifierExpression>(graph().prototype->getName(), graph().prototype->getFunctionType());
-            auto call = std::make_unique<const BoundFunctionCallExpression>(graph().prototype->getReturnType(), std::move(main), std::vector<std::unique_ptr<const BoundExpression>>{});
-            m_program.functions.push_back(std::move(m_program.functions[0ul]));
-            graph().returnValue = std::move(call);
-            appendExpression();
-            m_program.functions[0ul] = std::move(graph());
-            m_program.functions.pop_back();
-
+            // auto main = std::make_unique<const BoundIdentifierExpression>(graph().prototype->getName(), graph().prototype->getFunctionType());
+            // auto call = std::make_unique<const BoundFunctionCallExpression>(graph().prototype->getReturnType(), std::move(main), std::vector<std::unique_ptr<const BoundExpression>>{});
+            // m_program.functions.push_back(std::move(m_program.functions[0ul]));
+            // graph().returnValue = std::move(call);
+            // appendExpression();
+            // m_program.functions[0ul] = std::move(graph());
+            // m_program.functions.pop_back();
+            appendVoid();
             return std::move(m_program);
         }
     private:
@@ -95,7 +98,7 @@ namespace linc
 
         inline void appendVoid()
         {
-            graph().returnValue = std::make_unique<const BoundBlockExpression>(std::vector<std::unique_ptr<const BoundStatement>>{}, nullptr);
+            graph().returnValue = std::make_unique<const BoundLiteralExpression>(PrimitiveValue::voidValue, Types::voidType);
         }
 
         void appendIdentifier(const std::string& name, const Types::type& type)
@@ -322,6 +325,9 @@ namespace linc
             else if(auto access_expression = dynamic_cast<const BoundAccessExpression*>(expression))
                 return lowerAccessExpression(access_expression);
 
+            else if(auto enumerator_expression = dynamic_cast<const BoundEnumeratorExpression*>(expression))
+                return lowerEnumeratorExpression(enumerator_expression);
+
             else if(auto range_expression = dynamic_cast<const BoundRangeExpression*>(expression))
                 return lowerRangeExpression(range_expression);
 
@@ -355,7 +361,7 @@ namespace linc
             else if(auto match_expression = dynamic_cast<const BoundMatchExpression*>(expression))
                 return lowerMatchExpression(match_expression);
 
-            else throw LINC_EXCEPTION("LOWERER: EXPRESSION TYPE NOT IMPLEMENTED");
+            else throw LINC_EXCEPTION_ILLEGAL_VALUE(expression);
         }
 
         void lowerStructureInitializerExpression(const BoundStructureInitializerExpression* expression)
@@ -395,6 +401,15 @@ namespace linc
             lowerExpression(expression->getBase());
             auto base = std::move(graph().returnValue);
             graph().returnValue = std::make_unique<const BoundAccessExpression>(std::move(base), expression->getIndex(), expression->getType());
+        }
+
+        void lowerEnumeratorExpression(const BoundEnumeratorExpression* expression)
+        {
+            if(expression->getValue())
+                lowerExpression(expression->getValue());
+            else appendVoid();
+            graph().returnValue = std::make_unique<const BoundEnumeratorExpression>(expression->getEnumerationName(), expression->getEnumeratorIndex(),
+                std::move(graph().returnValue), expression->getType());
         }
 
         void lowerRangeExpression(const BoundRangeExpression* expression)
@@ -715,14 +730,16 @@ namespace linc
                 for(const auto& value: clause->getValues()->getList())
                 {
                     auto test_block = appendBlock(BasicBlock{});
-                    auto identifier = dynamic_cast<const BoundIdentifierExpression*>(value.get());
-                    if(identifier && value->getType() == Types::voidType)
-                    {
-                        appendVariable(identifier->getType(), identifier->getValue(), identifier->getScopeIndex());
-                        lowerExpression(expression->getTestExpression());
-                    }
-                    else
+                    [&]() {
+                        auto identifier = dynamic_cast<const BoundIdentifierExpression*>(value.get());
+                        if(identifier && value->getType() == Types::voidType)
+                        {
+                            appendVariable(identifier->getType(), identifier->getValue(), identifier->getScopeIndex());
+                            lowerExpression(expression->getTestExpression());
+                            return;
+                        }
                         lowerExpression(value.get());
+                    }();
                     appendBlockEdge(UnreachableBlock{});
                     as<MapBlock>(map_index).cases.emplace_back(MapBlock::Case{std::move(graph().returnValue), test_block, result_block});
                 }

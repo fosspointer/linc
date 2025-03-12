@@ -42,6 +42,7 @@ namespace linc
         case Type::KeywordEnumeration: return "Enumeration Keyword";
         case Type::KeywordGeneric: return "Generic Keyword";
         case Type::KeywordAlias: return "Alias Keyword";
+        case Type::KeywordNamespace: return "Namespace Keyword";
         case Type::ParenthesisLeft: return "Opening Parenthesis";
         case Type::ParenthesisRight: return "Closing Parenthesis";
         case Type::SquareLeft: return "Opening Square Bracket";
@@ -111,9 +112,9 @@ namespace linc
 
     std::string Token::getDescriptor() const
     {
-        if(isOperator() || isSymbol()) return Logger::format("`$:#2$:$:#1`", Operators::getString(type), Colors::pop(), Colors::push(Colors::Yellow));
-        else if(isBracket()) return Logger::format("`$:#2$:$:#1`", Brackets::getChar(type), Colors::pop(), Colors::push(Colors::Yellow));
-        else return Logger::format("$:#2$:$:#1", typeToString(type), Colors::pop(), Colors::push(Colors::Cyan));
+        if(isOperator() || isSymbol()) return Logger::format("`$:+y$:!:-`", Operators::getString(type));
+        else if(isBracket()) return Logger::format("`$:+y$:!:-`", Brackets::getChar(type));
+        else return Logger::format("$:+c:$:!:-", typeToString(type));
     }
 
     bool Token::isValid() const
@@ -170,6 +171,7 @@ namespace linc
         case Type::KeywordEnumeration:
         case Type::KeywordGeneric:
         case Type::KeywordAlias:
+        case Type::KeywordNamespace:
             return true;
         default: return false;
         }

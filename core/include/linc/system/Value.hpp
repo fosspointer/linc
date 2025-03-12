@@ -181,9 +181,9 @@ namespace linc
             case Types::type::Kind::Structure:
             {
                 std::vector<Value> values;
-                values.reserve(type.structure.size());
+                values.reserve(type.structure.fields.size());
                 
-                for(const auto& member: type.structure)
+                for(const auto& member: type.structure.fields)
                     values.push_back(fromDefault(member.first));
                 
                 return Value(values);
@@ -278,7 +278,7 @@ namespace linc
             {
                 std::string result;
                 result.push_back('{');
-                for(Types::type::Structure::size_type i{0ul}; i < m_structure.size(); ++i)
+                for(std::size_t i{0ul}; i < m_structure.size(); ++i)
                     result.append((i == 0ul? "": ", ") + m_structure[i].toApplicationString());
                     
                 result.push_back('}');
@@ -300,7 +300,7 @@ namespace linc
             {
                 std::string result;
                 result.push_back('{');
-                for(Types::type::Structure::size_type i{0ul}; i < m_structure.size(); ++i)
+                for(std::size_t i{0ul}; i < m_structure.size(); ++i)
                     result.append((i == 0ul? "": ", ") + m_structure[i].toString());
                     
                 result.push_back('}');
