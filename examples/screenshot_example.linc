@@ -1,0 +1,17 @@
+#include `std.linc`
+
+fn main() {
+    // Define a list of things 📦
+    things := ["🦮", "🥭", "🍎", "🍌", "🐶", "🫐"];
+    
+    // Dogs aren't fruit, filter them out 👀
+    fn filterFruit(fruit: string) fruit != "🐶" && fruit != "🦮";
+    fruit := filter<string>(things, filterFruit);
+
+    // Let's put them in a better order 😄
+    fn mapFruit(index: usize) fruit[index];
+    favorite_fruit := map<usize, string>([3us, 0us, 2us, 1us], mapFruit);
+
+    // Print everything out 💯
+    putln(@favorite_fruit);
+}
