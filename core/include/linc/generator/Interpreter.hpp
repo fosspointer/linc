@@ -173,7 +173,15 @@ namespace linc
                 for(std::size_t i{0ul}; i < block_expression->getStatements().size(); ++i)
                 {
                     const auto& statement = block_expression->getStatements()[i];
-                    evaluateStatement(statement.get());
+                    try
+                    {
+                        evaluateStatement(statement.get());
+                    }
+                    catch(ReturnException& return_exception)
+                    {
+                        endScope();
+                        throw return_exception;
+                    }
                 }
                 
                 value = block_expression->getTail()? evaluateExpression(block_expression->getTail()): value;
@@ -378,13 +386,6 @@ namespace linc
                         return PrimitiveValue(true);
                     else return PrimitiveValue(evaluateExpression(binary_expression->getRight()).getPrimitive().getBool());
                 }
-                else if(binary_expression->getOperator()->getKind() == BoundBinaryOperator::Kind::Addition)
-                {
-                    auto left = evaluateExpression(binary_expression->getLeft());
-                    auto right = evaluateExpression(binary_expression->getRight());
-
-                    result = left + right;
-                }
 
                 auto left = evaluateExpression(binary_expression->getLeft());
                 auto right = evaluateExpression(binary_expression->getRight());
@@ -403,6 +404,9 @@ namespace linc
                     return evaluateMutableOperator(binary_expression->getType(), binary_expression->getLeft(), left.getPrimitive() / right.getPrimitive());
                 case BoundBinaryOperator::Kind::ModuloAssignment:
                     return evaluateMutableOperator(binary_expression->getType(), binary_expression->getLeft(), left.getPrimitive() % right.getPrimitive());
+                case BoundBinaryOperator::Kind::Addition:
+                    result = left + right;
+                    break;
                 case BoundBinaryOperator::Kind::Subtraction:
                     result = left - right;
                     break;

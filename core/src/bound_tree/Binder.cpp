@@ -1251,7 +1251,7 @@ namespace linc
         auto kind = bindBinaryOperatorKind(expression->getOperatorToken().type);
         auto _operator = std::make_unique<const BoundBinaryOperator>(kind, left->getType(), right->getType());
 
-        if(_operator->getReturnType().primitive == Types::Kind::invalid && left->getType() != Types::invalidType && right->getType() != Types::invalidType)
+        if(_operator->getReturnType() == Types::invalidType && left->getType() != Types::invalidType && right->getType() != Types::invalidType)
         {
             Reporting::push(Reporting::Report{
                 .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,

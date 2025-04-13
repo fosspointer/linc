@@ -1,4 +1,4 @@
-# Changelog for linc version 0.7.x (backend)
+# Changelog for linc version 0.7.x (development)
 - Language: Improved for loop syntax: `for <clause> <expression>`, where `<clause>` is one of `<declaration>;<expression>;<expression>` (legacy for loop) `<identifier> in <expression>` (iterator based for loop).
 - Language: Added range expressions <expression>..<expression> (for expressions that have intercompatible types and are incrementable).
 - Language: Added the reverse (`-`) operator for ranges (e.g. `-(2..7) is the reverse range of (2..7)`). 
@@ -40,6 +40,7 @@
 - Misc: Improved report logging (line numbers are now displayed in text spans and empty lines are omitted).
 - Language: Added support for namespace declarations (syntax `namesp <identifier> { <list_of_declarations> } ).
 - Language: Implemented support for member functions as functions which are placed inside of the namespace with the same name as the original structure (for example, `Vec2f::add(foo, bar)` can be rewritten as `foo.add(bar)`).
+- Misc: Fixed some minor inconsistent behavior bugs in the frontend and standard library.
 
 
 ## Future plans (in order of priority)

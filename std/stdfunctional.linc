@@ -8,7 +8,7 @@ gen<T, U> fn map(array: T[], conversion: fn(T): U) {
 }
 
 gen<T> fn filter(array: T[], condition: fn(T): bool) {
-    result: mut U[] = [];
+    result: mut T[] = [];
     for element in array
         if condition(element)
             result += [element];
