@@ -350,19 +350,19 @@ namespace linc
         if(!peek()->isIdentifier() || !peek()->value.has_value())
             return nullptr;
 
-        auto has_namespace = peek(1ul) && peek()->isIdentifier() && peek(1ul)->type == Token::Type::DoubleColon;
-        auto _namespace = has_namespace? parseNamespaceClause(): nullptr;
+        // auto has_namespace = peek(1ul) && peek()->isIdentifier() && peek(1ul)->type == Token::Type::DoubleColon;
+        // auto _namespace = has_namespace? parseNamespaceClause(): nullptr;
         auto find = m_definitions.find(*peek()->value);
         auto identifier = consume();
 
         if(!find || *find == Definition::Variable)
-            return std::make_unique<const IdentifierExpression>(std::move(identifier), std::move(_namespace), nullptr);
+            return std::make_unique<const IdentifierExpression>(std::move(identifier), nullptr, nullptr);
         else if(!type_inclusive && find && (*find == Definition::Typename || *find == Definition::Enumeration))
             return nullptr;
 
         auto has_generic = peek()->type == Token::Type::OperatorLess;
         auto generic = has_generic? parseGenericClause(): nullptr;
-        return std::make_unique<const IdentifierExpression>(std::move(identifier), std::move(_namespace), std::move(generic));
+        return std::make_unique<const IdentifierExpression>(std::move(identifier), nullptr, std::move(generic));
     }
 
     std::unique_ptr<const LiteralExpression> Parser::parseLiteralExpression() const

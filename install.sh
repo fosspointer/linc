@@ -28,8 +28,8 @@ fi
 
 if "$build_system" = "make"; then
     CXX=g++ CC=gcc cmake -G"Unix Makefiles" ..
-    sudo make install
+    sudo make -j$(nproc) install
 else 
     CXX=g++ CC=gcc cmake -GNinja ..
-    sudo ninja install
+    sudo ninja -j$(nproc) install
 fi

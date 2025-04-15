@@ -203,36 +203,76 @@ namespace linc
 
     bool Lexer::tokenizeLiteralString(std::vector<Token>& tokens, std::string& value_buffer) const
     {
-        if(peek().value() == LINC_LEXER_STRING_LITERAL_QUOTE)
+        auto is_format_string = peek(1ul) && peek().value() == 'f' && peek(1ul).value() == LINC_LEXER_STRING_LITERAL_QUOTE;
+        if(is_format_string)
         {
-            Token::Info info = consume().getInfo();
-            while (peek()->getInfo().line == info.line && peek().has_value()
-                && peek().value() != LINC_LEXER_STRING_LITERAL_QUOTE)
+            auto info = consume().getInfo();
+            tokens.push_back(linc::Token{.type = linc::Token::Type::FormatStringStart, .value = value_buffer, .info = info});
+        }
+        else if(peek().value() != LINC_LEXER_STRING_LITERAL_QUOTE)
+            return false;
+
+        Token::Info info = consume().getInfo();
+        while (peek()->getInfo().line == info.line && peek().has_value()
+            && peek().value() != LINC_LEXER_STRING_LITERAL_QUOTE)
+        {
+            if(m_characterIndex + 1ul >= m_sourceCode[m_line].text.size())
             {
-                if(m_characterIndex + 1ul >= m_sourceCode[m_line].text.size())
+                tokens.push_back(linc::Token{.type = linc::Token::Type::InvalidToken, .value = value_buffer, .info = info});
+                
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
+                    .span = TextSpan{.lineStart = m_line, .lineEnd = m_line, .spanStart = info.characterStart, .spanEnd = m_characterIndex, .file = info.file},
+                    .message = Logger::format("$ Unmatched double-quote.", info)});
+                
+                return true;
+            }
+            else if(peek().value() == '\\' && peek(1ul).has_value())
+            {
+                consume(); // Consume the '\' character (do not push)
+                value_buffer.push_back(Escape::get(consume()).value_or('\0')); // Push the escaped character
+            }
+            else if(peek().value() == '$' && peek(1ul) && peek(1ul).value() == '{')
+            {
+                std::string expression_buffer;
+                Code::Character character;
+                Token::Info token_info, dollar_sign_info = consume().getInfo();
+                ssize_t depth{0l};
+                consume(); // Consume the left brace
+                while(peek().has_value() && peek()->getInfo().line == info.line && (peek().value() != '}' || depth > 0l))
                 {
-                    tokens.push_back(linc::Token{.type = linc::Token::Type::InvalidToken, .value = value_buffer, .info = info});
-                    
+                    if(peek().value() == '{')
+                        ++depth;
+                    else if(peek().value() == '}')
+                        --depth;
+
+                    expression_buffer.push_back((token_info = (character = consume()).getInfo(), character));
+                }
+                if(depth != 0l)
                     Reporting::push(Reporting::Report{
                         .type = Reporting::Type::Error, .stage = Reporting::Stage::Lexer,
-                        .span = TextSpan{.lineStart = m_line, .lineEnd = m_line, .spanStart = info.characterStart, .spanEnd = m_characterIndex, .file = info.file},
-                        .message = Logger::format("$ Unmatched double-quote.", info)});
-                    
-                    return true;
-                }
-                else if(peek().value() == '\\' && peek(1ul).has_value())
-                {
-                    consume(); // Consume the '\' character (do not push)
-                    value_buffer.push_back(Escape::get(consume()).value_or('\0')); // Push the escaped character
-                }
-                else value_buffer.push_back(consume());
-            }
+                        .span = TextSpan::fromTokenInfo(dollar_sign_info),
+                        .message = Logger::format("$ Unmatched braces in string format argument.", token_info)
+                    });
+                consume();
+                value_buffer.push_back('$'); // TODO: fix this
+                
+                Code::Source expression_source{Code::Line{expression_buffer, token_info.file, token_info.line}};
+                Lexer sublexer(expression_source, false);
+                sublexer.appendIncludeDirectories(m_includeDirectories);
+                auto expression_tokens = sublexer();
 
-            consume(); // Consume ending quote
-            tokens.push_back(linc::Token{.type = linc::Token::Type::StringLiteral, .value = value_buffer, .info = info});
-            return true;
+                tokens.insert(tokens.end(), expression_tokens.begin(), expression_tokens.end() - 1ul);
+                tokens.push_back(linc::Token{.type = linc::Token::Type::FormatStringDelimiter, .info = info});
+            }
+            else value_buffer.push_back(consume());
         }
-        else return false;
+
+        consume(); // Consume ending quote
+        tokens.push_back(linc::Token{.type = linc::Token::Type::StringLiteral, .value = value_buffer, .info = info});
+        if(is_format_string)
+            tokens.push_back(linc::Token{.type = linc::Token::Type::FormatStringEnd, .info = info});
+        return true;
     }
 
     bool Lexer::tokenizeLiteralIncludePath(std::vector<Token>& tokens, std::string& value_buffer) const

@@ -41,7 +41,8 @@
 - Language: Added support for namespace declarations (syntax `namesp <identifier> { <list_of_declarations> } ).
 - Language: Implemented support for member functions as functions which are placed inside of the namespace with the same name as the original structure (for example, `Vec2f::add(foo, bar)` can be rewritten as `foo.add(bar)`).
 - Misc: Fixed some minor inconsistent behavior bugs in the frontend and standard library.
-
+- Language: Added more useful utilities to `stdstring.linc` (`trim`, `stringFind`, `stringSplit`, `joinStrings`, `stringStartsWith`, `stringEndsWith` and `stringReplace`).
+- Language: Added formatted string literals, which are syntactical sugar for a string literal (modified with placeholders for each subexpressions) and an array of stringified arguments, that a function can then use and process arbitrarily (e.g. the literal `f"a + b = ${a + b}"` yields back `"a + b = $, [@(a + b)]`)`.
 
 ## Future plans (in order of priority)
 

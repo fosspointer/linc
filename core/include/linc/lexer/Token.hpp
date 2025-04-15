@@ -26,8 +26,8 @@ namespace linc
             // Invalid token
             InvalidToken,
 
-            // End of File token
-            EndOfFile,
+            // Control Tokens
+            EndOfFile, FormatStringStart, FormatStringEnd, FormatStringDelimiter,
             
             // Keywords
             KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse, KeywordMutability, KeywordFinally,

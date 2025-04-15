@@ -17,6 +17,7 @@ namespace linc
         LINC_ESCAPE_CHARACTER_MAP_PAIR('\\', '\\'),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('\'', '\''),
         LINC_ESCAPE_CHARACTER_MAP_PAIR('"', '"'),
+        LINC_ESCAPE_CHARACTER_MAP_PAIR('$', '$'),
     };
 
     std::optional<char> Escape::get(char escape_character)

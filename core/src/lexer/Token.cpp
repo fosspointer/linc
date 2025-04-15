@@ -22,6 +22,9 @@ namespace linc
         {
         case Type::InvalidToken: return "Invalid Token";
         case Type::EndOfFile: return "End of File";
+        case Type::FormatStringStart: return "Format String Start";
+        case Type::FormatStringEnd: return "Format String End";
+        case Type::FormatStringDelimiter: return "Format String Delimiter";
         case Type::KeywordReturn: return "Return Keyword";
         case Type::KeywordFunction: return "Function Keyword";
         case Type::KeywordIf: return "If Keyword";

@@ -1300,7 +1300,7 @@ namespace linc
             auto bound_value = bindExpression(value.node.get());
 
             if(type == Types::voidType);
-            else if(type != bound_value->getType())
+            else if(!type.isCompatible(bound_value->getType()))
                 Reporting::push(Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
                     .message = Logger::format("$ All members of an array initializer must be of the same type.",

@@ -26,7 +26,7 @@ elif [ -f "build.ninja" ]; then
 fi
 
 if "$build_system" = "make"; then
-    CXX=g++ CC=gcc cmake -G"Unix Makefiles" .. && make
+    CXX=g++ CC=gcc cmake -G"Unix Makefiles" .. && make -j$(nproc)
 else 
-    CXX=g++ CC=gcc cmake -GNinja .. && ninja
+    CXX=g++ CC=gcc cmake -GNinja .. && ninja -j$(nproc)
 fi

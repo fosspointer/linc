@@ -109,6 +109,41 @@ namespace linc
                     continue;
                 }
 
+                else if(peek()->type == Token::Type::FormatStringStart)
+                {
+                    std::vector<std::vector<Token>> format_string_arguments;
+                    format_string_arguments.push_back(std::vector<Token>{});
+                    consume(); // Consume the start format token.
+                    while(peek() && peek()->type != Token::Type::FormatStringEnd)
+                    {
+                        if(peek() && peek()->type == Token::Type::FormatStringDelimiter)
+                        {
+                            consume(); // Consume the delimiter.
+                            format_string_arguments.push_back(std::vector<Token>{});
+                        }
+
+                        format_string_arguments.back().push_back(consume());
+                    }
+                    consume(); // Consume the end format token.
+                    output.push_back(std::move(format_string_arguments.back().back()));
+                    format_string_arguments.pop_back();
+                    output.push_back(Token{.type = Token::Type::Comma, .info = peekInfo()});
+                    output.push_back(Token{.type = Token::Type::SquareLeft, .info = peekInfo()});
+                    for(std::size_t argument{0ul}; argument < format_string_arguments.size(); ++argument)
+                    {
+                        if(argument != 0ul) output.push_back(Token{.type = Token::Type::Comma, .info = peekInfo()});
+                        output.push_back(Token{.type = Token::Type::OperatorStringify, .info = peekInfo()});
+                        output.push_back(Token{.type = Token::Type::ParenthesisLeft, .info = peekInfo()});
+                        
+                        for(std::size_t token{0ul}; token < format_string_arguments[argument].size(); ++token)
+                            output.push_back(std::move(format_string_arguments[argument][token]));
+
+                        output.push_back(Token{.type = Token::Type::ParenthesisRight, .info = peekInfo()});
+                    }
+                    output.push_back(Token{.type = Token::Type::SquareRight, .info = peekInfo()});
+                    continue;
+                }
+
                 else if(peek()->type != Token::Type::PreprocessorSpecifier)
                 {
                     output.push_back(consume());

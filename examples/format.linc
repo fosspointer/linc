@@ -1,31 +1,27 @@
-// Simple re-implementation of the Logger::format() function in Linc (only string arguments with replacement).
+// Simplified re-implementation of the Logger::format() function in Linc.
+#include `std.linc`
 
-fn format(str: mut string, args: string[]): string {
+fn println(str: mut string, args: string[]) {
     output: mut string;
     index mut := 0us;
-    str += @0c;
+    str += 0c;
 
     for i mut := 0us; i < +str - 1us; ++i {
-        if str[i] == '$' {
-            if i < +str - 2us && str[i + 1us] == '$' {
-                output += '$';
-                ++i;
-            }    
-            else {
-                if index >= +args { puts("Error: Argument '$' not found.\n"); return ""; };
-                output += args[index];
-                ++index;
-            }
+        if str[i] != '$' { putc(str[i]); continue; };
+        if i < +str - 2us && str[i + 1us] == '$' {
+            putc('$');
+            ++i;
+        }    
+        else {
+            if index >= +args { puts("Error: Argument '$' not found.\n"); sys_exit(-1); };
+            puts(args[index]);
+            ++index;
         }
-        else output += @str[i];
     };
-    output
-}
-
-fn println(str: string, args: string[] = []) {
-    puts(format(str, args) + '\n');
+    putc('\n');
 }
 
 fn main() {
-    println("test 123 $", ["asdf"]);
+    fruit := ["🥭", "🍎", "🫐", "🍌"];
+    println(f"my favorite fruit: ${fruit}!");
 }

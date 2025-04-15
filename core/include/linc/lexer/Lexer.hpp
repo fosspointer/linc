@@ -13,7 +13,7 @@ namespace linc
         /// @param source_code The actual source code to be tokenized.
         /// @param initialize_source Whether to initialize the source code representation used for reporting errors. To be used for files that directly
         /// go through language analysis, i.e. not via include directives.
-        explicit Lexer(const Code::Source& source_code, bool initialize_source);
+        Lexer(const Code::Source& source_code, bool initialize_source);
         
         /// @brief Process the source code given to the lexer and output its tokenized form.
         /// @return The list of tokens that correspond to the original source code.

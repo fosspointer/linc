@@ -36,14 +36,23 @@ fn isSpace(ch: char) containsChar(" \f\n\r\t\v", ch)
 fn isPrint(ch: char) +ch >= +32 && +ch <= +126
 fn isDigit(ch: char) +ch >= +'0' && +ch <= +'9'
 fn isAlpha(ch: char) +ch >= +'A' && +ch <= +'z'
-fn isAlnum(ch: char)
-    isDigit(ch) || isAlpha(ch)
+fn isAlnum(ch: char) isDigit(ch) || isAlpha(ch)
 
 fn substr(str: string, start: usize, end: usize = -1us) {
     res: mut string;
     for i: mut usize = start; i <= end && i < +str; ++i
         res += str[i];
     res
+}
+
+fn trim(str: string) {
+    if str == "" {return "";};
+    res: mut string;
+    start mut := 0us;
+    end mut := +str - 1us;
+    while start < +str && isSpace(str[start]) { ++start; };
+    while end > start && isSpace(str[end]) { --end; };
+    substr(str, start, end)
 }
 
 fn lexicalCompare(first: string, second: string) {
@@ -53,4 +62,53 @@ fn lexicalCompare(first: string, second: string) {
         +first[index] > +second [index]
     }
     else index < +first
+}
+
+fn stringFind(str: string, substring: string, start_index: usize = 0us): usize {
+    for index mut := start_index; index < +str - +substring + 1us; ++index {
+        if substr(str, index, index + +substring - 1us) == substring {
+            return index;
+        };
+    };
+
+    -1us
+}
+
+fn stringSplit(str: string, delimiter: string) {
+    result: mut string[] = [];
+    start_index mut := 0us;
+    index mut := 0us;
+    while index <= +str - +delimiter {
+        if substr(str, index, index + +delimiter - 1us) == delimiter {
+            if index == 0us result += [""]
+            else result += [substr(str, start_index, index - 1us)];
+            index += +delimiter;
+            start_index = index;
+        }
+        else ++index;
+    };
+    result + [substr(str, start_index, +str - 1us)]
+}
+
+fn joinStrings(array: string[], delimiter: string) {
+    result: mut string;
+    result += array[0us];
+    for index in 1us..(+array) {
+        result += delimiter + array[index];
+    };
+    result
+}
+
+fn stringStartsWith(str: string, substring: string) substr(str, 0us, +substring - 1us) == substring
+fn stringEndsWith(str: string, substring: string) substr(str, +str - +substring, +str - 1us) == substring
+
+fn stringReplace(str: string, from: string, to: string, occurences: mut usize = -1us) {
+    result: mut string;
+    start_position: mut usize;
+    end_position: mut usize;
+    while (start_position = stringFind(str, from, end_position)) != -1us && --occurences != -1us {
+        result += substr(str, end_position, start_position - 1us) + to;
+        end_position = start_position + +from;  
+    };
+    result + substr(str, end_position)
 }
