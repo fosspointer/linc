@@ -13,7 +13,7 @@ namespace linc
     public:
         FunctionPrototypeDeclaration(const Token& function_specifier, const Token& type_specifier, const Token& left_parenthesis,
             const Token& right_parenenthesis, std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const TypeExpression> type,
-            std::unique_ptr<const NodeListClause<VariableDeclaration>> arguments);
+            std::unique_ptr<const NodeListClause<VariableDeclaration>> arguments, AttributeMap attributes);
         ~FunctionPrototypeDeclaration();
 
         virtual std::unique_ptr<const Declaration> clone() const final override;

@@ -11,7 +11,7 @@ namespace linc
         
         LoopLabel copy() const
         {
-            auto identifier_clone = Types::uniqueCast<const IdentifierExpression>(identifier->clone());
+            auto identifier_clone = Memory::uniqueCast<const IdentifierExpression>(identifier->clone());
             return LoopLabel{specifier, std::move(identifier_clone)};
         }
     };

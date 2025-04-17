@@ -35,7 +35,7 @@ namespace linc
         virtual std::unique_ptr<const Expression> clone() const final override
         {
             auto label = m_label? std::make_optional(LoopLabel{.specifier = m_label->specifier,
-                .identifier = Types::uniqueCast<const IdentifierExpression>(m_label->identifier->clone())}): std::nullopt;
+                .identifier = Memory::uniqueCast<const IdentifierExpression>(m_label->identifier->clone())}): std::nullopt;
             return std::make_unique<const ForExpression>(std::move(label), m_forKeyword, m_clause->clone(), m_body->clone());
         }
     private:

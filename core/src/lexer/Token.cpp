@@ -46,6 +46,7 @@ namespace linc
         case Type::KeywordGeneric: return "Generic Keyword";
         case Type::KeywordAlias: return "Alias Keyword";
         case Type::KeywordNamespace: return "Namespace Keyword";
+        case Type::KeywordDefault: return "Default Keyword";
         case Type::ParenthesisLeft: return "Opening Parenthesis";
         case Type::ParenthesisRight: return "Closing Parenthesis";
         case Type::SquareLeft: return "Opening Square Bracket";
@@ -175,6 +176,7 @@ namespace linc
         case Type::KeywordGeneric:
         case Type::KeywordAlias:
         case Type::KeywordNamespace:
+        case Type::KeywordDefault:
             return true;
         default: return false;
         }

@@ -4,15 +4,15 @@
 namespace linc
 {
     BoundFunctionPrototypeDeclaration::BoundFunctionPrototypeDeclaration(const Types::type& function_type, const std::string& name,
-        std::unique_ptr<const BoundNodeListClause<BoundVariableDeclaration>> arguments)
-        :BoundDeclaration(name), m_functionType(function_type), m_arguments(std::move(arguments))
+        std::unique_ptr<const BoundNodeListClause<BoundVariableDeclaration>> arguments, DeprecatedMessage deprecated_message)
+        :BoundDeclaration(name, std::move(deprecated_message)), m_functionType(function_type), m_arguments(std::move(arguments))
     {}
 
     BoundFunctionPrototypeDeclaration::~BoundFunctionPrototypeDeclaration() = default;
 
     std::unique_ptr<const BoundDeclaration> BoundFunctionPrototypeDeclaration::clone() const
     {
-        return std::make_unique<const BoundFunctionPrototypeDeclaration>(m_functionType, m_name, m_arguments->clone());
+        return std::make_unique<const BoundFunctionPrototypeDeclaration>(m_functionType, m_name, m_arguments->clone(), m_deprecatedMessage);
     }
 
     std::size_t BoundFunctionPrototypeDeclaration::getDefaultArgumentCount() const

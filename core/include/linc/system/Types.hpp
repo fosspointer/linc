@@ -322,27 +322,6 @@ namespace linc
         using TypeMap = std::unordered_map<std::string, Kind>;
 
         static type voidType, invalidType;
-        
-        template <typename To, typename From> 
-        [[nodiscard]] inline static const std::unique_ptr<To> uniqueCastDynamic(std::unique_ptr<From> p)
-        {
-            std::unique_ptr<To> result(dynamic_cast<To*>(p.get()));
-            
-            if(result)
-            {
-                p.release();
-                return result;
-            }
-            return nullptr;
-        }
-
-        template <typename To, typename From> 
-        [[nodiscard]] inline static const std::unique_ptr<To> uniqueCast(std::unique_ptr<From> p)
-        {
-            std::unique_ptr<To> result(static_cast<To*>(p.get()));
-            p.release();
-            return std::move(result);
-        }
 
         static std::string kindToString(Kind kind);
         static type fromKind(Kind kind);

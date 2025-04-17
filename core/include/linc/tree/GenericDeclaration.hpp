@@ -10,9 +10,9 @@ namespace linc
     {
     public:
         GenericDeclaration(const Token& generic_keyword, const Token& left_angled_bracket, const Token& right_angled_bracket,
-            std::unique_ptr<const NodeListClause<IdentifierExpression>> type_identifiers, std::unique_ptr<const Declaration> declaration)
-            :Declaration(Types::uniqueCast<const IdentifierExpression>(declaration->getIdentifier()->clone()), generic_keyword.info), m_genericKeyword(generic_keyword),
-            m_leftAngledBracket(left_angled_bracket), m_rightAngledBracket(right_angled_bracket),
+            std::unique_ptr<const NodeListClause<IdentifierExpression>> type_identifiers, std::unique_ptr<const Declaration> declaration, AttributeMap attributes)
+            :Declaration(Memory::uniqueCast<const IdentifierExpression>(declaration->getIdentifier()->clone()), std::move(attributes), generic_keyword.info),
+            m_genericKeyword(generic_keyword), m_leftAngledBracket(left_angled_bracket), m_rightAngledBracket(right_angled_bracket),
             m_typeIdentifiers(std::move(type_identifiers)), m_declaration(std::move(declaration))
         {
             addTokens(std::vector<Token>{m_genericKeyword, m_leftAngledBracket});
@@ -30,7 +30,7 @@ namespace linc
         virtual std::unique_ptr<const Declaration> clone() const final override
         {
             return std::make_unique<const GenericDeclaration>(m_genericKeyword, m_leftAngledBracket, m_rightAngledBracket, m_typeIdentifiers->clone(),
-                m_declaration->clone());
+                m_declaration->clone(), Memory::cloneNodeMap(&m_attributes));
         }
     private:
         const Token m_genericKeyword, m_leftAngledBracket, m_rightAngledBracket;

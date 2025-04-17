@@ -9,9 +9,9 @@ namespace linc
     {
     public:
         EnumerationDeclaration(const Token& enumeration_keyword, const Token& left_brace, const Token& right_brace, std::unique_ptr<const IdentifierExpression> identifier,
-            std::unique_ptr<const NodeListClause<EnumeratorClause>> enumerators)
-            :Declaration(std::move(identifier), enumeration_keyword.info), m_enumerationKeyword(enumeration_keyword), m_leftBrace(left_brace), m_rightBrace(right_brace),
-            m_enumerators(std::move(enumerators))
+            std::unique_ptr<const NodeListClause<EnumeratorClause>> enumerators, AttributeMap attributes)
+            :Declaration(std::move(identifier), std::move(attributes), enumeration_keyword.info), m_enumerationKeyword(enumeration_keyword), m_leftBrace(left_brace),
+            m_rightBrace(right_brace), m_enumerators(std::move(enumerators))
         {
             addToken(m_enumerationKeyword);
             addTokens(m_identifier->getTokens());
@@ -22,9 +22,10 @@ namespace linc
 
         std::unique_ptr<const Declaration> clone() const final override
         {
-            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+            auto identifier = Memory::uniqueCast<const IdentifierExpression>(m_identifier->clone());
             auto enumerators = m_enumerators->clone();
-            return std::make_unique<const EnumerationDeclaration>(m_enumerationKeyword, m_leftBrace, m_rightBrace, std::move(identifier), std::move(enumerators));
+            return std::make_unique<const EnumerationDeclaration>(m_enumerationKeyword, m_leftBrace, m_rightBrace, std::move(identifier), std::move(enumerators),
+                Memory::cloneNodeMap(&m_attributes));
         }
 
         inline const Token& getEnumerationKeyword() const { return m_enumerationKeyword; }

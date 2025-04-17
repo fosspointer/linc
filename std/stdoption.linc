@@ -10,6 +10,14 @@ gen<T> fn Option_or(option: Option<T> , fallback: T) {
     }
 }
 
+gen<T> fn Option_unwrap(option: Option<T>) {
+    match option {
+        Option<T> ::Some(value) => { return value; },
+        Option<T> ::None => { putln("Tried to unwrap Option of type `" + @T + "`, but got None."); sys_exit(1i32); }
+    };
+    default<T>
+}
+
 gen<T, U> fn Option_map(option: Option<T> , function: fn(T): U) {
     match option {
         Option<T> ::Some(value) => Option<U> ::Some(function(value)),

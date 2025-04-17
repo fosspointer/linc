@@ -23,7 +23,7 @@ namespace linc
 
         std::unique_ptr<const RangedForClause> clone() const final override
         {
-            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+            auto identifier = Memory::uniqueCast<const IdentifierExpression>(m_identifier->clone());
             return std::make_unique<const RangedForClause>(m_inKeyword, std::move(identifier), m_expression->clone());
         }
     private:

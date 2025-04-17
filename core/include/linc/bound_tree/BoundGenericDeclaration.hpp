@@ -8,9 +8,9 @@ namespace linc
     class BoundGenericDeclaration final : public BoundDeclaration
     {
     public:
-        BoundGenericDeclaration(std::unique_ptr<const Declaration> declaration, std::vector<std::string> type_identifiers, std::size_t instance_map_index)
-            :BoundDeclaration(declaration->getIdentifier()->getValue()), m_declaration(std::move(declaration)), m_typeIdentifiers(std::move(type_identifiers)),
-            m_instanceMapIndex(instance_map_index)
+        BoundGenericDeclaration(std::unique_ptr<const Declaration> declaration, std::vector<std::string> type_identifiers, std::size_t instance_map_index, DeprecatedMessage deprecated_message)
+            :BoundDeclaration(declaration->getIdentifier()->getValue(), std::move(deprecated_message)), m_declaration(std::move(declaration)),
+            m_typeIdentifiers(std::move(type_identifiers)), m_instanceMapIndex(instance_map_index)
         {}
 
         [[nodiscard]] inline const Declaration* const getDeclaration() const { return m_declaration.get(); }
@@ -19,7 +19,7 @@ namespace linc
 
         virtual std::unique_ptr<const BoundDeclaration> clone() const final override
         {
-            return std::make_unique<const BoundGenericDeclaration>(m_declaration->clone(), m_typeIdentifiers, m_instanceMapIndex);
+            return std::make_unique<const BoundGenericDeclaration>(m_declaration->clone(), m_typeIdentifiers, m_instanceMapIndex, m_deprecatedMessage);
         }
     private:
         virtual std::string toStringInner() const final override

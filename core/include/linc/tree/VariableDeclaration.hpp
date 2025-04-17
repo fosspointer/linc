@@ -3,7 +3,6 @@
 #include <linc/tree/Declaration.hpp>
 #include <linc/tree/IdentifierExpression.hpp>
 #include <linc/tree/TypeExpression.hpp>
-#include <linc/system/Types.hpp>
 
 namespace linc
 {
@@ -46,9 +45,9 @@ namespace linc
             std::unique_ptr<const Expression> m_expression;
         };
 
-        VariableDeclaration(const Token& type_specifier, std::unique_ptr<const TypeExpression> type,
-            std::unique_ptr<const IdentifierExpression> identifier, std::optional<ValueAssignment> default_value)
-            :Declaration(std::move(identifier), type->getTokenInfo()), m_typeSpecifier(type_specifier),
+        VariableDeclaration(const Token& type_specifier, std::unique_ptr<const TypeExpression> type, std::unique_ptr<const IdentifierExpression> identifier,
+            std::optional<ValueAssignment> default_value, AttributeMap attributes)
+            :Declaration(std::move(identifier), std::move(attributes), type->getTokenInfo()), m_typeSpecifier(type_specifier),
             m_type(std::move(type)), m_defaultValue(std::move(default_value))
         {
             addTokens(m_type->getTokens());
@@ -62,15 +61,16 @@ namespace linc
 
         virtual std::unique_ptr<const Declaration> clone() const final override
         {
-            auto type = Types::uniqueCast<const TypeExpression>(m_type->clone());
-            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+            auto type = Memory::uniqueCast<const TypeExpression>(m_type->clone());
+            auto identifier = Memory::uniqueCast<const IdentifierExpression>(m_identifier->clone());
 
             return std::make_unique<const VariableDeclaration>(
                 m_typeSpecifier, std::move(type), std::move(identifier),
                 m_defaultValue.has_value()? std::make_optional(ValueAssignment(
                     m_defaultValue->getAssignmentOperator(),
                     m_defaultValue->getExpression()->clone())
-                ): std::nullopt
+                ): std::nullopt,
+                Memory::cloneNodeMap(&m_attributes)
             );
         }
 

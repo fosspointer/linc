@@ -56,7 +56,7 @@ namespace linc
             
             auto value = clause->getSecond();
             auto iterated_expression = optimizeExpression(value->getExpression());
-            auto identifier = Types::uniqueCast<const BoundIdentifierExpression>(value->getIdentifier()->clone());
+            auto identifier = Memory::uniqueCast<const BoundIdentifierExpression>(value->getIdentifier()->clone());
             auto ranged_for_clause = std::make_unique<const BoundRangedForClause>(std::move(identifier), std::move(iterated_expression));
             auto body = optimizeExpression(expression->getBody());
             return std::make_unique<const BoundForExpression>(expression->getLabel(), std::make_unique<const BoundForExpression::ForClause>(std::move(ranged_for_clause)), std::move(body));
@@ -153,7 +153,8 @@ namespace linc
         static std::unique_ptr<const BoundVariableDeclaration> optimizeVariableDeclaration(const BoundVariableDeclaration* declaration)
         {
             auto value = declaration->getDefaultValue()? optimizeExpression(declaration->getDefaultValue()): nullptr;
-            return std::make_unique<const BoundVariableDeclaration>(declaration->getActualType(), declaration->getName(), std::move(value), declaration->getScopeIndex());
+            return std::make_unique<const BoundVariableDeclaration>(declaration->getActualType(), declaration->getName(), std::move(value), declaration->getScopeIndex(),
+                declaration->getDeprecatedMessage());
         }
 
         static std::unique_ptr<const BoundDeclaration> optimizeDeclaration(const BoundDeclaration* declaration)
@@ -167,15 +168,16 @@ namespace linc
                 arguments.reserve(function_prototype->getArguments()->getList().size());
                 for(const auto& argument: function_prototype->getArguments()->getList())
                 {
-                    auto optimized_argument = Types::uniqueCast<const BoundVariableDeclaration>(optimizeDeclaration(argument.get()));
+                    auto optimized_argument = Memory::uniqueCast<const BoundVariableDeclaration>(optimizeDeclaration(argument.get()));
                     arguments.push_back(std::move(optimized_argument));
                 }
                 return std::make_unique<const BoundFunctionPrototypeDeclaration>(function_prototype->getFunctionType(), function_prototype->getName(), 
-                    std::make_unique<const BoundNodeListClause<BoundVariableDeclaration>>(std::move(arguments), declaration->getInfo()));
+                    std::make_unique<const BoundNodeListClause<BoundVariableDeclaration>>(std::move(arguments), declaration->getInfo()),
+                    declaration->getDeprecatedMessage());
             }
             else if(auto function_declaration = dynamic_cast<const BoundFunctionDeclaration*>(declaration))
             {
-                auto prototype = Types::uniqueCast<const BoundFunctionPrototypeDeclaration>(optimizeDeclaration(function_declaration->getPrototype()));
+                auto prototype = Memory::uniqueCast<const BoundFunctionPrototypeDeclaration>(optimizeDeclaration(function_declaration->getPrototype()));
                 auto body = optimizeExpression(function_declaration->getBody());
                 return std::make_unique<const BoundFunctionDeclaration>(std::move(prototype), std::move(body));
             }

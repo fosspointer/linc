@@ -1,5 +1,6 @@
 #pragma once
 #include <linc/Include.hpp>
+#include <linc/system/Memory.hpp>
 #include <linc/bound_tree/BoundClause.hpp>
 
 namespace linc
@@ -35,12 +36,12 @@ namespace linc
         {
             if(const auto* value = std::get_if<0ul>(&m_variant))
             {
-                auto node_cast = Types::uniqueCast<const FIRST>(value->get()->clone());
+                auto node_cast = Memory::uniqueCast<const FIRST>(value->get()->clone());
                 return std::make_unique<const BoundVariantClause>(std::move(node_cast));
             }
             else
             {
-                auto node_cast = Types::uniqueCast<const SECOND>(std::get<1ul>(m_variant)->clone());
+                auto node_cast = Memory::uniqueCast<const SECOND>(std::get<1ul>(m_variant)->clone());
                 return std::make_unique<const BoundVariantClause>(std::move(node_cast));
             }
         }

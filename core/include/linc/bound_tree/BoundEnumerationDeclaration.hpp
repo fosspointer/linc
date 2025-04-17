@@ -9,13 +9,13 @@ namespace linc
     class BoundEnumerationDeclaration final: public BoundDeclaration
     {
     public:
-        BoundEnumerationDeclaration(const std::string& name, std::unique_ptr<const BoundNodeListClause<BoundEnumeratorClause>> enumerators)
-            :BoundDeclaration(name), m_enumerators(std::move(enumerators)), m_actualType(calculateActualType(m_enumerators.get()))
+        BoundEnumerationDeclaration(const std::string& name, std::unique_ptr<const BoundNodeListClause<BoundEnumeratorClause>> enumerators, DeprecatedMessage deprecated_message)
+            :BoundDeclaration(name, std::move(deprecated_message)), m_enumerators(std::move(enumerators)), m_actualType(calculateActualType(m_enumerators.get()))
         {}
 
         virtual std::unique_ptr<const BoundDeclaration> clone() const final override
         {
-            return std::make_unique<const BoundEnumerationDeclaration>(m_name, m_enumerators->clone());
+            return std::make_unique<const BoundEnumerationDeclaration>(m_name, m_enumerators->clone(), m_deprecatedMessage);
         }
 
         [[nodiscard]] inline const Types::type& getActualType() const { return m_actualType; }

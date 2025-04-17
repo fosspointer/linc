@@ -7,8 +7,8 @@ namespace linc
 {
     FunctionPrototypeDeclaration::FunctionPrototypeDeclaration(const Token& function_specifier, const Token& type_specifier, const Token& left_parenthesis,
         const Token& right_parenenthesis, std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const TypeExpression> type,
-        std::unique_ptr<const NodeListClause<VariableDeclaration>> arguments)
-        :Declaration(std::move(identifier), function_specifier.info), m_functionSpecifier(function_specifier), m_typeSpecifier(type_specifier),
+        std::unique_ptr<const NodeListClause<VariableDeclaration>> arguments, AttributeMap attributes)
+        :Declaration(std::move(identifier), std::move(attributes), function_specifier.info), m_functionSpecifier(function_specifier), m_typeSpecifier(type_specifier),
         m_leftParenthesis(left_parenthesis), m_rightParenthesis(right_parenenthesis), m_returnType(std::move(type)), m_arguments(std::move(arguments))
     {
         LINC_NODE_ASSERT(m_functionSpecifier, Token::Type::KeywordFunction);
@@ -28,11 +28,11 @@ namespace linc
 
     std::unique_ptr<const Declaration> FunctionPrototypeDeclaration::clone() const
     {
-        auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
-        auto type = m_returnType? Types::uniqueCast<const TypeExpression>(m_returnType->clone()): nullptr;
+        auto identifier = Memory::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+        auto type = m_returnType? Memory::uniqueCast<const TypeExpression>(m_returnType->clone()): nullptr;
 
         return std::make_unique<const FunctionPrototypeDeclaration>(
             m_functionSpecifier, m_typeSpecifier, m_leftParenthesis, m_rightParenthesis,
-            std::move(identifier), std::move(type), m_arguments->clone());
+            std::move(identifier), std::move(type), m_arguments->clone(), Memory::cloneNodeMap(&m_attributes));
     }
 }

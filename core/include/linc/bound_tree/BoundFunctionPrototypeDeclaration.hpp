@@ -8,7 +8,8 @@ namespace linc
     class BoundFunctionPrototypeDeclaration final : public BoundDeclaration
     {
     public:
-        BoundFunctionPrototypeDeclaration(const Types::type& function_type, const std::string& name, std::unique_ptr<const BoundNodeListClause<BoundVariableDeclaration>> arguments);
+        BoundFunctionPrototypeDeclaration(const Types::type& function_type, const std::string& name, std::unique_ptr<const BoundNodeListClause<BoundVariableDeclaration>> arguments,
+            DeprecatedMessage deprecated_message);
         ~BoundFunctionPrototypeDeclaration();
 
         [[nodiscard]] inline const Types::type& getReturnType() const { return *m_functionType.function.returnType; }

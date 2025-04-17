@@ -232,10 +232,18 @@ namespace linc
                     continue;
                 }
 
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
-                    .message = Logger::format("$ Invalid preprocessor directive '$'.", directive.info, *directive.value)
-                });
+                auto find = s_attributes.find(*directive.value);
+
+                if(find == s_attributes.end())
+                    Reporting::push(Reporting::Report{
+                        .type = Reporting::Type::Error, .stage = Reporting::Stage::Preprocessor,
+                        .message = Logger::format("$ Invalid preprocessor directive '$'.", directive.info, *directive.value)
+                    });
+                else
+                {
+                    output.push_back(Token{.type = Token::Type::PreprocessorSpecifier, .info = directive.info});
+                    output.push_back(directive);
+                }
             }
 
             for(std::size_t index{0ul}; index + 1ul < output.size(); ++index)
@@ -381,7 +389,6 @@ namespace linc
         mutable TokenSize m_index{0ul};
         mutable bool m_matchFailed{false};
         static std::unordered_set<std::string> s_guardedFiles;
+        static const std::unordered_set<std::string> s_attributes;
     };
-
-    std::unordered_set<std::string> Preprocessor::s_guardedFiles;
 }

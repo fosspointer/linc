@@ -10,7 +10,8 @@ namespace linc
     class BoundVariableDeclaration final : public BoundDeclaration
     {
     public:
-        BoundVariableDeclaration(Types::type type, const std::string& name, std::unique_ptr<const BoundExpression> default_value, std::size_t scope_index);
+        BoundVariableDeclaration(Types::type type, const std::string& name, std::unique_ptr<const BoundExpression> default_value, std::size_t scope_index,
+            DeprecatedMessage deprecated_message);
 
         [[nodiscard]] inline const Types::type& getActualType() const { return m_actualType; }
         [[nodiscard]] inline const BoundExpression* const getDefaultValue() const { return m_defaultValue? m_defaultValue.get(): nullptr; }

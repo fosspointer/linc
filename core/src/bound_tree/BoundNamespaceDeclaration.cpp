@@ -3,7 +3,7 @@
 namespace linc
 {
     BoundNamespaceDeclaration::BoundNamespaceDeclaration(const std::string& name, std::vector<std::unique_ptr<const BoundDeclaration>> declarations)
-        :BoundDeclaration(name), m_declarations(std::move(declarations))
+        :BoundDeclaration(name, std::nullopt), m_declarations(std::move(declarations))
     {}
     BoundNamespaceDeclaration::~BoundNamespaceDeclaration() = default;
     
@@ -18,10 +18,6 @@ namespace linc
 
     std::unique_ptr<const BoundDeclaration> BoundNamespaceDeclaration::clone() const
     {
-        std::vector<std::unique_ptr<const BoundDeclaration>> declarations;
-        declarations.reserve(m_declarations.size());
-        for(const auto& declaration: m_declarations)
-            declarations.push_back(declaration->clone());
-        return std::make_unique<const BoundNamespaceDeclaration>(m_name, std::move(declarations));
+        return std::make_unique<const BoundNamespaceDeclaration>(m_name, Memory::cloneNodes(&m_declarations));
     }
 }

@@ -25,6 +25,7 @@ namespace linc
         LINC_KEYWORD_MAP_PAIR("gen", Token::Type::KeywordGeneric),
         LINC_KEYWORD_MAP_PAIR("alias", Token::Type::KeywordAlias),
         LINC_KEYWORD_MAP_PAIR("namesp", Token::Type::KeywordNamespace),
+        LINC_KEYWORD_MAP_PAIR("default", Token::Type::KeywordDefault),
     };
 
     Token::Type Keywords::get(const std::string& keyword_string)

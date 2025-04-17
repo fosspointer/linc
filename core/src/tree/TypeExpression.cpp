@@ -5,8 +5,9 @@
 
 namespace linc
 {
-    TypeExpression::TypeExpression(const std::optional<Token>& mutability_Keyword, Root root, std::vector<ArraySpecifier> array_specifiers)
-        :Expression(Token::Info{}), m_root(std::move(root)), m_mutabilityKeyword(mutability_Keyword),
+    TypeExpression::TypeExpression(const std::optional<Token>& mutability_Keyword, Root root, std::vector<ArraySpecifier> array_specifiers,
+        const Token::Info& info)
+        :Expression(info), m_root(std::move(root)), m_mutabilityKeyword(mutability_Keyword),
         m_arraySpecifiers(std::move(array_specifiers))
     {
         if(m_mutabilityKeyword)
@@ -54,14 +55,14 @@ namespace linc
             auto count = specifier.count? specifier.count->clone(): nullptr;
             array_specifiers.push_back(ArraySpecifier{
                 .leftBracket = specifier.leftBracket, .rightBracket = specifier.rightBracket,
-                .count = Types::uniqueCast<const LiteralExpression>(std::move(count))
+                .count = Memory::uniqueCast<const LiteralExpression>(std::move(count))
             });
         }
 
         if(auto function_root = std::get_if<FunctionRoot>(&m_root))
         {
             auto arguments = function_root->argumentTypes->clone();
-            auto return_type = Types::uniqueCast<const TypeExpression>(function_root->returnType->clone());
+            auto return_type = Memory::uniqueCast<const TypeExpression>(function_root->returnType->clone());
 
             auto root = FunctionRoot{
                 .functionKeyword = function_root->functionKeyword,
@@ -72,10 +73,10 @@ namespace linc
                 .argumentTypes = std::move(arguments)
                 };
             
-            return std::make_unique<const TypeExpression>(m_mutabilityKeyword, std::move(root), std::move(array_specifiers));
+            return std::make_unique<const TypeExpression>(m_mutabilityKeyword, std::move(root), std::move(array_specifiers), getTokenInfo());
         }
 
-        auto identifier = Types::uniqueCast<const IdentifierExpression>(std::get<0ul>(m_root)->clone());
-        return std::make_unique<const TypeExpression>(m_mutabilityKeyword, std::move(identifier), std::move(array_specifiers));
+        auto identifier = Memory::uniqueCast<const IdentifierExpression>(std::get<0ul>(m_root)->clone());
+        return std::make_unique<const TypeExpression>(m_mutabilityKeyword, std::move(identifier), std::move(array_specifiers), getTokenInfo());
     }
 }

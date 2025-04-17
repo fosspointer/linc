@@ -10,8 +10,8 @@ namespace linc
     {
     public:
         DirectVariableDeclaration(const Token& direct_assignment, const std::optional<Token>& mutability_specifier, 
-            std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const Expression> value)
-            :Declaration(std::move(identifier), direct_assignment.info), m_directAssignment(direct_assignment), m_mutabilitySpecifier(mutability_specifier),
+            std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const Expression> value, AttributeMap attributes)
+            :Declaration(std::move(identifier), std::move(attributes), direct_assignment.info), m_directAssignment(direct_assignment), m_mutabilitySpecifier(mutability_specifier),
             m_value(std::move(value))
         {
             addTokens(m_identifier->getTokens());
@@ -25,8 +25,9 @@ namespace linc
 
         virtual std::unique_ptr<const Declaration> clone() const final override
         {
-            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
-            return std::make_unique<const DirectVariableDeclaration>(m_directAssignment, m_mutabilitySpecifier, std::move(identifier), m_value->clone());
+            auto identifier = Memory::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+            return std::make_unique<const DirectVariableDeclaration>(m_directAssignment, m_mutabilitySpecifier, std::move(identifier), m_value->clone(),
+                Memory::cloneNodeMap(&m_attributes));
         }
 
         inline const Token& getDirectAssignment() const { return m_directAssignment; }

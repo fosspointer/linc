@@ -15,6 +15,8 @@ namespace linc
     template <typename FIRST, typename SECOND>
     class VariantClause;
     
+    class AttributeClause;
+
     /// @brief Class responsible for the parsing stage of compilation. Parses a list of tokens into AST nodes.
     class Parser final 
     {
@@ -30,6 +32,10 @@ namespace linc
 
         /// @brief Constructor: begin a scope and append all internal symbols as valid definitions.
         Parser();
+        ~Parser();
+
+        Parser& operator=(Parser&&);
+        Parser(Parser&&);
         
         /// @brief Parse the current list of tokens as a program.
         /// @return The resulting program.
@@ -86,6 +92,9 @@ namespace linc
 
         /// @brief Parse the following tokens as a namespace clause.
         std::unique_ptr<const class NamespaceClause> parseNamespaceClause() const;
+
+        /// @brief Parse the following tokens as an attribute clause.
+        std::unique_ptr<const class AttributeClause> parseAttributeClause() const;
 
         /// @brief Parse the following tokens as an optional loop identifier.
         std::optional<struct LoopLabel> parseLoopLabel() const;
@@ -183,6 +192,9 @@ namespace linc
 
         /// @brief Parse the following tokens as an AST range expression.
         std::unique_ptr<const class Expression> parseRangeExpression() const;
+
+        /// @brief Parse the following tokens as an AST default expression.
+        std::unique_ptr<const class DefaultExpression> parseDefaultExpression() const;
 
         /// @brief Require the next token to be an EOF token (used when appropriate).
         inline auto parseEndOfFile() const { return match(Token::Type::EndOfFile); }
@@ -284,5 +296,6 @@ namespace linc
         mutable ScopeStack<Definition> m_definitions; 
         mutable bool m_matchFailed{};
         mutable TokenSize m_index{0};
+        mutable std::unordered_map<std::string, std::unique_ptr<const AttributeClause>> m_attributes;
     };
 }

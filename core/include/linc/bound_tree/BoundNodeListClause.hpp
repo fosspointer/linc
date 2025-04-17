@@ -1,6 +1,6 @@
 #pragma once
 #include <linc/bound_tree/BoundClause.hpp>
-#include <linc/system/Types.hpp>
+#include <linc/system/Memory.hpp>
 #include <linc/Include.hpp>
 
 namespace linc
@@ -20,7 +20,7 @@ namespace linc
             nodes.reserve(m_nodes.size());
             for(const auto& node: m_nodes)
             {
-                auto node_cast = Types::uniqueCast<const T>(node->clone());
+                auto node_cast = Memory::uniqueCast<const T>(node->clone());
                 nodes.push_back(std::move(node_cast));
             }
             return std::make_unique<const BoundNodeListClause<T>>(std::move(nodes), this->getInfo());

@@ -8,16 +8,16 @@ namespace linc
     class BoundAliasDeclaration final : public BoundDeclaration
     {
     public:
-        BoundAliasDeclaration(const std::string& name, std::unique_ptr<const BoundTypeExpression> type)
-            :BoundDeclaration(name), m_type(std::move(type))
+        BoundAliasDeclaration(const std::string& name, std::unique_ptr<const BoundTypeExpression> type, DeprecatedMessage deprecated_message)
+            :BoundDeclaration(name, std::move(deprecated_message)), m_type(std::move(type))
         {}
 
         inline const BoundTypeExpression* const getType() const { return m_type.get(); }
 
         virtual std::unique_ptr<const BoundDeclaration> clone() const final override
         {
-            auto type = Types::uniqueCast<const BoundTypeExpression>(m_type->clone());
-            return std::make_unique<const BoundAliasDeclaration>(m_name, std::move(type));
+            auto type = Memory::uniqueCast<const BoundTypeExpression>(m_type->clone());
+            return std::make_unique<const BoundAliasDeclaration>(m_name, std::move(type), m_deprecatedMessage);
         }
     private:
         virtual std::string toStringInner() const final override

@@ -18,7 +18,7 @@ namespace linc
 
         std::unique_ptr<const BoundRangedForClause> clone() const final override
         {
-            auto identifier = Types::uniqueCast<const BoundIdentifierExpression>(m_identifier->clone());
+            auto identifier = Memory::uniqueCast<const BoundIdentifierExpression>(m_identifier->clone());
             return std::make_unique<const BoundRangedForClause>(std::move(identifier), m_expression->clone());
         }
     private:

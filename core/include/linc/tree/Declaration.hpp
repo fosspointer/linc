@@ -1,6 +1,7 @@
 #pragma once
 #include <linc/tree/Node.hpp>
 #include <linc/tree/IdentifierExpression.hpp>
+#include <linc/tree/AttributeClause.hpp>
 
 namespace linc
 {
@@ -8,14 +9,16 @@ namespace linc
     class Declaration : public Node
     {
     public:
-        Declaration(std::unique_ptr<const IdentifierExpression> identifier, NodeInfo info = NodeInfo{})
-            :Node(info), m_identifier(std::move(identifier))
+        using AttributeMap = std::unordered_map<std::string, std::unique_ptr<const AttributeClause>>;
+        Declaration(std::unique_ptr<const IdentifierExpression> identifier, AttributeMap attributes, const NodeInfo& info = NodeInfo{})
+            :Node(info), m_identifier(std::move(identifier)), m_attributes(std::move(attributes))
         {}
 
-        Declaration(std::unique_ptr<const IdentifierExpression> identifier, const Token::Info& token_info)
-            :Node(token_info), m_identifier(std::move(identifier))
+        Declaration(std::unique_ptr<const IdentifierExpression> identifier, AttributeMap attributes, const Token::Info& token_info)
+            :Node(token_info), m_identifier(std::move(identifier)), m_attributes(std::move(attributes))
         {}
 
+        [[nodiscard]] inline const AttributeMap& getAttributes() const { return m_attributes; }
         [[nodiscard]] inline const IdentifierExpression* const getIdentifier() const { return m_identifier.get(); }
 
         virtual ~Declaration() = default;
@@ -28,5 +31,6 @@ namespace linc
         }
     protected:
         mutable std::unique_ptr<const IdentifierExpression> m_identifier;
+        const AttributeMap m_attributes;
     };
 }

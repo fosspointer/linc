@@ -14,7 +14,7 @@ namespace linc
         ExternalDeclaration(const Token& external_keyword, const Token& left_parenthesis, const Token& right_parenthesis, const Token& type_specifier,
             std::unique_ptr<const IdentifierExpression> identifier, std::unique_ptr<const TypeExpression> type,
             std::unique_ptr<const NodeListClause<TypeExpression>> arguments)
-            :Declaration(std::move(identifier), external_keyword.info), m_externalKeyword(external_keyword), m_leftParenthesis(left_parenthesis),
+            :Declaration(std::move(identifier), AttributeMap{}, external_keyword.info), m_externalKeyword(external_keyword), m_leftParenthesis(left_parenthesis),
             m_rightParenthesis(right_parenthesis), m_typeSpecifier(type_specifier), m_actualType(std::move(type)),
             m_arguments(std::move(arguments)) 
         {
@@ -32,8 +32,8 @@ namespace linc
         virtual std::unique_ptr<const Declaration> clone() const final override
         {
             auto arguments = m_arguments->clone(); 
-            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
-            auto type = Types::uniqueCast<const TypeExpression>(m_actualType->clone());
+            auto identifier = Memory::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+            auto type = Memory::uniqueCast<const TypeExpression>(m_actualType->clone());
 
             return std::make_unique<const ExternalDeclaration>(
                 m_externalKeyword, m_typeSpecifier, m_leftParenthesis, m_rightParenthesis,

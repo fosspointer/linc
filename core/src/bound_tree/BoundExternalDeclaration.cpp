@@ -6,7 +6,7 @@ namespace linc
 {
     BoundExternalDeclaration::BoundExternalDeclaration(const std::string& name, std::unique_ptr<const BoundTypeExpression> actual_type,
         std::vector<std::unique_ptr<const BoundTypeExpression>> arguments)
-        :BoundDeclaration(name), m_actualType(std::move(actual_type)), m_arguments(std::move(arguments))
+        :BoundDeclaration(name, std::nullopt), m_actualType(std::move(actual_type)), m_arguments(std::move(arguments))
     {}
 
     std::unique_ptr<const BoundDeclaration> BoundExternalDeclaration::clone() const
@@ -15,11 +15,11 @@ namespace linc
         
         for(const auto& argument: m_arguments)
         {
-            auto type = Types::uniqueCast<const BoundTypeExpression>(argument->clone());
+            auto type = Memory::uniqueCast<const BoundTypeExpression>(argument->clone());
             arguments.push_back(std::move(type));
         }
 
-        auto actual_type = Types::uniqueCast<const BoundTypeExpression>(m_actualType->clone());
+        auto actual_type = Memory::uniqueCast<const BoundTypeExpression>(m_actualType->clone());
 
         return std::make_unique<const BoundExternalDeclaration>(m_name, std::move(actual_type), std::move(arguments));
     }

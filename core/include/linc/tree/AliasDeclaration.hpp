@@ -9,8 +9,9 @@ namespace linc
     {
     public:
         AliasDeclaration(const Token& alias_keyword, const Token& assignment_specifier, std::unique_ptr<const IdentifierExpression> identifier,
-            std::unique_ptr<const TypeExpression> type)
-            :Declaration(std::move(identifier), alias_keyword.info), m_aliasKeyword(alias_keyword), m_assignmentSpecifier(assignment_specifier), m_type(std::move(type))
+            std::unique_ptr<const TypeExpression> type, AttributeMap attributes)
+            :Declaration(std::move(identifier), std::move(attributes), alias_keyword.info), m_aliasKeyword(alias_keyword), m_assignmentSpecifier(assignment_specifier),
+            m_type(std::move(type))
         {
             addToken(m_aliasKeyword);
             addTokens(m_identifier->getTokens());
@@ -24,9 +25,10 @@ namespace linc
 
         virtual std::unique_ptr<const Declaration> clone() const final override
         {
-            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
-            auto type = Types::uniqueCast<const TypeExpression>(m_type->clone());
-            return std::make_unique<const AliasDeclaration>(m_aliasKeyword, m_assignmentSpecifier, std::move(identifier), std::move(type));
+            auto identifier = Memory::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+            auto type = Memory::uniqueCast<const TypeExpression>(m_type->clone());
+            return std::make_unique<const AliasDeclaration>(m_aliasKeyword, m_assignmentSpecifier, std::move(identifier), std::move(type),
+                Memory::cloneNodeMap(&m_attributes));
         }
     private:
         const Token m_aliasKeyword, m_assignmentSpecifier;

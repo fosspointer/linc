@@ -144,6 +144,10 @@ void printSymbolInfo(const linc::BoundDeclaration* symbol, std::size_t i)
         linc::Logger::println("[$]: enumeration: $ of type `$`", index, linc::PrimitiveValue(enumeration->getName()),
             linc::PrimitiveValue(enumeration->getActualType()));
 
+    else if(auto alias = dynamic_cast<const linc::BoundAliasDeclaration*>(symbol))
+        linc::Logger::println("[$]: alias $ to type `$`", index, linc::PrimitiveValue(alias->getName()),
+            linc::PrimitiveValue(alias->getType()));
+
     linc::Colors::pop();
 }
 

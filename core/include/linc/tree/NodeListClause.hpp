@@ -1,6 +1,5 @@
 #pragma once
 #include <linc/tree/Clause.hpp>
-#include <linc/system/Types.hpp>
 #include <linc/Include.hpp>
 
 namespace linc
@@ -34,7 +33,7 @@ namespace linc
             nodes.reserve(m_nodes.size());
             for(const auto& node: m_nodes)
             {
-                auto node_cast = Types::uniqueCast<const T>(node.node->clone());
+                auto node_cast = Memory::uniqueCast<const T>(node.node->clone());
                 nodes.push_back(DelimitedNode{
                     .delimiter = node.delimiter,
                     .node = std::move(node_cast)

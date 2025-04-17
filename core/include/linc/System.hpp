@@ -1,4 +1,5 @@
 #pragma once
+#include <linc/system/Memory.hpp>
 #include <linc/system/ScopeStack.hpp>
 #include <linc/system/StringStack.hpp>
 #include <linc/system/Value.hpp>

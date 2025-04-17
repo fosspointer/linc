@@ -22,6 +22,7 @@
 #include <linc/tree/EnumeratorExpression.hpp>
 #include <linc/tree/StructureInitializerExpression.hpp>
 #include <linc/tree/RangeExpression.hpp>
+#include <linc/tree/DefaultExpression.hpp>
 #include <linc/tree/Declaration.hpp>
 #include <linc/tree/VariableDeclaration.hpp>
 #include <linc/tree/DirectVariableDeclaration.hpp>
@@ -47,4 +48,5 @@
 #include <linc/tree/LegacyForClause.hpp>
 #include <linc/tree/GenericClause.hpp>
 #include <linc/tree/NamespaceClause.hpp>
+#include <linc/tree/AttributeClause.hpp>
 #include <linc/tree/LoopLabel.hpp>

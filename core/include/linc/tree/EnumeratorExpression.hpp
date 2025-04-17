@@ -35,8 +35,8 @@ namespace linc
         
         virtual std::unique_ptr<const Expression> clone() const final override
         {
-            auto enumeration_identifier = Types::uniqueCast<const IdentifierExpression>(m_enumerationIdentifier->clone());
-            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+            auto enumeration_identifier = Memory::uniqueCast<const IdentifierExpression>(m_enumerationIdentifier->clone());
+            auto identifier = Memory::uniqueCast<const IdentifierExpression>(m_identifier->clone());
             return std::make_unique<const EnumeratorExpression>(m_namespaceAccessToken, m_leftParenthesis, m_rightParenthesis,
                 std::move(enumeration_identifier), std::move(identifier), m_value? m_value->clone(): nullptr);
         }

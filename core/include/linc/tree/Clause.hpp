@@ -1,6 +1,7 @@
 #pragma once
 #include <linc/tree/NodeInfo.hpp>
 #include <linc/lexer/Token.hpp>
+#include <linc/system/Memory.hpp>
 
 namespace linc
 {

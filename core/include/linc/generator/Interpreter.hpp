@@ -801,6 +801,8 @@ namespace linc
                 auto end = evaluateExpression(range_expression->getEnd());
                 return Value(std::vector<Value>{begin, end, PrimitiveValue{false}});
             }
+            else if(auto default_expression = dynamic_cast<const BoundDefaultExpression*>(expression))
+                return Value::fromDefault(default_expression->getType());
             else
             {
                 throw LINC_EXCEPTION("Encountered unrecognized expression type while evaluating program"); 

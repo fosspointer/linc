@@ -120,7 +120,7 @@ namespace linc
         {
             type.isMutable = true;
             auto mangled_name = mangleScope(name, scope_index);
-            auto variable = std::make_unique<const BoundVariableDeclaration>(type, mangled_name, std::move(value), 0ul);
+            auto variable = std::make_unique<const BoundVariableDeclaration>(type, mangled_name, std::move(value), 0ul, std::nullopt);
             auto statement = std::make_unique<const BoundDeclarationStatement>(std::move(variable));
             appendStatement(statement.get());
             return mangled_name;
@@ -201,10 +201,11 @@ namespace linc
             arguments.reserve(prototype->getArguments()->getList().size());
             for(const auto& element: prototype->getArguments()->getList())
                 arguments.push_back(std::make_unique<const BoundVariableDeclaration>(element->getActualType(), 
-                    mangleScope(element->getName(), element->getScopeIndex()), element->getDefaultValue()? element->getDefaultValue()->clone(): nullptr, 0ul));
+                    mangleScope(element->getName(), element->getScopeIndex()), element->getDefaultValue()? element->getDefaultValue()->clone(): nullptr,
+                    0ul, std::nullopt));
             
             return std::make_unique<const BoundFunctionPrototypeDeclaration>(prototype->getFunctionType(), prototype->getName(), 
-                std::make_unique<const BoundNodeListClause<BoundVariableDeclaration>>(std::move(arguments), prototype->getInfo()));
+                std::make_unique<const BoundNodeListClause<BoundVariableDeclaration>>(std::move(arguments), prototype->getInfo()), std::nullopt);
         }
 
         void lowerFunction(const BoundFunctionDeclaration* function)

@@ -21,6 +21,7 @@
 #include <linc/bound_tree/BoundAccessExpression.hpp>
 #include <linc/bound_tree/BoundEnumeratorExpression.hpp>
 #include <linc/bound_tree/BoundRangeExpression.hpp>
+#include <linc/bound_tree/BoundDefaultExpression.hpp>
 #include <linc/bound_tree/BoundDeclaration.hpp>
 #include <linc/bound_tree/BoundVariableDeclaration.hpp>
 #include <linc/bound_tree/BoundFunctionDeclaration.hpp>

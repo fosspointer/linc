@@ -11,8 +11,8 @@ namespace linc
     {
     public:
         StructureDeclaration(const Token& structure_keyword, const Token& left_brace, const Token& right_brace,
-            std::unique_ptr<const IdentifierExpression> identifier, std::vector<std::unique_ptr<const VariableDeclaration>> fields)
-            :Declaration(std::move(identifier), structure_keyword.info), m_structureKeyword(structure_keyword),
+            std::unique_ptr<const IdentifierExpression> identifier, std::vector<std::unique_ptr<const VariableDeclaration>> fields, AttributeMap attributes)
+            :Declaration(std::move(identifier), std::move(attributes), structure_keyword.info), m_structureKeyword(structure_keyword),
             m_leftBrace(left_brace), m_rightBrace(right_brace), m_fields(std::move(fields))
         {
             addToken(m_structureKeyword);
@@ -32,13 +32,14 @@ namespace linc
 
             for(const auto& field: m_fields)
             {
-                auto new_field = Types::uniqueCast<const VariableDeclaration>(field->clone());
+                auto new_field = Memory::uniqueCast<const VariableDeclaration>(field->clone());
                 fields.push_back(std::move(new_field));
             }
 
-            auto identifier = Types::uniqueCast<const IdentifierExpression>(m_identifier->clone());
+            auto identifier = Memory::uniqueCast<const IdentifierExpression>(m_identifier->clone());
 
-            return std::make_unique<const StructureDeclaration>(m_structureKeyword, m_leftBrace, m_rightBrace, std::move(identifier),  std::move(fields));
+            return std::make_unique<const StructureDeclaration>(m_structureKeyword, m_leftBrace, m_rightBrace, std::move(identifier), std::move(fields),
+                Memory::cloneNodeMap(&m_attributes));
         }
 
         inline const Token& getStructureKeyword() const { return m_structureKeyword; }

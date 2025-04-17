@@ -24,7 +24,7 @@ namespace linc
             std::unique_ptr<const LiteralExpression> count;
         };
 
-        TypeExpression(const std::optional<Token>& mutability_Keyword, Root root, std::vector<ArraySpecifier> array_specifiers);
+        TypeExpression(const std::optional<Token>& mutability_Keyword, Root root, std::vector<ArraySpecifier> array_specifiers, const Token::Info& info);
         ~TypeExpression();
         [[nodiscard]] inline const Root& getRoot() const { return m_root; }
         [[nodiscard]] inline const std::optional<const Token>& getMutabilityKeyword() const { return m_mutabilityKeyword; }

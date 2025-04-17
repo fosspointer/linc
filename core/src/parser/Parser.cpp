@@ -13,6 +13,25 @@ namespace linc
             m_definitions.append(internal.name, Definition::External);
     }
 
+    Parser& Parser::operator=(Parser&& other)
+    {
+        m_tokens = std::move(other.m_tokens);
+        m_filepath = std::move(other.m_filepath);
+        m_definitions = std::move(other.m_definitions);
+        m_matchFailed = other.m_matchFailed;
+        m_index = other.m_index;
+        m_attributes = std::move(other.m_attributes);
+
+        return *this;
+    }
+
+    Parser::Parser(Parser&& other)
+        :m_tokens(std::move(other.m_tokens)), m_filepath(std::move(other.m_filepath)), m_definitions(std::move(other.m_definitions)), m_matchFailed(other.m_matchFailed),
+        m_index(other.m_index), m_attributes(std::move(other.m_attributes))
+    {}
+
+    Parser::~Parser() = default;
+
     Program Parser::operator()() const
     {
         Program program;
@@ -66,7 +85,7 @@ namespace linc
         auto left_parenthesis = has_parenthesis? consume(): Token{.type = Token::Type::ParenthesisLeft, .info = peekInfo()};
         auto actual_type = has_parenthesis? parseTypeExpression(): std::make_unique<const TypeExpression>(std::nullopt, std::make_unique<const IdentifierExpression>(
             Token{.type = Token::Type::Identifier, .value = "void", .info = peekInfo()}, nullptr, nullptr
-        ), std::vector<TypeExpression::ArraySpecifier>{});
+        ), std::vector<TypeExpression::ArraySpecifier>{}, identifier->getTokenInfo());
         auto right_parenthesis = has_parenthesis? match(Token::Type::ParenthesisRight): Token{.type = Token::Type::ParenthesisRight, .info = peekInfo()};
 
         if(!actual_type)
@@ -158,6 +177,24 @@ namespace linc
             items.push_back(NamespaceClause::Item{identifier, access});
         }
         return std::make_unique<const NamespaceClause>(std::move(items));
+    }
+
+    std::unique_ptr<const AttributeClause> Parser::parseAttributeClause() const
+    {
+        auto attribute_specifier = match(Token::Type::PreprocessorSpecifier);
+        auto identifier = match(Token::Type::Identifier);
+
+        if(peek() && peek()->type == Token::Type::ParenthesisLeft)
+        {
+            auto left_parenthesis = consume();
+            auto arguments = parseNodeListClause(LAMBDA_PARSE(LiteralExpression));
+            auto right_parenthesis = match(Token::Type::ParenthesisRight);
+            auto argument_clause = std::make_unique<const AttributeArgumentClause>(left_parenthesis, right_parenthesis, std::move(arguments));
+
+            return std::make_unique<AttributeClause>(attribute_specifier, identifier, std::move(argument_clause));
+        }
+
+        return std::make_unique<const AttributeClause>(attribute_specifier, identifier, nullptr);
     }
 
     std::optional<LoopLabel> Parser::parseLoopLabel() const
@@ -270,6 +307,7 @@ namespace linc
 
     std::unique_ptr<const TypeExpression> Parser::parseTypeExpression() const
     {
+        auto info = peekInfo();
         auto has_mutability_keyword = peek()->type == Token::Type::KeywordMutability;
         auto root_peek_offset = has_mutability_keyword? 1ul: 0ul;
         auto has_function_root = peek(root_peek_offset)->type == Token::Type::KeywordFunction && peek(root_peek_offset + 1ul)->type == Token::Type::ParenthesisLeft;
@@ -336,7 +374,7 @@ namespace linc
             });
         }
 
-        return std::make_unique<const TypeExpression>(mutability_keyword, std::move(root), std::move(specifiers));
+        return std::make_unique<const TypeExpression>(mutability_keyword, std::move(root), std::move(specifiers), info);
     }
 
     std::unique_ptr<const IdentifierExpression> Parser::parseStaticIdentifierExpression() const
@@ -455,13 +493,13 @@ namespace linc
             auto token = peek();
             auto member = parseVariant();
             if(!member) break;
-            else if(auto expression = Types::uniqueCastDynamic<const Expression>(member->clone()))
+            else if(auto expression = Memory::uniqueCastDynamic<const Expression>(member->clone()))
             {
                 tail = std::move(expression);
                 break;
             }
             
-            auto statement = Types::uniqueCast<const Statement>(std::move(member));
+            auto statement = Memory::uniqueCast<const Statement>(std::move(member));
             statements.push_back(std::move(statement));
 
             if(!peek() || !token || peek()->info == token->info)
@@ -735,6 +773,26 @@ namespace linc
             std::move(identifier), std::move(value));
     }
 
+    std::unique_ptr<const DefaultExpression> Parser::parseDefaultExpression() const
+    {
+        if(peek()->type != Token::Type::KeywordDefault)
+            return nullptr;
+
+        auto default_keyword = consume();
+        auto left_angled_bracket = match(Token::Type::OperatorLess);
+        auto inner_type = parseTypeExpression();
+
+        if(!inner_type)
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::Parser,
+                .span = TextSpan::fromTokenInfoRange(left_angled_bracket.info, peekInfo()),
+                .message = Logger::format("$ ", peekInfo())
+            });
+
+        auto right_angled_bracket = match(Token::Type::OperatorGreater);
+        return std::make_unique<const DefaultExpression>(default_keyword, left_angled_bracket, right_angled_bracket, std::move(inner_type));
+    }
+
     std::unique_ptr<const Expression> Parser::parsePrimaryExpression() const
     {
         auto loop_label = parseLoopLabel();
@@ -770,7 +828,10 @@ namespace linc
             return enumerator_expression;
 
         else if(auto type_expression = parseTypeExpression())
-            return std::move(type_expression);
+            return type_expression;
+
+        else if(auto default_expression = parseDefaultExpression())
+            return default_expression;
 
         else if(auto identifier = parseIdentifierExpression())
             return identifier;
@@ -815,7 +876,7 @@ namespace linc
 
         m_definitions.append(identifier->getValue(), Definition::Variable);
 
-        return std::make_unique<const VariableDeclaration>(type_specifier, std::move(type), std::move(identifier), std::move(default_value));
+        return std::make_unique<const VariableDeclaration>(type_specifier, std::move(type), std::move(identifier), std::move(default_value), std::move(m_attributes));
     }
 
     std::unique_ptr<const DirectVariableDeclaration> Parser::parseDirectVariableDeclaration() const
@@ -846,7 +907,7 @@ namespace linc
 
         m_definitions.append(identifier->getValue(), Definition::Variable);
 
-        return std::make_unique<const DirectVariableDeclaration>(direct_assignment, mutability_specifier, std::move(identifier), std::move(value));
+        return std::make_unique<const DirectVariableDeclaration>(direct_assignment, mutability_specifier, std::move(identifier), std::move(value), std::move(m_attributes));
     }
 
     std::unique_ptr<const class FunctionPrototypeDeclaration> Parser::parseFunctionPrototypeDeclaration() const
@@ -879,7 +940,7 @@ namespace linc
             }), nullptr);
 
         return std::make_unique<const FunctionPrototypeDeclaration>(function_keyword, type_specifier, left_parenthesis, right_parenthesis,
-            std::move(function_name), std::move(return_type), std::move(arguments));
+            std::move(function_name), std::move(return_type), std::move(arguments), std::move(m_attributes));
     }
 
     std::unique_ptr<const FunctionDeclaration> Parser::parseFunctionDeclaration() const
@@ -943,6 +1004,7 @@ namespace linc
         if(peek()->type != Token::Type::KeywordStructure)
             return nullptr;
 
+        auto attributes = std::move(m_attributes);
         auto structure_keyword = consume();
         auto identifier = parseIdentifierExpression();
 
@@ -956,12 +1018,13 @@ namespace linc
         auto left_brace = match(Token::Type::BraceLeft);
         std::vector<std::unique_ptr<const VariableDeclaration>> fields;
 
+
         while(auto variable_declaration = parseVariableDeclaration())
             fields.push_back(std::move(variable_declaration));
 
         auto right_brace = match(Token::Type::BraceRight);
 
-        return std::make_unique<const StructureDeclaration>(structure_keyword, left_brace, right_brace, std::move(identifier), std::move(fields));
+        return std::make_unique<const StructureDeclaration>(structure_keyword, left_brace, right_brace, std::move(identifier), std::move(fields), std::move(attributes));
     }
 
     std::unique_ptr<const EnumerationDeclaration> Parser::parseEnumerationDeclaration() const
@@ -984,7 +1047,7 @@ namespace linc
         auto enumerators = parseNodeListClause(LAMBDA_PARSE(EnumeratorClause), Token::Type::BraceRight);
         auto right_brace = match(Token::Type::BraceRight);
 
-        return std::make_unique<const EnumerationDeclaration>(enumeration_keyword, left_brace, right_brace, std::move(identifier), std::move(enumerators));
+        return std::make_unique<const EnumerationDeclaration>(enumeration_keyword, left_brace, right_brace, std::move(identifier), std::move(enumerators), std::move(m_attributes));
     }
 
     std::unique_ptr<const AliasDeclaration> Parser::parseAliasDeclaration() const
@@ -1014,7 +1077,7 @@ namespace linc
         
         m_definitions.append(identifier->getValue(), Definition::Typename);
 
-        return std::make_unique<const AliasDeclaration>(alias_keyword, assignment_specifier, std::move(identifier), std::move(type));
+        return std::make_unique<const AliasDeclaration>(alias_keyword, assignment_specifier, std::move(identifier), std::move(type), std::move(m_attributes));
     }
 
     std::unique_ptr<const GenericDeclaration> Parser::parseGenericDeclaration() const
@@ -1041,8 +1104,8 @@ namespace linc
                 return (definition = Definition::Typename, std::move(structure_declaration));
             else if(auto enumeration_declaration = parseEnumerationDeclaration())
                 return (definition = Definition::Enumeration, std::move(enumeration_declaration));
-            // else if(auto namespace_declaration = parseNamespaceDeclaration())
-            //     return namespace_declaration;
+            else if(auto namespace_declaration = parseNamespaceDeclaration())
+                return namespace_declaration;
             else return nullptr;
         }();
         endScope();
@@ -1052,7 +1115,7 @@ namespace linc
         else return nullptr;
 
         return std::make_unique<const GenericDeclaration>(generic_keyword, left_angled_bracket, right_angled_bracket, std::move(type_identifiers),
-            std::move(declaration));
+            std::move(declaration), std::move(m_attributes));
     }
 
     std::unique_ptr<const NamespaceDeclaration> Parser::parseNamespaceDeclaration() const
@@ -1081,6 +1144,12 @@ namespace linc
 
     std::unique_ptr<const Declaration> Parser::parseDeclaration() const
     {
+        while(peek() && peek()->type == Token::Type::PreprocessorSpecifier)
+        {
+            auto attribute = parseAttributeClause();
+            m_attributes[*attribute->getIdentifier().value] = std::move(attribute);
+        }
+
         if(auto variable_declaration = parseVariableDeclaration())
             return std::move(variable_declaration);
         else if(auto direct_variable_declaration = parseDirectVariableDeclaration())
