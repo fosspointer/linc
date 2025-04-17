@@ -5,7 +5,8 @@
 namespace linc
 {
     FunctionDeclaration::FunctionDeclaration(std::unique_ptr<const FunctionPrototypeDeclaration> prototype, std::unique_ptr<const Expression> body)
-        :Declaration(Memory::uniqueCast<const IdentifierExpression>(prototype->getIdentifier()->clone()), Memory::cloneNodeMap(&prototype->getAttributes())),
+        :Declaration(Memory::uniqueCast<const IdentifierExpression>(prototype->getIdentifier()->clone()), Memory::cloneNodeMap(&prototype->getAttributes()),
+        prototype->getTokenInfo()),
         m_prototype(std::move(prototype)), m_body(std::move(body))
     {
         addTokens(m_prototype->getTokens());

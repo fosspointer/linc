@@ -26,42 +26,28 @@ namespace linc
             for(const auto& declaration: program->declarations)
                 evaluateDeclaration(declaration.get());
         
-            auto main_name = linc::PrimitiveValue(std::string{"main"});
-            auto find_main = m_binder.find(main_name.getString());
-            if(!find_main)
-            {
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                    .message = Logger::format("Call to undeclared entry-point function $.", main_name)
-                });
+            if(program->entryPointIndex >= program->declarations.size())
                 return LINC_EXIT_PROGRAM_FAILURE;
-            }
-            else if(auto main = dynamic_cast<const BoundFunctionDeclaration*>(find_main.get()); !main)
-            {
-                Reporting::push(Reporting::Report{
-                    .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                    .message = Logger::format("The symbol-name $ is reserved for the entry point function, and cannot be used for other symbol types.",
-                        main_name)
-                });
-                return LINC_EXIT_PROGRAM_FAILURE;
-            }
+            
+            auto entry_argument_list = std::vector<NodeListClause<Expression>::DelimitedNode>{};
+            auto entry = dynamic_cast<const BoundFunctionDeclaration*>(program->declarations.at(program->entryPointIndex).get());
+            
+            if(!entry)
+                throw LINC_EXCEPTION_ILLEGAL_NULL(entry);
 
-            auto main = static_cast<const BoundFunctionDeclaration*>(find_main.get());
-            auto main_argument_list = std::vector<NodeListClause<Expression>::DelimitedNode>{};
-
-            if(!main->getPrototype()->getArguments()->getList().empty())
-                main_argument_list.push_back(NodeListClause<Expression>::DelimitedNode{
+            if(!entry->getPrototype()->getArguments()->getList().empty())
+                entry_argument_list.push_back(NodeListClause<Expression>::DelimitedNode{
                     .delimiter = std::nullopt,
                     .node = std::move(argument_list)
                 });
 
-            auto main_call = std::make_unique<const linc::CallExpression>(
+            auto entry_call = std::make_unique<const linc::CallExpression>(
                 linc::Token{.type = linc::Token::Type::ParenthesisLeft},
                 linc::Token{.type = linc::Token::Type::ParenthesisRight},
-                std::make_unique<const IdentifierExpression>(linc::Token{.type = linc::Token::Type::Identifier, .value = main->getName()}, nullptr, nullptr),
-                std::make_unique<const NodeListClause<Expression>>(std::move(main_argument_list), Token::Info{}), false);
+                std::make_unique<const IdentifierExpression>(linc::Token{.type = linc::Token::Type::Identifier, .value = entry->getName()}, nullptr, nullptr),
+                std::make_unique<const NodeListClause<Expression>>(std::move(entry_argument_list), Token::Info{}), false);
 
-            auto bound_main_call = m_binder.bindExpression(main_call.get());
+            auto bound_entry_call = m_binder.bindExpression(entry_call.get());
 
             bool errors{false};
             for(const auto& report: Reporting::getReports())
@@ -71,22 +57,22 @@ namespace linc
             if(errors)
                 return LINC_EXIT_PROGRAM_FAILURE;
 
-            switch(bound_main_call->getType().primitive)
+            switch(bound_entry_call->getType().primitive)
             {
-            case Types::Kind::u8: return evaluateExpression(bound_main_call.get()).getPrimitive().getU8();
-            case Types::Kind::i8: return evaluateExpression(bound_main_call.get()).getPrimitive().getI8();
-            case Types::Kind::i16: return evaluateExpression(bound_main_call.get()).getPrimitive().getI16();
-            case Types::Kind::i32: return evaluateExpression(bound_main_call.get()).getPrimitive().getI32();
+            case Types::Kind::u8: return evaluateExpression(bound_entry_call.get()).getPrimitive().getU8();
+            case Types::Kind::i8: return evaluateExpression(bound_entry_call.get()).getPrimitive().getI8();
+            case Types::Kind::i16: return evaluateExpression(bound_entry_call.get()).getPrimitive().getI16();
+            case Types::Kind::i32: return evaluateExpression(bound_entry_call.get()).getPrimitive().getI32();
             case Types::Kind::_void:
-                evaluateExpression(bound_main_call.get());
+                evaluateExpression(bound_entry_call.get());
                 return LINC_EXIT_PROGRAM_SUCCESS;
             default:
                 Reporting::push({Reporting::Report{
                     .type = Reporting::Type::Error, .stage = Reporting::Stage::Generator,
-                    .message = Logger::format("Defined function main() using return type $. "
-                        "Main only supports void and signed integral return types of at most 32 bits, "
+                    .message = Logger::format("Defined entry point using return type $. "
+                        "Entry points only support void and signed integral return types of at most 32 bits, "
                         "as well as 8-bit unsigned integers.",
-                        bound_main_call->getType())
+                        bound_entry_call->getType())
                 }});
                 return LINC_EXIT_PROGRAM_FAILURE;
             }

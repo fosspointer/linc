@@ -45,6 +45,7 @@
 - Language: Added formatted string literals, which are syntactical sugar for a string literal (modified with placeholders for each subexpressions) and an array of stringified arguments, that a function can then use and process arbitrarily (e.g. the literal `f"a + b = ${a + b}"` yields back `"a + b = $, [@(a + b)]`)`.
 - Language: Added default expressions, which return default initialized values of any given type (not guaranteed to have sensible values) (for example, `default<f32>` is equivalent to `0f32`).
 - Language: Implemented attributes (as well as the attributes `#deprecated` and `#deprecated("reason")`).
+- Language: Removed `main` as the default "entry-point" function. "Entry-points" must now be specified using the `#entry` attribute.
 
 ## Future plans (in order of priority)
 

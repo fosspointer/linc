@@ -112,12 +112,79 @@ namespace linc
         m_scopes.update(symbol->getName(), std::move(symbol));
     }
 
+    BoundProgram Binder::bindSource(const Program* program)
+    {
+        BoundProgram source;
+        source.declarations.reserve(program->declarations.size());
+        source.entryPointIndex = -1ul;
+
+        for(const auto& declaration: program->declarations)
+            source.declarations.push_back(bindDeclaration(declaration.get()));
+
+        return source;
+    }
+
     BoundProgram Binder::bindProgram(const Program* program)
     {
         BoundProgram bound_program;
+        bound_program.declarations.reserve(program->declarations.size());
+        bound_program.entryPointIndex = -1ul;
 
-        for(const auto& declaration: program->declarations)
+        for(std::size_t i{0ul}; i < program->declarations.size(); ++i)
+        {
+            const auto& declaration = program->declarations[i];
+            const auto& attributes = declaration->getAttributes();
             bound_program.declarations.push_back(bindDeclaration(declaration.get()));
+
+            constexpr auto attribute_name = "entry";
+            auto entrypoint_find = attributes.find(attribute_name);
+            if(entrypoint_find == attributes.end())
+                continue;
+            
+            else if(const auto& arguments = entrypoint_find->second->getArguments(); arguments && !arguments->getArguments()->getList().empty())
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .span = TextSpan::fromTokenInfo(arguments->getArguments()->getList().front().node->getTokenInfo()),
+                    .message = Logger::format("$ Attribute $ does not take any arguments, but was given $.",
+                        arguments->getArguments()->getList().front().node->getTokenInfo(), PrimitiveValue(std::string(attribute_name)),
+                        PrimitiveValue(arguments->getArguments()->getList().size()))
+                });
+            
+            else if(!dynamic_cast<const FunctionDeclaration*>(declaration.get()))
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .span = TextSpan::fromTokenInfo(declaration->getIdentifier()->getTokenInfo()),
+                    .message = Logger::format("$ Attribute $ can only be applied to a function, but symbol $ was given.",
+                        declaration->getIdentifier()->getTokenInfo(), PrimitiveValue(std::string(attribute_name)),
+                        PrimitiveValue(declaration->getIdentifier()->getValue()))
+                });
+            
+            else if(bound_program.entryPointIndex != -1ul)
+            {
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                    .span = TextSpan::fromTokenInfo(declaration->getIdentifier()->getTokenInfo()),
+                    .message = Logger::format("$ Only one function can be declared with attribute $.",
+                        declaration->getIdentifier()->getTokenInfo(), PrimitiveValue(std::string(attribute_name)))
+                });
+
+                const auto& previous_symbol = program->declarations.at(bound_program.entryPointIndex);
+                Reporting::push(Reporting::Report{
+                    .type = Reporting::Type::Info, .stage = Reporting::Stage::ABT,
+                    .span = TextSpan::fromTokenInfo(previous_symbol->getTokenInfo()),
+                    .message = Logger::format("$ Symbol $ was previously declared with attribute $ here.",
+                        previous_symbol->getTokenInfo(), PrimitiveValue(previous_symbol->getIdentifier()->getValue()), PrimitiveValue(std::string(attribute_name)))
+                });
+            }
+            
+            else bound_program.entryPointIndex = i;
+        }
+
+        if(bound_program.entryPointIndex == -1ul)
+            Reporting::push(Reporting::Report{
+                .type = Reporting::Type::Error, .stage = Reporting::Stage::ABT,
+                .message = "No entry point was specified for program."
+            });
 
         return bound_program;
     }

@@ -7,5 +7,6 @@ namespace linc
     struct BoundProgram final
     {
         std::vector<std::unique_ptr<const BoundDeclaration>> declarations;
+        std::size_t entryPointIndex;
     };
 }

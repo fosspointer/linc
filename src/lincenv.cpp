@@ -319,7 +319,7 @@ try
         parser.set(tokens, shell_name);
         auto tree = parser();
         if(linc::Reporting::hasError()) return;
-        auto program = binder.bindProgram(&tree);
+        auto program = binder.bindSource(&tree);
         if(linc::Reporting::hasError()) return;
         auto optimized_program = linc::Optimizer::optimizeProgram(program);
 

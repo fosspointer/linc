@@ -83,6 +83,7 @@ namespace linc
         }
 
         [[nodiscard]] struct BoundProgram bindProgram(const Program* program);
+        [[nodiscard]] struct BoundProgram bindSource(const Program* program);
         [[nodiscard]] std::unique_ptr<const class BoundNode> bindNode(const Node* node);
         [[nodiscard]] std::unique_ptr<const class BoundStatement> bindStatement(const class Statement* statement);
         [[nodiscard]] std::unique_ptr<const class BoundDeclaration> bindDeclaration(const class Declaration* expression);
