@@ -1,0 +1,11 @@
+*.exe
+*.out
+*.lib
+*.dll
+*.pld
+*.o
+*.a
+*.so
+*.obj
+/CMakeFiles
+/build
