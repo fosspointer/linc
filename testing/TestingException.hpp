@@ -3,6 +3,7 @@
 #include <optional>
 #include <string_view>
 #include <source_location>
+#include <linc/system/Containers.hpp>
 
 namespace testing
 {
@@ -16,7 +17,7 @@ namespace testing
         TestingException(Kind kind, std::source_location location);
         TestingException(Kind kind, std::string_view message, std::source_location location);
 
-        std::string info() const;
+        linc::String info() const;
     private:
         static std::string_view kindToString(Kind kind);
         const Kind m_kind;

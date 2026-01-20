@@ -3,6 +3,7 @@
 #include <chrono>
 #include <linc/system/Formattable.hpp>
 #include <linc/system/Colors.hpp>
+#include <linc/system/Containers.hpp>
 
 namespace linc
 {
@@ -44,33 +45,33 @@ namespace linc
         template<typename... Args>
         static inline void print(std::string_view format, Args&&... args)
         {
-            formatSinkImplementation(Format::printSink, format, std::vector<Formattable>{std::forward<Args>(args)...}); 
+            formatSinkImplementation(Format::printSink, format, Vector<Formattable>{std::forward<Args>(args)...}); 
         }
 
         template<typename... Args>
         static inline void println(std::string_view format, Args&&... args)
         {
-            formatSinkImplementation(Format::printSink, format, std::vector<Formattable>{std::forward<Args>(args)...}); 
+            formatSinkImplementation(Format::printSink, format, Vector<Formattable>{std::forward<Args>(args)...}); 
             std::fputc('\n', stdout);
         }
 
         template<typename... Args>
-        static inline std::string format(std::string_view format, Args&&... args)
+        static inline String format(std::string_view format, Args&&... args)
         {
-            return formatSinkImplementation(Format::stringSink, format, std::vector<Formattable>{std::forward<Args>(args)...}); 
+            return formatSinkImplementation(Format::stringSink, format, Vector<Formattable>{std::forward<Args>(args)...}); 
         }
 
         template<typename Sink, typename... Args>
         static inline Format::Appender<Sink>::SinkReturnType formatSink(Sink&& sink, std::string_view format, Args&&... args)
         {
-            return formatSinkImplementation(std::forward<Sink>(sink), format, std::vector<Formattable>{std::forward<Args>(args)...});
+            return formatSinkImplementation(std::forward<Sink>(sink), format, Vector<Formattable>{std::forward<Args>(args)...});
         }
 
         template <typename Sink>
-        static Format::Appender<Sink>::SinkReturnType formatSinkImplementation(Sink&& sink, std::string_view _format, std::vector<Formattable> args)
+        static Format::Appender<Sink>::SinkReturnType formatSinkImplementation(Sink&& sink, std::string_view _format, Vector<Formattable> args)
         {
             Format::Appender<Sink&&> appender(std::forward<Sink>(sink));
-            if constexpr(std::is_same_v<typename Format::Appender<Sink>::SinkReturnType, std::string>)
+            if constexpr(std::is_same_v<typename Format::Appender<Sink>::SinkReturnType, String>)
                 appender.getAggregate().reserve(_format.size() + args.size() * 5ul);
 
             static FormatOptions options;

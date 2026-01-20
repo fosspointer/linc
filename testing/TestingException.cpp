@@ -1,6 +1,7 @@
 #include "TestingException.hpp"
 #include <cstdio>
 #include <linc/system/Logger.hpp>
+#include <linc/system/Containers.hpp>
 
 namespace testing
 {
@@ -26,7 +27,7 @@ namespace testing
         }
     }
 
-    std::string TestingException::info() const
+    linc::String TestingException::info() const
     {
         auto kind_string = TestingException::kindToString(m_kind);
         if(m_message.has_value())

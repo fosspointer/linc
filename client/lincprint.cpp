@@ -31,7 +31,7 @@ int main(int argument_count, const char** arguments)
             }
         }
 
-    std::vector<linc::Formattable> argument_views;
+    linc::Vector<linc::Formattable> argument_views;
     argument_views.reserve(argument_count - 2ul);
 
     for(int i{2}; i < argument_count; ++i)

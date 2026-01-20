@@ -33,7 +33,7 @@ namespace linc
         } 
     }
 
-    std::string Formattable::toString(const FormatOptions& options) const
+    String Formattable::toString(const FormatOptions& options) const
     {
         switch(m_kind)
         {
@@ -46,9 +46,9 @@ namespace linc
         case Kind::Floating:
             return Format::floatingToString(m_floating, options.floatingPrecision);
         case Kind::String:
-            return std::string{m_string};
+            return String{m_string};
         case Kind::Character:
-            return std::string{1ul, m_character};
+            return String{1ul, m_character};
         case Kind::Pointer:
             return Format::unsignedToString(std::bit_cast<std::uint64_t>(m_pointer), 16ul);
         default:

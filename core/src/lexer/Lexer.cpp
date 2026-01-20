@@ -1,4 +1,5 @@
 #include <linc/lexer/Lexer.hpp>
+#include <linc/lexer/Escape.hpp>
 #include <linc/system/Logger.hpp>
 
 namespace linc
@@ -6,11 +7,11 @@ namespace linc
     Token Lexer::makeTokenFromValue(Token::Kind kind, std::size_t character_start, std::size_t character_end, std::size_t file, std::size_t line)
     {
         return Token{.kind = kind, .info = Token::Info{.file = file, .line = line, .characterStart = character_start, .characterEnd = character_end},
-            .value = m_sourceCode.at(line).text.substr(character_start, character_end - character_start + 1ul)
+            .value = m_sourceCode.at(line - 1ul).text.substr(character_start, character_end - character_start + 1ul)
         };
     }
 
-    std::vector<Token> Lexer::operator()()
+    Vector<Token> Lexer::operator()()
     {
         m_tokens.clear();
 
@@ -18,6 +19,7 @@ namespace linc
         while(peek().has_value())
         {
             if(ignoreSpace());
+            else if(tokenizeLiterals());
             else if(ignoreComments());
             else if(tokenizeIdentifier());
             else consume();
@@ -38,6 +40,30 @@ namespace linc
                 break;
         }
         return ignored;
+    }
+
+    bool Lexer::tokenizeLiterals()
+    {
+        if(tokenizeLiteralString()) return true;
+        else return false;
+    }
+
+    bool Lexer::tokenizeLiteralString()
+    {
+        if(*peek() != '"')
+            return false;
+
+        consume();
+        auto start = consume();
+        auto end = start;
+
+        while(peek().has_value() && peek()->line == start.line && *peek() != '"')
+            end = consume();
+
+        consume();
+
+        m_tokens.push_back(makeTokenFromValue(Token::Kind::LiteralString, start.index, end.index, 0, start.line));
+        return true;
     }
 
     bool Lexer::ignoreComments()
@@ -71,8 +97,7 @@ namespace linc
         while(peek().has_value() && peek()->line == startIdentifier.line && (std::isalnum(peek().value()) || peek().value() == '_'))
             endIdentifier = consume();
 
-        m_tokens.push_back(Token{.kind = Token::Kind::Identifier, .value = std::string_view{
-            m_sourceCode.at(startIdentifier.line - 1).text.substr(startIdentifier.index, endIdentifier.index - startIdentifier.index + 1)}});
+        m_tokens.push_back(makeTokenFromValue(Token::Kind::Identifier, startIdentifier.index, endIdentifier.index, 0ul, startIdentifier.line));
         return true;
     }
 }

@@ -6,7 +6,7 @@
 
 namespace testing
 {
-    void Testing::assert(bool expression_result, TestingException::Kind kind, std::source_location caller_location)
+    void Testing::assertCondition(bool expression_result, TestingException::Kind kind, std::source_location caller_location)
     {
         if(!expression_result)
             throw TestingException(kind, caller_location);

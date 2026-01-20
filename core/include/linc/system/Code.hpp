@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdio>
 #include <linc/lexer/Token.hpp>
+#include <linc/system/Containers.hpp>
 
 namespace linc
 {
@@ -17,7 +18,7 @@ namespace linc
             std::string_view text;
             std::size_t file, line;
         };
-        using Source = std::vector<Line>;
+        using Source = Vector<Line>;
 
         struct Character final
         {
@@ -32,7 +33,7 @@ namespace linc
         {
             Source result;
 
-            auto filepath_string = std::string{filepath};
+            auto filepath_string = String{filepath};
             std::FILE* file = std::fopen(filepath_string.c_str(), "r");
             std::size_t length;
             ssize_t bytes_read;

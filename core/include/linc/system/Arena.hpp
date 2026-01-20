@@ -2,7 +2,6 @@
 #include <cstddef>
 #include <forward_list>
 #include <cassert>
-#include <linc/system/Logger.hpp>
 
 namespace linc
 {
@@ -12,8 +11,34 @@ namespace linc
         constexpr static const std::size_t blockSize = 32768;
 
         template <typename T>
+        class Allocator
+        {
+        public:
+            using value_type = T;
+            using pointer = T*;
+            using const_pointer = const T*;
+            using reference = T&;
+            using const_reference = const T&;
+            using size_type = std::size_t;
+            using difference_type = std::ptrdiff_t;
+
+            Allocator() = default;
+
+            constexpr size_type max_size() { return Arena::blockSize / sizeof(T); }
+            
+            [[nodiscard]] inline pointer allocate(size_type n)
+            {
+                if(n > max_size())
+                    throw std::bad_array_new_length();
+
+                return Arena::allocate<T>(n);
+            }
+
+            void deallocate(pointer, std::size_t) {}
+        };
+
+        template <typename T>
         inline static T* allocate(std::size_t count = 1ul) { return get().allocateImpl<T>(count); }
-        inline static void printInfo() { return get().printInfoImpl(); }
     private:
         Arena() { m_blocks.push_front(Block{}); }
         static Arena& get()
@@ -28,7 +53,9 @@ namespace linc
             static_assert(sizeof(T) <= sizeof(Block), "Cannot allocate specified type T of size greater than the arena block size.");
             auto total_bytes = count * sizeof(T);
 
-            assert(total_bytes <= sizeof(Block));
+            // Maybe would want to have this?
+            // Currently Allocator class checks and conditionally throws exception.
+            // assert(total_bytes <= sizeof(Block));
 
             if(m_blockIndex + total_bytes > blockSize) 
             {
@@ -42,12 +69,14 @@ namespace linc
             return result;
         }
 
-        void printInfoImpl()
-        {
-            Logger::println("Allocated blocks: $, allocation index: $ bytes", std::distance(m_blocks.begin(), m_blocks.end()), m_blockIndex);
-        }
         struct Block final { std::byte data[blockSize]; };
         std::forward_list<Block> m_blocks;
         std::size_t m_blockIndex{0ul};
     };
+
+    template<typename T, typename U>
+    constexpr bool operator==(const Arena::Allocator<T>&, const Arena::Allocator<U>&) { return true; }
+
+    template<typename T, typename U>
+    constexpr bool operator!=(const Arena::Allocator<T>&, const Arena::Allocator<U>&) { return false; }
 }

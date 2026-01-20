@@ -14,7 +14,7 @@
         auto location = std::source_location::current(); \
         try \
         { \
-            testing::Testing::assert(!!(expression), testing::TestingException::Kind::AssertionFailed); \
+            testing::Testing::assertCondition(!!(expression), testing::TestingException::Kind::AssertionFailed); \
         } \
         catch(const testing::TestingException& exception) \
         { \
@@ -96,7 +96,7 @@ namespace testing
             return instance;
         }
 
-        static void assert(bool expression_result, TestingException::Kind kind, std::source_location caller_location = std::source_location::current());
+        static void assertCondition(bool expression_result, TestingException::Kind kind, std::source_location caller_location = std::source_location::current());
 
         static int runTests();
     };
