@@ -47,10 +47,21 @@
 - Language: Implemented attributes (as well as the attributes `#deprecated` and `#deprecated("reason")`).
 - Language: Removed `main` as the default "entry-point" function. "Entry-points" must now be specified using the `#entry` attribute.
 
-## Future plans (in order of priority)
+## Future plans (in random order)
 
-- More standard library tooling.
-- Proper namespacing (and syntactical sugar for "member functions").
-- References (non-nullable pointers to types, syntax still to be decided).
-- Distinction between static and dynamic arrays.
-- Module system?
+currently planed (after rework):
+- interpolated strings (complete rework, already have plans).
+- generic namespaces (to allow extending generic structs, could maybe have more uses?)
+- duck-typing style type casting (I don't know what to call this)
+- actual proper pattern matching (match patterns *always*)
+- single pattern match if expressions (a.k.a. if match)
+- alignment, packing and noreturn attributes
+- top level declarations (so as not to need forward declarations for mutual references to symbols)
+- operator, call and cast behavior overloading
+- attributes for overwriting the default behavior of the debug stringification operator (@) for structs, enums, arrays, etc...
+- token-pattern based macros
+- fixing the ffi mess (or lack thereof)
+- some sort of abstract type declaration construct (akin to interfaces)
+- statically dispatched enum bound 'interfaces' (use enums)
+- minor syntax changes to make the language grammar context free
+- self host (if ever possible)
