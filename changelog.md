@@ -49,7 +49,7 @@
 
 ## Future plans (in random order)
 
-currently planed (after rework):
+currently planned (after rework):
 - interpolated strings (complete rework, already have plans).
 - generic namespaces (to allow extending generic structs, could maybe have more uses?)
 - duck-typing style type casting (I don't know what to call this)
