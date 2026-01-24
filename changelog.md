@@ -46,6 +46,7 @@
 - Language: Added default expressions, which return default initialized values of any given type (not guaranteed to have sensible values) (for example, `default<f32>` is equivalent to `0f32`).
 - Language: Implemented attributes (as well as the attributes `#deprecated` and `#deprecated("reason")`).
 - Language: Removed `main` as the default "entry-point" function. "Entry-points" must now be specified using the `#entry` attribute.
+- Language: Added support for shebangs. `#!` at the beginning of files will be ignored by the Lexer. Useful for scripting.
 
 ## Future plans (in random order)
 
