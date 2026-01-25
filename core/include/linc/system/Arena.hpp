@@ -34,11 +34,21 @@ namespace linc
                 return Arena::allocate<T>(n);
             }
 
-            void deallocate(pointer, std::size_t) {}
+            void deallocate(pointer p, std::size_t n)
+            {
+                return Arena::deallocate<T>(p, n);
+            }
         };
 
         template <typename T>
         inline static T* allocate(std::size_t count = 1ul) { return get().allocateImpl<T>(count); }
+
+        template <typename T>
+        inline static void deallocate(T* pointer, std::size_t count = 1ul) { get().deallocateImpl<T>(pointer, count); }
+
+        inline static std::size_t getBlockIndex() { return get().m_blockIndex; }
+        inline static std::size_t getBlockDistance() { return std::distance(get().m_blocks.begin(), get().m_blocks.end()); }
+
     private:
         Arena() { m_blocks.push_front(Block{}); }
         static Arena& get()
@@ -67,6 +77,17 @@ namespace linc
             T* result = reinterpret_cast<T*>(m_blocks.front().data + m_blockIndex);
             m_blockIndex += total_bytes;
             return result;
+        }
+
+        template <typename T>
+        void deallocateImpl(T* pointer, std::size_t count)
+        {
+            auto deletion_size = count * sizeof(T);
+            auto deletion_start_index = m_blockIndex - deletion_size;
+            auto actual_start_index = reinterpret_cast<std::size_t>(pointer);
+
+            if(actual_start_index == deletion_start_index)
+                m_blockIndex -= deletion_size;
         }
 
         struct Block final { std::byte data[blockSize]; };

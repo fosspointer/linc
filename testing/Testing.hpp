@@ -36,7 +36,8 @@
     while(false)
 
 #define TESTING_ASSERT_THROW(expression, exception_type) \
-    ([&](){ \
+    do \
+    { \
         auto location = std::source_location::current(); \
         try \
         { \
@@ -59,7 +60,37 @@
             throw testing::TestingException(testing::TestingException::Kind::InvalidExceptionThrown, location); \
         } \
         throw testing::TestingException(testing::TestingException::Kind::ShouldHaveThrownException, location); \
-    }())
+    } \
+    while(false)
+
+#define TESTING_SNAPSHOT(expression, fileIdentifier) \
+    do \
+    { \
+        auto location = std::source_location::current(); \
+        try \
+        { \
+            auto result = expression; \
+            testing::Testing::assertSnapshot(result, #fileIdentifier, location); \
+        } \
+        catch(const testing::TestingException& exception) \
+        { \
+            throw exception; \
+        } \
+        catch(const std::exception& exception) \
+        { \
+            throw testing::TestingException(testing::TestingException::Kind::UnexpectedException, exception.what(), location); \
+        } \
+        catch(const linc::Exception& exception) \
+        { \
+            throw testing::TestingException(testing::TestingException::Kind::UnexpectedException, exception.info(), location); \
+        } \
+        catch(...) \
+        { \
+            throw testing::TestingException(testing::TestingException::Kind::UnexpectedException, location); \
+        } \
+        std::string_view expression_view = expression; \
+    } \
+    while(false)
 
 #define DEFINE_TEST(test_name, description_value) \
     void test_name(); \
@@ -97,7 +128,7 @@ namespace testing
         }
 
         static void assertCondition(bool expression_result, TestingException::Kind kind, std::source_location caller_location = std::source_location::current());
-
+        static void assertSnapshot(std::string_view expression_result, std::string_view file_identifier, std::source_location caller_location = std::source_location::current());
         static int runTests();
     };
 }

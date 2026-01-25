@@ -11,7 +11,7 @@ namespace testing
     {
     public:
         enum class Kind : std::uint_least8_t {
-            AssertionFailed, UnexpectedValue, UnexpectedException, InvalidExceptionThrown, ShouldHaveThrownException, TimedOut 
+            AssertionFailed, UnexpectedValue, UnexpectedException, InvalidExceptionThrown, ShouldHaveThrownException, UnmatchedSnapshot, TimedOut 
         };
 
         TestingException(Kind kind, std::source_location location);

@@ -1,5 +1,6 @@
 #include "Testing.hpp"
 #include <linc/system/Logger.hpp>
+#include <filesystem>
 
 #define TESTING_EXIT_SUCCESS 0
 #define TESTING_EXIT_FAILURE 1
@@ -10,6 +11,30 @@ namespace testing
     {
         if(!expression_result)
             throw TestingException(kind, caller_location);
+    }
+
+    void Testing::assertSnapshot(std::string_view expression_result, std::string_view file_identifier, std::source_location caller_location)
+    {
+        auto snapshot_path = linc::Logger::format("$/$", LINC_TESTING_SNAPSHOT_PATH, file_identifier);
+
+        bool snapshot_exists = std::filesystem::exists(snapshot_path);
+        std::FILE* snapshot;
+
+        if(!snapshot_exists)
+        {
+            snapshot = std::fopen(snapshot_path.c_str(), "w");
+            std::fwrite(expression_result.data(), 1ul, expression_result.length(), snapshot);
+            std::fclose(snapshot);
+            return;
+        }
+        
+        linc::String contents;
+        snapshot = std::fopen(snapshot_path.c_str(), "r");
+        for(char buffer[1024ul]; std::fgets(buffer, sizeof buffer, snapshot) != nullptr;)
+            contents.append(buffer);
+
+        std::fclose(snapshot);
+        Testing::assertCondition(contents == expression_result, TestingException::Kind::UnmatchedSnapshot, caller_location);
     }
 
     int Testing::runTests()

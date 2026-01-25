@@ -40,7 +40,7 @@ add_executable(lincprint client/lincprint.cpp)
 target_link_libraries(lincenv linccore)
 target_link_libraries(lincprint linccore)
 
-include(testing/testing.cmake)
+add_subdirectory(testing)
 
 # target_compile_definitions(linccore PUBLIC LINC_INSTALL_PATH="${CMAKE_INSTALL_PREFIX}")
 # target_precompile_headers(linccore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/include/linc/Include.hpp)

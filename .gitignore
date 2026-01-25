@@ -9,3 +9,4 @@
 *.obj
 /CMakeFiles
 /build
+/testing/snapshots

@@ -25,4 +25,10 @@ DEFINE_TEST(ThrowLincException, "Test that linc exceptions are correctly caught"
     TESTING_ASSERT_THROW(willThrow(), std::exception);
 }
 
+DEFINE_TEST(SnapshotTest, "Simple test to see if snapshots are working")
+{
+    auto evaluation = "Example string";
+    TESTING_SNAPSHOT(evaluation, test_file);
+}
+
 TESTING_MAIN

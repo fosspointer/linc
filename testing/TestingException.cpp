@@ -23,6 +23,7 @@ namespace testing
         case Kind::InvalidExceptionThrown: return "Invalid Exception Thrown";
         case Kind::ShouldHaveThrownException: return "Test Exited Without Throw";
         case Kind::TimedOut: return "Test Timed Out";
+        case Kind::UnmatchedSnapshot: return "Unmatched Snapshot";
         default: throw std::runtime_error("TestingException::Kind enum out of bounds");
         }
     }
