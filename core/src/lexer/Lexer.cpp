@@ -25,6 +25,9 @@ namespace linc
     {
         std::vector<Token> tokens;
 
+        if(tokenizeSpace());
+        tokenizeShebang();
+
         while(peek().has_value())
         {
             std::string value_buffer;
@@ -44,6 +47,15 @@ namespace linc
 
         m_line = m_characterIndex = {};
         return tokens;
+    }
+
+    void Lexer::tokenizeShebang() const
+    {
+        if(!peek(1ul).has_value() || peek().value() != '#' || peek(1ul).value() != '!')
+            return;
+
+        ++m_line;
+        m_characterIndex = 0ul;
     }
 
     static std::optional<Token::NumberBase> getNumberBase(char c)

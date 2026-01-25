@@ -34,6 +34,10 @@ namespace linc
             return digits.substr(0ul, Token::baseToInt(base)).contains(c);
         }
     private:        
+        /// @brief Internal utility method to check whether the next sequence of characters corresponds to a shell script shebang. If so, it will be ignored. Meant to be used only at the beginning of files.
+        /// @return Boolean corresponding to whether whitespace was found.
+        void tokenizeShebang() const;
+
         /// @brief Internal utility method to check whether the next sequence of characters is whitespace. If it is, ignore it and return true
         /// (whitespace is non-significant in linc). If not, return false to let other methods tokenize it.
         /// @return Boolean corresponding to whether whitespace was found.
