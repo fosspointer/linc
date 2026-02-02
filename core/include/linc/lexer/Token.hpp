@@ -8,23 +8,13 @@ namespace linc
     struct Token final
     {
     public:
-        enum class NumberBase: unsigned char
-        {
-            Decimal, Hexadecimal, Binary, Octal
-        };
-
-        struct Info
-        {
-            std::size_t file, line, characterStart, characterEnd;
-        };
-
         enum class Kind : std::uint_least16_t
         {
             // Control Tokens
             EndOfFile, FormatStringStart, FormatStringEnd, FormatStringExpressionStart, FormatStringExpressionEnd,
 
             // Keywords 
-            KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse, KeywordMutability, KeywordAs, KeywordFor, KeywordIn, KeywordBreak, KeywordContinue, KeywordStructure, KeywordCase, KeywordEnumeration, KeywordGeneric, KeywordAlias, KeywordNamespace, KeywordDefault,
+            KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordTrue, KeywordFalse, KeywordMutability, KeywordAs, KeywordFor, KeywordIn, KeywordBreak, KeywordContinue, KeywordRecord, KeywordCase, KeywordChoice, KeywordGeneric, KeywordAlias, KeywordNamespace, KeywordDefault, KeywordFinally,
 
             // Symbols
             Tilde, Bang, At, Pound, Percent, Caret, Ampersand, Asterisk, ParenthesisLeft, ParenthesisRight, Minus, Equals, Plus, SquareLeft, BraceLeft, SquareRight, BraceRight, Semicolon, Colon, Bar, Comma, AngledLeft, Dot, AngledRight, Slash, DoubleBang, DoublePound, DoubleAmpersand, DoubleMinus, DoubleEquals, DoublePlus, DoubleColon, DoubleBar, DoubleAngledLeft, DoubleDot, DoubleAngledRight, BangEquals, AsteriskEquals, MinusEquals, PlusEquals, ColonEquals, SlashEquals,
@@ -40,10 +30,16 @@ namespace linc
 
             // Identifiers
             Identifier
-        } kind;
+        };
 
-        Info info;
-        std::optional<std::string_view> value;
-        std::optional<NumberBase> numberBase;
+        Token(Kind kind, std::string_view source_view, std::size_t file, std::size_t line)
+            :kind(kind), file(file), line(line), lexeme(source_view)
+        {}
+
+        std::string_view kindToString(Token::Kind kind);
+
+        Kind kind;
+        std::size_t file, line;
+        std::string_view lexeme;
     };
 }

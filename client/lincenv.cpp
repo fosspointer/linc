@@ -10,15 +10,16 @@ try
     using namespace linc;
     Logger::init();
 
-    auto code = Code::toSource("test.linc");
-    Lexer lexer(code, 0ul);
+    auto [file_index, code] = Code::toSource("test.linc");
+    Lexer lexer(*code, file_index);
     auto tokens = lexer();
 
-    Logger::println("tokens:");
+    Logger::println("test: $", code.value());
     for(const auto& token: tokens)
     {
-        Logger::println("[token] type = $, file: $::$", (int)token.kind, token.info.file, token.info.line);
-        Logger::println(" - value = $", token.value.value_or("none"));
+        Logger::println("[token] type = $, file: $::$", (int)token.kind,
+            Files::filepathAtIndex(token.file), token.line);
+        Logger::println(" - lexeme = $", token.lexeme);
     }
 
     std::fflush(stdout);

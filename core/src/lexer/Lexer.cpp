@@ -1,27 +1,41 @@
 #include <linc/lexer/Lexer.hpp>
 #include <linc/lexer/Escape.hpp>
 #include <linc/system/Logger.hpp>
+#include <linc/lexer/Keywords.hpp>
 
 namespace linc
 {
-    Token Lexer::makeTokenFromValue(Token::Kind kind, std::size_t character_start, std::size_t character_end, std::size_t file, std::size_t line)
+    std::string_view Lexer::viewFromBounds(std::size_t start, std::size_t end)
     {
-        return Token{.kind = kind, .info = Token::Info{.file = file, .line = line, .characterStart = character_start, .characterEnd = character_end},
-            .value = m_sourceCode.at(line - 1ul).text.substr(character_start, character_end - character_start + 1ul)
-        };
+        return std::string_view{m_sourceCode}.substr(start, end - start);
+    }
+
+    char Lexer::peek(std::size_t offset) const
+    {
+        if(auto target_index = m_characterIndex + offset; target_index < m_sourceCode.size())
+            return m_sourceCode[target_index];
+        else
+            return '\0';
+    }
+
+    char Lexer::peek() const
+    {
+        if(m_characterIndex < m_sourceCode.size())
+            return m_sourceCode[m_characterIndex];
+        else
+            return '\0';
     }
 
     Vector<Token> Lexer::operator()()
     {
         m_tokens.clear();
-
         ignoreShebang();
-        while(peek().has_value())
+        while(peek())
         {
-            if(ignoreSpace());
-            else if(tokenizeLiterals());
-            else if(ignoreComments());
-            else if(tokenizeIdentifier());
+            if(ignoreSpace()) {}
+            else if(ignoreComments()) {}
+            else if(tokenizeLiterals()) {}
+            else if(tokenizeWords()) {}
             else consume();
         }
 
@@ -31,15 +45,24 @@ namespace linc
     bool Lexer::ignoreSpace()
     {
         bool ignored{false};
-        while(std::isspace(*peek()))
+        while(true)
         {
-            consume();
-            ignored = true;
-
-            if(!peek())
+            switch(peek())
+            {
+            case ' ':
+            case '\v':
+            case '\f':
+            case '\r':
                 break;
+            case '\n':
+                ++m_lineIndex;
+                break;
+            default:
+                return ignored;
+            }
+            ignored = true;
+            consume();
         }
-        return ignored;
     }
 
     bool Lexer::tokenizeLiterals()
@@ -50,54 +73,73 @@ namespace linc
 
     bool Lexer::tokenizeLiteralString()
     {
-        if(*peek() != '"')
+        constexpr char string_literal_quote = '"';
+        if(peek() != string_literal_quote)
             return false;
 
-        consume();
-        auto start = consume();
-        auto end = start;
-
-        while(peek().has_value() && peek()->line == start.line && *peek() != '"')
-            end = consume();
-
+        auto line = m_lineIndex;
+        auto start = m_characterIndex;
         consume();
 
-        m_tokens.push_back(makeTokenFromValue(Token::Kind::LiteralString, start.index, end.index, 0, start.line));
+        char current = peek();
+        while(current && line == m_lineIndex && current != string_literal_quote)
+        {
+            consume();
+            current = peek();
+        }
+
+        if(!current || current != string_literal_quote)
+            throw std::runtime_error("todo: this needs error handling");
+
+        consume();
+        m_tokens.push_back(Token(Token::Kind::LiteralString, viewFromBounds(start, m_characterIndex), m_file, line));
+
         return true;
     }
 
     bool Lexer::ignoreComments()
     {
-        if(!peek(1ul) || *peek() != '/' || *peek() != '/')
+        constexpr char comment_lead = '/';
+        if(peek(1ul) != comment_lead || peek() != comment_lead)
             return false;
 
-        m_characterIndex = {};
-        ++m_line;
+        char current;
+        while(current = peek(), current && current != '\n')
+            consume();
+
+        ++m_lineIndex;
         return true;
     }
 
     void Lexer::ignoreShebang()
     {
         ignoreSpace();
-        if(!peek(1ul) || *peek() != '#' || *peek() != '!')
+        if(peek() != '#' || peek() != '!')
             return;
 
         m_characterIndex = {};
-        ++m_line;
+        ++m_lineIndex;
     }
 
-    bool Lexer::tokenizeIdentifier()
+    bool Lexer::tokenizeWords()
     {
-        if(!(std::isalpha(*peek())) && *peek() != '_')
+        if(!(std::isalpha(peek())) && peek() != '_')
             return false;
 
-        auto startIdentifier = consume();
-        Code::Character endIdentifier = startIdentifier;
+        auto line = m_lineIndex;
+        auto start = m_characterIndex;
+        consume();
 
-        while(peek().has_value() && peek()->line == startIdentifier.line && (std::isalnum(peek().value()) || peek().value() == '_'))
-            endIdentifier = consume();
+        auto current = peek();
+        while(current && line == m_lineIndex && (std::isalnum(current) || current == '_'))
+        {
+            consume();
+            current = peek();
+        }
 
-        m_tokens.push_back(makeTokenFromValue(Token::Kind::Identifier, startIdentifier.index, endIdentifier.index, 0ul, startIdentifier.line));
+        auto view = viewFromBounds(start, m_characterIndex);
+        auto token_kind = Keywords::getKeywordOrIdentifier(view);
+        m_tokens.push_back(Token(token_kind, view, m_file, line));
         return true;
     }
 }
