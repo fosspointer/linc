@@ -105,7 +105,10 @@ namespace linc
 
         char current;
         while(current = peek(), current && current != '\n')
+        {
             consume();
+            current = peek();
+        }
 
         ++m_lineIndex;
         return true;
