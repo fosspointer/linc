@@ -1,4 +1,3 @@
-#include <chrono>
 #include <linc/system/Logger.hpp>
 #include <linc/system/Exception.hpp>
 #include <linc/system/Arena.hpp>
@@ -17,7 +16,7 @@ try
     Logger::println("test: $", code.value());
     for(const auto& token: tokens)
     {
-        Logger::println("[token] type = $, file: $::$", (int)token.kind,
+        Logger::println("[token] type = $, file: $::$", Token::kindToString(token.kind),
             Files::filepathAtIndex(token.file), token.line);
         Logger::println(" - lexeme = $", token.lexeme);
     }

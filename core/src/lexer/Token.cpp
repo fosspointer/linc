@@ -7,8 +7,8 @@ namespace linc
         switch(kind)
         {
         case Kind::EndOfFile: return "End of File";
-        case Kind::FormatStringStart: return "F-String Start";
-        case Kind::FormatStringEnd: return "F-String End";
+        case Kind::FormatStringStart: return "I-String Start";
+        case Kind::FormatStringEnd: return "I-String End";
         case Kind::FormatStringExpressionStart: return "F-String Expression Start";
         case Kind::FormatStringExpressionEnd: return "E-String Expression End";
         case Kind::KeywordReturn: return "Return Keyword";
@@ -16,8 +16,6 @@ namespace linc
         case Kind::KeywordIf: return "If Keyword";
         case Kind::KeywordElse: return "Else Keyword";
         case Kind::KeywordWhile: return "While Keyword";
-        case Kind::KeywordTrue: return "True Keyword";
-        case Kind::KeywordFalse: return "False Keyword";
         case Kind::KeywordMutability: return "Mutability Keyword";
         case Kind::KeywordAs: return "As Keyword";
         case Kind::KeywordFor: return "For Keyword";
@@ -74,20 +72,11 @@ namespace linc
         case Kind::PlusEquals: return "Plus Equals";
         case Kind::ColonEquals: return "Colon Equals";
         case Kind::SlashEquals: return "Slash Equals";
-        case Kind::LiteralI8: return "I8 Literal";
-        case Kind::LiteralI16: return "I16 Literal";
-        case Kind::LiteralI32: return "I32 Literal";
-        case Kind::LiteralI64: return "I64 Literal";
-        case Kind::LiteralISize: return "ISize Literal";
-        case Kind::LiteralU8: return "U8 Literal";
-        case Kind::LiteralU16: return "U16 Literal";
-        case Kind::LiteralU32: return "U32 Literal";
-        case Kind::LiteralU64: return "U64 Literal";
-        case Kind::LiteralUSize: return "USize Literal";
-        case Kind::LiteralF32: return "F32 Literal";
-        case Kind::LiteralF64: return "F64 Literal";
+        case Kind::LiteralNumber: return "Number Literal";
         case Kind::LiteralCharacter: return "Character Literal";
         case Kind::LiteralString: return "String Literal";
+        case Kind::LiteralTrue: return "True Literal";
+        case Kind::LiteralFalse: return "False Literal";
         case Kind::Identifier: return "Identifier";
         }
     }

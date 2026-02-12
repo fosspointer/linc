@@ -3,13 +3,15 @@
 namespace linc
 {
     const std::unordered_map<std::string_view, Token::Kind> Keywords::s_keywordMap{
+        // Literal keywords
+        {"true", Token::Kind::LiteralTrue},
+        {"false", Token::Kind::LiteralFalse},
+        // Regular keywords
         {"return", Token::Kind::KeywordReturn},
         {"fn", Token::Kind::KeywordFunction},
         {"if", Token::Kind::KeywordIf},
         {"else", Token::Kind::KeywordElse},
         {"while", Token::Kind::KeywordWhile},
-        {"true", Token::Kind::KeywordTrue},
-        {"false", Token::Kind::KeywordFalse},
         {"mut", Token::Kind::KeywordMutability},
         {"as", Token::Kind::KeywordAs},
         {"for", Token::Kind::KeywordFor},
