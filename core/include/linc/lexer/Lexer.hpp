@@ -22,6 +22,7 @@ namespace linc
         bool tokenizeLiteralCharacter();
         bool tokenizeLiteralNumber();
         bool tokenizeLiteralInterpolatedString();
+        bool tokenizeSymbols();
 
         inline void consume() { ++m_characterIndex; }
         [[nodiscard]] char peek(std::size_t offset) const;

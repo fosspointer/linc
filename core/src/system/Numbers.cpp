@@ -11,7 +11,7 @@ namespace linc
         case 'd': return 10ul;
         case 'x': return 16ul;
         case 't': return 36ul;
-        default: return 10ul;
+        default: return 0ul;
         }
     }
 }

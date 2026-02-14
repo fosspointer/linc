@@ -57,6 +57,7 @@ namespace linc
             else if(ignoreComments()) {}
             else if(tokenizeLiterals()) {}
             else if(tokenizeWords()) {}
+            else if(tokenizeSymbols()) {}
             else consume();
         }
 
@@ -138,15 +139,20 @@ namespace linc
 
         auto [start, line] = getStartIndices();
 
-        bool has_digits_before_period = true;
+        bool has_digits_before_period;
         std::size_t digit_count = Numbers::defaultBase; // Specifies the range of our number system, e.g. 8 of octal, 16 for hexadecimal, etc...
         auto is_negative = match('-'); // Optionally match a negative sign
         if((has_digits_before_period = match('0'))) // Might specify base instead of digits
+        {
             digit_count = Numbers::getBaseByDescriptor(peek());
+            if(digit_count)
+                consume();
+            else digit_count = Numbers::defaultBase;
+        }
 
         std::string_view valid_digits = std::string_view{Numbers::digits, digit_count}; // Use the digit string up
 
-        has_digits_before_period = match(valid_digits);
+        has_digits_before_period |= match(valid_digits);
         char current = peek();
         while(valid_digits.contains(current) || (has_digits_before_period && current == '_'))
         {
@@ -178,6 +184,16 @@ namespace linc
                 m_characterIndex = character_index_before_period;
             }
         }
+
+        bool has_suffix = false;
+        current = peek();
+        while(std::isalpha(current) || current == '_' || (has_suffix && std::isalnum(current)))
+        {
+            has_suffix = true;
+            consume();
+            current = peek();
+        }
+
         m_tokens.push_back(Token(Token::Kind::LiteralNumber, viewFromBounds(start, m_characterIndex), m_file, line));
         return true;
     }
@@ -268,6 +284,155 @@ namespace linc
         auto view = viewFromBounds(start, m_characterIndex);
         auto token_kind = Keywords::getKeywordOrIdentifier(view);
         m_tokens.push_back(Token(token_kind, view, m_file, line));
+        return true;
+    }
+
+    bool Lexer::tokenizeSymbols()
+    {
+        auto [start, line] = getStartIndices();
+        Token::Kind symbol_kind;
+
+        switch(peek())
+        {
+        case '~':
+            consume();
+            symbol_kind = Token::Kind::Tilde;
+            break;
+        case '!':
+            consume();
+            if(match('!'))
+                symbol_kind = Token::Kind::DoubleBang;
+            else if(match('='))
+                symbol_kind = Token::Kind::BangEquals;
+            else symbol_kind = Token::Kind::Bang;
+            break;
+        case '@':
+            consume();
+            symbol_kind = Token::Kind::At;
+            break;
+        case '#':
+            consume();
+            if(match('#'))
+                symbol_kind = Token::Kind::DoublePound;
+            else symbol_kind = Token::Kind::Pound;
+            break;
+        case '%':
+            consume();
+            symbol_kind = Token::Kind::Percent;
+            break;
+        case '^':
+            consume();
+            symbol_kind = Token::Kind::Caret;
+            break;
+        case '&':
+            consume();
+            if(match('&'))
+                symbol_kind = Token::Kind::DoubleAmpersand;
+            else symbol_kind = Token::Kind::Ampersand;
+            break;
+        case '*':
+            consume();
+            if(match('='))
+                symbol_kind = Token::Kind::AsteriskEquals;
+            else symbol_kind = Token::Kind::Asterisk;
+            break;
+        case '(':
+            consume();
+            symbol_kind = Token::Kind::ParenthesisLeft;
+            break;
+        case ')':
+            consume();
+            symbol_kind = Token::Kind::ParenthesisRight;
+            break;
+        case '-':
+            consume();
+            if(match('-'))
+                symbol_kind = Token::Kind::DoubleMinus;
+            else if(match('='))
+                symbol_kind = Token::Kind::MinusEquals;
+            else symbol_kind = Token::Kind::Minus;
+            break;
+        case '=':
+            consume();
+            if(match('='))
+                symbol_kind = Token::Kind::DoubleEquals;
+            else symbol_kind = Token::Kind::Equals;
+            break;
+        case '+':
+            consume();
+            if(match('+'))
+                symbol_kind = Token::Kind::DoublePlus;
+            else if(match('='))
+                symbol_kind = Token::Kind::PlusEquals;
+            else symbol_kind = Token::Kind::Plus;
+            break;
+        case '[':
+            consume();
+            symbol_kind = Token::Kind::SquareLeft;
+            break;
+        case '{':
+            consume();
+            symbol_kind = Token::Kind::BraceLeft;
+            break;
+        case ']':
+            consume();
+            symbol_kind = Token::Kind::SquareRight;
+            break;
+        case '}':
+            consume();
+            symbol_kind = Token::Kind::BraceRight;
+            break;
+        case ';':
+            consume();
+            symbol_kind = Token::Kind::Semicolon;
+            break;
+        case ':':
+            consume();
+            if(match(':'))
+                symbol_kind = Token::Kind::DoubleColon;
+            else if(match('='))
+                symbol_kind = Token::Kind::ColonEquals;
+            else symbol_kind = Token::Kind::Colon;
+            break;
+        case '|':
+            consume();
+            if(match('|'))
+                symbol_kind = Token::Kind::DoubleBar;
+            else symbol_kind = Token::Kind::Bar;
+            break;
+        case ',':
+            consume();
+            symbol_kind = Token::Kind::Comma;
+            break;
+        case '<':
+            consume();
+            if(match('<'))
+                symbol_kind = Token::Kind::DoubleAngledLeft;
+            else symbol_kind = Token::Kind::AngledLeft;
+            break;
+        case '.':
+            consume();
+            if(match('.'))
+                symbol_kind = Token::Kind::DoubleDot;
+            else symbol_kind = Token::Kind::Dot;
+            break;
+        case '>':
+            consume();
+            if(match('>'))
+                symbol_kind = Token::Kind::DoubleAngledRight;
+            else symbol_kind = Token::Kind::AngledRight;
+            break;
+        case '/':
+            consume();
+            if(match('='))
+                symbol_kind = Token::Kind::SlashEquals;
+            else symbol_kind = Token::Kind::Slash;
+            break;
+        default:
+            return false;
+        }
+
+        m_tokens.push_back(Token(symbol_kind, viewFromBounds(start, m_characterIndex), m_file, line));
         return true;
     }
 }

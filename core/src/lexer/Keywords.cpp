@@ -21,7 +21,7 @@ namespace linc
         {"record", Token::Kind::KeywordRecord},
         {"case", Token::Kind::KeywordCase},
         {"choice", Token::Kind::KeywordChoice},
-        {"generic", Token::Kind::KeywordGeneric},
+        {"gen", Token::Kind::KeywordGeneric},
         {"alias", Token::Kind::KeywordAlias},
         {"scope", Token::Kind::KeywordNamespace},
         {"default", Token::Kind::KeywordDefault},

@@ -23,7 +23,7 @@ namespace linc
         case Kind::KeywordBreak: return "Break Keyword";
         case Kind::KeywordContinue: return "Continue Keyword";
         case Kind::KeywordRecord: return "Record";
-        case Kind::KeywordCase: return " KeywordCase";
+        case Kind::KeywordCase: return "Keyword Case";
         case Kind::KeywordChoice: return "Choice Keyword";
         case Kind::KeywordGeneric: return "Generic Keyword";
         case Kind::KeywordAlias: return "Alias Keyword";

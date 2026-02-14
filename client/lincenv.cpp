@@ -1,3 +1,4 @@
+#include <iostream>
 #include <linc/system/Logger.hpp>
 #include <linc/system/Exception.hpp>
 #include <linc/system/Arena.hpp>
@@ -9,19 +10,22 @@ try
     using namespace linc;
     Logger::init();
 
-    auto [file_index, code] = Code::toSource("test.linc");
-    Lexer lexer(*code, file_index);
-    auto tokens = lexer();
-
-    Logger::println("test: $", code.value());
-    for(const auto& token: tokens)
+    for(;;)
     {
-        Logger::println("[token] type = $, file: $::$", Token::kindToString(token.kind),
-            Files::filepathAtIndex(token.file), token.line);
-        Logger::println(" - lexeme = $", token.lexeme);
-    }
+        std::cout << " > ";
+        std::string input;
+        std::getline(std::cin, input);
+        Lexer lexer(input, 0ul);
+        auto tokens = lexer();
 
-    std::fflush(stdout);
+        for(const auto& token: tokens)
+        {
+            Logger::println("[token] type = $, file: $::$", Token::kindToString(token.kind),
+                token.file, token.line);
+            Logger::println(" - lexeme = $", token.lexeme);
+            std::fflush(stdout);
+        }
+    }
 }
 catch(linc::Exception& e)
 {
