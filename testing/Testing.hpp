@@ -88,7 +88,6 @@
         { \
             throw testing::TestingException(testing::TestingException::Kind::UnexpectedException, location); \
         } \
-        std::string_view expression_view = expression; \
     } \
     while(false)
 
