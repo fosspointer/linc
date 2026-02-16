@@ -10,10 +10,6 @@
 namespace linc
 {
     // Mapping STL containers that use allocators
-    template<typename CHAR_TYPE, typename TRAITS = std::char_traits<CHAR_TYPE>>
-    using BasicString = std::basic_string<CHAR_TYPE, TRAITS, typename Arena::Allocator<CHAR_TYPE>>;
-    using String = BasicString<char>;
-
     template<typename T>
     using Vector = std::vector<T, typename Arena::Allocator<T>>;
 

@@ -28,7 +28,7 @@ namespace testing
             return;
         }
         
-        linc::String contents;
+        std::string contents;
         snapshot = std::fopen(snapshot_path.c_str(), "r");
         for(char buffer[1024ul]; std::fgets(buffer, sizeof buffer, snapshot) != nullptr;)
             contents.append(buffer);

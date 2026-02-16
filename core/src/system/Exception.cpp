@@ -17,11 +17,11 @@ std::string demangle(const char* name)
 
 namespace linc
 {
-    Exception::Exception(std::string_view file, uint16_t line, std::string_view function, const String& message) noexcept
+    Exception::Exception(std::string_view file, uint16_t line, std::string_view function, const std::string& message) noexcept
         :m_file(file), m_function(function), m_line(line), m_message(message)
     {}
 
-    String Exception::info() const noexcept
+    std::string Exception::info() const noexcept
     {
     #ifdef LINC_DEBUG
         return Logger::format("$::$ -> exception thrown in function $. Error message: `$.`.\n", m_file, m_line, m_function, m_message);
@@ -30,7 +30,7 @@ namespace linc
     #endif
     }
 
-    String Exception::variableExceptionMessage(const Formattable &value, std::string_view variable_name, std::string_view variable_type, std::string_view message)
+    std::string Exception::variableExceptionMessage(const Formattable &value, std::string_view variable_name, std::string_view variable_type, std::string_view message)
     {
         return Logger::format("$ $:+r::$:$:!:- (=$:+c$:!:-)", message, variable_name, variable_type, value);
     }

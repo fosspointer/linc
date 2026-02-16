@@ -22,7 +22,7 @@ try
         {
             Logger::println("[token] type = $, file: $::$", Token::kindToString(token.kind),
                 token.file, token.line);
-            Logger::println(" - lexeme = $", token.lexeme);
+            Logger::println(" - lexeme = `$`", token.lexeme);
             std::fflush(stdout);
         }
     }

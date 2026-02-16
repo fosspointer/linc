@@ -28,7 +28,7 @@ namespace testing
         }
     }
 
-    linc::String TestingException::info() const
+    std::string TestingException::info() const
     {
         auto kind_string = TestingException::kindToString(m_kind);
         if(m_message.has_value())

@@ -8,7 +8,7 @@ namespace linc
     class Arena final
     {
     public:
-        constexpr static const std::size_t blockSize = 32768;
+        constexpr static const std::size_t blockSize = 65536ul;
 
         template <typename T>
         class Allocator
@@ -69,7 +69,7 @@ namespace linc
 
             if(m_blockIndex + total_bytes > blockSize) 
             {
-                m_blockIndex = total_bytes;
+                m_blockIndex = 0ul;
                 m_blocks.push_front(Block{});
                 return reinterpret_cast<T*>(m_blocks.front().data);
             }

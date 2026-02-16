@@ -9,7 +9,7 @@
 namespace linc
 {
     template<typename T>
-    concept HasToStringMethod = std::is_convertible<decltype(std::declval<T>().toString()), String>::value;
+    concept HasToStringMethod = std::is_convertible<decltype(std::declval<T>().toString()), std::string>::value;
 
     template<typename T>
     concept HasCStringMethod = std::is_convertible<decltype(std::declval<T>().c_str()), const char*>::value;
@@ -52,7 +52,7 @@ namespace linc
             } 
         }
         void print(const FormatOptions& options = FormatOptions{}) const;
-        String toString(const FormatOptions& options = FormatOptions{}) const;
+        std::string toString(const FormatOptions& options = FormatOptions{}) const;
 
         enum class Kind : std::uint_least8_t
         {
@@ -85,12 +85,6 @@ namespace linc
         }
 
         Formattable(const std::string& string)
-            :m_kind(Kind::String)
-        {
-            new(&m_string) std::string_view{string};
-        }
-
-        Formattable(const String& string)
             :m_kind(Kind::String)
         {
             new(&m_string) std::string_view{string};

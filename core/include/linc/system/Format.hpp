@@ -32,7 +32,7 @@ namespace linc
                 if constexpr(requires{m_aggregateYield.push_back(std::declval<char>());})
                     m_aggregateYield.push_back(character);
                 else
-                    m_aggregateYield += m_sink(String{&character, 1ul});
+                    m_aggregateYield += m_sink(std::string{&character, 1ul});
             }
             const SinkReturnType& getAggregate() const { return m_aggregateYield; }
             SinkReturnType& getAggregate() { return m_aggregateYield; }
@@ -42,7 +42,7 @@ namespace linc
         };
 
         static constexpr auto printSink = [](std::string_view string) { return std::fwrite(string.data(), 1ul, string.length(), stdout); };
-        static constexpr auto stringSink = [](std::string_view string) { return String{string}; };
+        static constexpr auto stringSink = [](std::string_view string) { return std::string{string}; };
         static constexpr auto identitySink = [](std::string_view string) { return string; };
 
         struct FileSink final
@@ -127,22 +127,22 @@ namespace linc
             formatBoolean(boolean, is_lexical, printSink);
         }
 
-        inline static String signedToString(std::int64_t number, std::uint8_t base)
+        inline static std::string signedToString(std::int64_t number, std::uint8_t base)
         {
             return formatSigned(number, base, stringSink);
         }
 
-        inline static String unsignedToString(std::uint64_t number, std::uint8_t base)
+        inline static std::string unsignedToString(std::uint64_t number, std::uint8_t base)
         {
             return formatUnsigned(number, base, stringSink);
         }
 
-        inline static String floatingToString(double number, std::uint8_t precision)
+        inline static std::string floatingToString(double number, std::uint8_t precision)
         {
             return formatFloating(number, precision, stringSink);
         }
 
-        inline static String booleanToString(bool boolean, bool is_lexical)
+        inline static std::string booleanToString(bool boolean, bool is_lexical)
         {
             return formatBoolean(boolean, is_lexical, stringSink);
         }

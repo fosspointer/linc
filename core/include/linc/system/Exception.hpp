@@ -36,10 +36,10 @@ namespace linc
     class Exception final
     {
     public:
-        Exception(std::string_view file, uint16_t line, std::string_view function, const String& message) noexcept;
-        String info() const noexcept;
+        Exception(std::string_view file, uint16_t line, std::string_view function, const std::string& message) noexcept;
+        std::string info() const noexcept;
 
-        static String variableExceptionMessage(const Formattable& value, std::string_view variable_name, std::string_view variable_type, std::string_view message);
+        static std::string variableExceptionMessage(const Formattable& value, std::string_view variable_name, std::string_view variable_type, std::string_view message);
 
         template <typename T>
         static Formattable formattableFromSymbol(const T& value)

@@ -56,7 +56,7 @@ namespace linc
         }
 
         template<typename... Args>
-        static inline String format(std::string_view format, Args&&... args)
+        static inline std::string format(std::string_view format, Args&&... args)
         {
             return formatSinkImplementation(Format::stringSink, format, Vector<Formattable>{std::forward<Args>(args)...}); 
         }
@@ -71,7 +71,7 @@ namespace linc
         static Format::Appender<Sink>::SinkReturnType formatSinkImplementation(Sink&& sink, std::string_view _format, Vector<Formattable> args)
         {
             Format::Appender<Sink&&> appender(std::forward<Sink>(sink));
-            if constexpr(std::is_same_v<typename Format::Appender<Sink>::SinkReturnType, String>)
+            if constexpr(std::is_same_v<typename Format::Appender<Sink>::SinkReturnType, std::string>)
                 appender.getAggregate().reserve(_format.size() + args.size() * 5ul);
 
             static FormatOptions options;

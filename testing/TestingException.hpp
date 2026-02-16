@@ -17,7 +17,7 @@ namespace testing
         TestingException(Kind kind, std::source_location location);
         TestingException(Kind kind, std::string_view message, std::source_location location);
 
-        linc::String info() const;
+    std::string info() const;
     private:
         static std::string_view kindToString(Kind kind);
         const Kind m_kind;
