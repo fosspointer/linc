@@ -1,5 +1,4 @@
 #include "TestingException.hpp"
-#include <cstdio>
 #include <linc/system/Logger.hpp>
 #include <linc/system/Containers.hpp>
 
@@ -9,7 +8,7 @@ namespace testing
         :m_kind(kind), m_location(location)
     {}
 
-    TestingException::TestingException(Kind kind, std::string_view message, std::source_location location)
+    TestingException::TestingException(Kind kind, std::string message, std::source_location location)
         :m_kind(kind), m_location(location), m_message(message)
     {}
 
@@ -24,6 +23,7 @@ namespace testing
         case Kind::ShouldHaveThrownException: return "Test Exited Without Throw";
         case Kind::TimedOut: return "Test Timed Out";
         case Kind::UnmatchedSnapshot: return "Unmatched Snapshot";
+        case Kind::SystemFailure: return "System Failure";
         default: throw std::runtime_error("TestingException::Kind enum out of bounds");
         }
     }

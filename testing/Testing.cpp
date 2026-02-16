@@ -23,6 +23,12 @@ namespace testing
         if(!snapshot_exists)
         {
             snapshot = std::fopen(snapshot_path.c_str(), "w");
+            if(!snapshot)
+            {
+                auto message = linc::Logger::format("Could not create snapshot file, `$`. Make sure its directory exists and that this executable has proper write permissions to it.", snapshot_path);
+                throw TestingException(TestingException::Kind::SystemFailure, message, std::source_location::current());
+            }
+
             std::fwrite(expression_result.data(), 1ul, expression_result.length(), snapshot);
             std::fclose(snapshot);
             return;
@@ -30,6 +36,13 @@ namespace testing
         
         std::string contents;
         snapshot = std::fopen(snapshot_path.c_str(), "r");
+
+        if(!snapshot)
+        {
+            auto message = linc::Logger::format("Could not read snapshot file, `$`. Make sure that this executable has read access to it.", snapshot_path);
+            throw TestingException(TestingException::Kind::SystemFailure, message, std::source_location::current());
+        }
+
         for(char buffer[1024ul]; std::fgets(buffer, sizeof buffer, snapshot) != nullptr;)
             contents.append(buffer);
 
