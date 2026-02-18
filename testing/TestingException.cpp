@@ -4,12 +4,10 @@
 
 namespace testing
 {
-    TestingException::TestingException(Kind kind, std::source_location location)
-        :m_kind(kind), m_location(location)
-    {}
-
-    TestingException::TestingException(Kind kind, std::string message, std::source_location location)
+    TestingException::TestingException(Kind kind, const std::optional<std::string>& message, std::source_location location)
         :m_kind(kind), m_location(location), m_message(message)
+    {}
+    TestingException::TestingException(Kind kind, std::source_location location) : TestingException(kind, std::nullopt, location)
     {}
 
     std::string_view TestingException::kindToString(Kind kind)

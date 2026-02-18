@@ -71,6 +71,8 @@ namespace linc
         case Kind::MinusEquals: return "Minus Equals";
         case Kind::PlusEquals: return "Plus Equals";
         case Kind::ColonEquals: return "Colon Equals";
+        case Kind::AngledLeftEquals: return "Angled Left Equals";
+        case Kind::AngledRightEquals: return "Angled Right Equals";
         case Kind::SlashEquals: return "Slash Equals";
         case Kind::LiteralNumber: return "Number Literal";
         case Kind::LiteralCharacter: return "Character Literal";
@@ -78,6 +80,7 @@ namespace linc
         case Kind::LiteralTrue: return "True Literal";
         case Kind::LiteralFalse: return "False Literal";
         case Kind::Identifier: return "Identifier";
+        default: return std::string_view{};
         }
     }
 }

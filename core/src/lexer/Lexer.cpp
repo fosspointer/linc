@@ -408,6 +408,8 @@ namespace linc
             consume();
             if(match('<'))
                 symbol_kind = Token::Kind::DoubleAngledLeft;
+            else if(match('='))
+                symbol_kind = Token::Kind::AngledLeftEquals;
             else symbol_kind = Token::Kind::AngledLeft;
             break;
         case '.':
@@ -420,6 +422,8 @@ namespace linc
             consume();
             if(match('>'))
                 symbol_kind = Token::Kind::DoubleAngledRight;
+            else if(match('='))
+                symbol_kind = Token::Kind::AngledRightEquals;
             else symbol_kind = Token::Kind::AngledRight;
             break;
         case '/':

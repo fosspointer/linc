@@ -17,7 +17,7 @@ namespace linc
             KeywordReturn, KeywordFunction, KeywordIf, KeywordElse, KeywordWhile, KeywordMutability, KeywordAs, KeywordFor, KeywordIn, KeywordBreak, KeywordContinue, KeywordRecord, KeywordCase, KeywordChoice, KeywordGeneric, KeywordAlias, KeywordNamespace, KeywordDefault, KeywordFinally,
 
             // Symbols
-            Tilde, Bang, At, Pound, Percent, Caret, Ampersand, Asterisk, ParenthesisLeft, ParenthesisRight, Minus, Equals, Plus, SquareLeft, BraceLeft, SquareRight, BraceRight, Semicolon, Colon, Bar, Comma, AngledLeft, Dot, AngledRight, Slash, DoubleBang, DoublePound, DoubleAmpersand, DoubleMinus, DoubleEquals, DoublePlus, DoubleColon, DoubleBar, DoubleAngledLeft, DoubleDot, DoubleAngledRight, BangEquals, AsteriskEquals, MinusEquals, PlusEquals, ColonEquals, SlashEquals,
+            Tilde, Bang, At, Pound, Percent, Caret, Ampersand, Asterisk, ParenthesisLeft, ParenthesisRight, Minus, Equals, Plus, SquareLeft, BraceLeft, SquareRight, BraceRight, Semicolon, Colon, Bar, Comma, AngledLeft, Dot, AngledRight, Slash, DoubleBang, DoublePound, DoubleAmpersand, DoubleMinus, DoubleEquals, DoublePlus, DoubleColon, DoubleBar, DoubleAngledLeft, DoubleDot, DoubleAngledRight, BangEquals, AsteriskEquals, MinusEquals, PlusEquals, ColonEquals, AngledLeftEquals, AngledRightEquals, SlashEquals,
 
             // Literals
             LiteralCharacter, LiteralString, LiteralNumber, LiteralTrue, LiteralFalse,

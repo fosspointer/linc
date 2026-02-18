@@ -7,13 +7,13 @@
 
 namespace testing
 {
-    void Testing::assertCondition(bool expression_result, TestingException::Kind kind, std::source_location caller_location)
+    void Testing::assertCondition(bool expression_result, TestingException::Kind kind, const std::optional<std::string>& message, std::source_location caller_location)
     {
         if(!expression_result)
-            throw TestingException(kind, caller_location);
+            throw TestingException(kind, message, caller_location);
     }
 
-    void Testing::assertSnapshot(std::string_view expression_result, std::string_view file_identifier, std::source_location caller_location)
+    void Testing::assertSnapshot(std::string_view expression_result, std::string_view file_identifier, const std::optional<std::string>& message, std::source_location caller_location)
     {
         auto snapshot_path = linc::Logger::format("$/$", LINC_TESTING_SNAPSHOT_PATH, file_identifier);
 
@@ -47,7 +47,7 @@ namespace testing
             contents.append(buffer);
 
         std::fclose(snapshot);
-        Testing::assertCondition(contents == expression_result, TestingException::Kind::UnmatchedSnapshot, caller_location);
+        Testing::assertCondition(contents == expression_result, TestingException::Kind::UnmatchedSnapshot, message, caller_location);
     }
 
     int Testing::runTests()

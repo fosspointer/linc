@@ -14,8 +14,9 @@ namespace testing
             AssertionFailed, UnexpectedValue, UnexpectedException, InvalidExceptionThrown, ShouldHaveThrownException, UnmatchedSnapshot, TimedOut, SystemFailure
         };
 
+        TestingException(Kind kind, const std::optional<std::string>& message, std::source_location location);
+
         TestingException(Kind kind, std::source_location location);
-        TestingException(Kind kind, std::string message, std::source_location location);
 
     std::string info() const;
     private:
