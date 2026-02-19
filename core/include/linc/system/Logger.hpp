@@ -29,6 +29,20 @@ namespace linc
             }
         }
 
+        static std::string_view levelToColor(Level level)
+        {
+            switch(level)
+            {
+            case Level::Debug: return "\x1B[1;4;35m";
+            case Level::Info: return "\x1B[1;4;94m";
+            case Level::Verbose: return "\x1B[1;4;36m";
+            case Level::Warning: return "\x1B[1;4;33m";
+            case Level::Error: return "\x1B[1;4;31m";
+            case Level::Critical: return "\x1B[1;4;91m";
+            default: throw std::runtime_error("Log level enum out of range.");
+            }
+        }
+
         static void init()
         {
            s_initTime = std::chrono::system_clock::now(); 
@@ -37,9 +51,12 @@ namespace linc
         template<typename... Args>
         static void log(Level kind, std::string_view _format, Args&&... args)
         {
+            auto current_color = Colors::toANSI(Colors::getCurrentColor());
             auto time_elapsed = std::chrono::system_clock::now() - s_initTime;
             auto milliseconds_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed).count();
-            println("[$:p6s: $] $", milliseconds_elapsed / 1000.0f, levelToString(kind), format(_format, std::forward<Args>(args)...));
+            println("$:p3:+UIks$:!:-:: $:$:$ $", milliseconds_elapsed / 1000.0f,
+                levelToColor(kind), levelToString(kind), current_color, 
+                format(_format, std::forward<Args>(args)...));
         }
 
         template<typename... Args>
@@ -142,21 +159,29 @@ namespace linc
                                         appender.append(Colors::push(Colors::Reset));
                                         break;
                                     }
+
                                     if(option == 'B')
                                     {
                                         color = color | Colors::Bold;
                                         option = _format[++i];
                                     }
-                                    if(option == 'U')
+                                    else if(option == 'U')
                                     {
                                         color = color | Colors::Underline;
                                         option = _format[++i];
                                     }
-                                    if(option == '@')
+                                    else if(option == '@')
                                     {
                                         color = color | Colors::Background;
                                         option = _format[++i];
                                     }
+
+                                    if(option == 'I')
+                                    {
+                                        color = color | Colors::HighIntensity;
+                                        option = _format[++i];
+                                    }
+
                                     color = color | hues.at(option);
                                     appender.append(Colors::push(color));
                                     break;

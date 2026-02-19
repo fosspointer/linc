@@ -64,17 +64,17 @@ namespace testing
 
                 linc::Logger::log(linc::Logger::Level::Info, "Running test: $ ($)", name, description);
                 test.second.function();
-                linc::Logger::log(linc::Logger::Level::Info, "System :: Test passed", name, description);
+                linc::Logger::log(linc::Logger::Level::Info, "System :: $:!:+gTest passed$:!:-", name, description);
                 ++tests_passed;
             }
             catch(const TestingException& test_exception)
             {
                 auto info = std::string{test_exception.info()};
-                linc::Logger::log(linc::Logger::Level::Error, "System :: $ :: Test failed", info);
+                linc::Logger::log(linc::Logger::Level::Error, "System :: $ :: $:!:+rTest failed$:!:-", info);
             }
             catch(...)
             {
-                linc::Logger::log(linc::Logger::Level::Critical, "System :: Test threw exception in non assertion context.");
+                linc::Logger::log(linc::Logger::Level::Critical, "System :: $:!:+rTest threw exception in non assertion context.$:!:-");
                 return TESTING_EXIT_FAILURE;
             }
         }

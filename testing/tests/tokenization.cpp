@@ -7,6 +7,7 @@ void assertLexer(std::string_view source, const std::vector<Token::Kind>& tokeni
 {
     Lexer lexer(source, 0ul);
     auto got_tokenization = lexer();
+    got_tokenization.pop_back(); // Pop EOF token
 
     std::size_t min_count = std::min(tokenization.size(), got_tokenization.size());
     for(std::size_t i{0ul}; i < min_count; ++i)
