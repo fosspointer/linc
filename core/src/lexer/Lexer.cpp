@@ -60,6 +60,7 @@ namespace linc
             else if(tokenizeSymbols()) {}
             else consume();
         }
+        m_tokens.push_back(Token(Token::Kind::EndOfFile, viewFromBounds(m_characterIndex, m_characterIndex), m_file, m_lineIndex));
 
         return m_tokens;
     }
