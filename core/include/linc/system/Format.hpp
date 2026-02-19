@@ -29,10 +29,11 @@ namespace linc
             }
             inline void append(char character)
             {
-                if constexpr(requires{m_aggregateYield.push_back(std::declval<char>());})
-                    m_aggregateYield.push_back(character);
+                auto string = std::string_view{&character, 1ul};
+                if constexpr(requires{m_aggregateYield.append(std::declval<SinkReturnType>());})
+                    m_aggregateYield.append(m_sink(string));
                 else
-                    m_aggregateYield += m_sink(std::string{&character, 1ul});
+                    m_aggregateYield += m_sink(string);
             }
             const SinkReturnType& getAggregate() const { return m_aggregateYield; }
             SinkReturnType& getAggregate() { return m_aggregateYield; }
