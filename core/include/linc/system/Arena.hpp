@@ -62,10 +62,6 @@ namespace linc
             static_assert(sizeof(T) <= sizeof(Block), "Cannot allocate specified type T of size greater than the arena block size.");
             auto total_bytes = count * sizeof(T);
 
-            // Maybe would want to have this?
-            // Currently Allocator class checks and conditionally throws exception.
-            // assert(total_bytes <= sizeof(Block));
-
             if(m_blockIndex + total_bytes > blockSize) 
             {
                 m_blockIndex = 0ul;
