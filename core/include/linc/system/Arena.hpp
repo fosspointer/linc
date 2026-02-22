@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <forward_list>
 #include <cassert>
+#include <cstdlib>
 
 namespace linc
 {
@@ -28,9 +29,6 @@ namespace linc
             
             [[nodiscard]] inline pointer allocate(size_type n)
             {
-                if(n > max_size())
-                    throw std::bad_array_new_length();
-
                 return Arena::allocate<T>(n);
             }
 
@@ -49,6 +47,7 @@ namespace linc
         inline static std::size_t getBlockIndex() { return get().m_blockIndex; }
         inline static std::size_t getBlockDistance() { return std::distance(get().m_blocks.begin(), get().m_blocks.end()); }
 
+        inline static void clear() { get().clearImpl(); }
     private:
         Arena() { m_blocks.push_front(Block{}); }
         static Arena& get()
@@ -71,10 +70,17 @@ namespace linc
             {
                 m_blockIndex = 0ul;
                 m_blocks.push_front(Block{});
-                return reinterpret_cast<T*>(m_blocks.front().data);
+                return static_cast<T*>(static_cast<void*>(m_blocks.front().data));
             }
 
-            T* result = reinterpret_cast<T*>(m_blocks.front().data + m_blockIndex);
+            else if(total_bytes > blockSize)
+            {
+                auto allocation = std::malloc(total_bytes);
+                m_largeAllocations.push_front(allocation);
+                return static_cast<T*>(allocation);
+            }
+
+            T* result = static_cast<T*>(static_cast<void*>(m_blocks.front().data + m_blockIndex));
             m_blockIndex += total_bytes;
             return result;
         }
@@ -90,8 +96,21 @@ namespace linc
                 m_blockIndex -= deletion_size;
         }
 
+        void clearImpl()
+        {
+            m_blocks.clear();
+            m_blocks.push_front(Block{});
+            m_blockIndex = 0ul;
+
+            for(const auto& block: m_largeAllocations)
+                std::free(block);
+
+            m_largeAllocations.clear();
+        }
+
         struct Block final { std::byte data[blockSize]; };
         std::forward_list<Block> m_blocks;
+        std::forward_list<void*> m_largeAllocations;
         std::size_t m_blockIndex{0ul};
     };
 

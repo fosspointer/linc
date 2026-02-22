@@ -54,7 +54,7 @@ namespace linc
             auto current_color = Colors::toANSI(Colors::getCurrentColor());
             auto time_elapsed = std::chrono::system_clock::now() - s_initTime;
             auto milliseconds_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(time_elapsed).count();
-            println("$:p3:+UIks$:!:-:: $:$:$ $", milliseconds_elapsed / 1000.0f,
+            println("$:p3:+BIks$:!:-:: $:$:$ $", milliseconds_elapsed / 1000.0f,
                 levelToColor(kind), levelToString(kind), current_color, 
                 format(_format, std::forward<Args>(args)...));
         }

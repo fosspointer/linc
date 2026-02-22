@@ -221,7 +221,6 @@ namespace linc
         if(!match(character_literal_quote))
             throw std::runtime_error("todo! cannot have multi-character character literal");
 
-        consume();
         m_tokens.push_back(Token(Token::Kind::LiteralCharacter, viewFromBounds(start, m_characterIndex), m_file, line));
         return true;
     }

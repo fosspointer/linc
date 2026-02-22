@@ -24,6 +24,7 @@ try
                 token.file, token.line);
             Logger::println(" - lexeme = `$`", token.lexeme);
             std::fflush(stdout);
+            Arena::clear();
         }
     }
 }

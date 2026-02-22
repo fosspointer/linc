@@ -14,7 +14,7 @@ namespace linc
         static std::size_t computeFileIndex(std::string_view filepath);
         static inline std::string filepathAtIndex(std::size_t index)
         {
-            return s_filepaths.at(index);
+            return s_filepaths.at(index).string();
         }
     private:
         static std::vector<std::filesystem::path> s_filepaths;
