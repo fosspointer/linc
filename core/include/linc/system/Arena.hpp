@@ -3,6 +3,7 @@
 #include <forward_list>
 #include <cassert>
 #include <cstdlib>
+#include <memory>
 
 namespace linc
 {
@@ -29,27 +30,28 @@ namespace linc
             
             [[nodiscard]] inline pointer allocate(size_type n)
             {
-                return Arena::allocate<T>(n);
+                return Arena::allocate<T>(n, alignof(T));
             }
 
-            void deallocate(pointer p, std::size_t n)
-            {
-                return Arena::deallocate<T>(p, n);
-            }
+            void deallocate([[maybe_unused]] pointer p, [[maybe_unused]] size_type n) {}
         };
 
         template <typename T>
-        inline static T* allocate(std::size_t count = 1ul) { return get().allocateImpl<T>(count); }
+        inline static T* allocate(std::size_t count = 1ul, std::size_t alignment = alignof(T))
+        {
+            return get().allocateImpl<T>(count, alignment);
+        }
 
-        template <typename T>
-        inline static void deallocate(T* pointer, std::size_t count = 1ul) { get().deallocateImpl<T>(pointer, count); }
-
-        inline static std::size_t getBlockIndex() { return get().m_blockIndex; }
         inline static std::size_t getBlockDistance() { return std::distance(get().m_blocks.begin(), get().m_blocks.end()); }
 
         inline static void clear() { get().clearImpl(); }
     private:
-        Arena() { m_blocks.push_front(Block{}); }
+        Arena()
+        {
+            m_blocks.push_front(Block{});
+            m_pointer = static_cast<void*>(m_blocks.front().data);
+        }
+
         static Arena& get()
         {
             static Arena arena_allocator;
@@ -57,46 +59,45 @@ namespace linc
         }
 
         template <typename T>
-        T* allocateImpl(std::size_t count)
+        T* allocateImpl(std::size_t count, std::size_t alignment)
         {
-            static_assert(sizeof(T) <= sizeof(Block), "Cannot allocate specified type T of size greater than the arena block size.");
-            auto total_bytes = count * sizeof(T);
-
-            if(m_blockIndex + total_bytes > blockSize) 
+            auto aligned_bytes = count * sizeof(T) + alignment;
+            if(aligned_bytes > blockSize)
             {
-                m_blockIndex = 0ul;
-                m_blocks.push_front(Block{});
-                return static_cast<T*>(static_cast<void*>(m_blocks.front().data));
-            }
-
-            else if(total_bytes > blockSize)
-            {
-                auto allocation = std::malloc(total_bytes);
+                auto allocation = std::malloc(aligned_bytes);
                 m_largeAllocations.push_front(allocation);
                 return static_cast<T*>(allocation);
             }
 
-            T* result = static_cast<T*>(static_cast<void*>(m_blocks.front().data + m_blockIndex));
-            m_blockIndex += total_bytes;
-            return result;
+            else if(aligned_bytes > m_bytesLeft) 
+            {
+                m_blocks.push_front(Block{});
+                m_bytesLeft = blockSize;
+                m_pointer = static_cast<void*>(m_blocks.front().data);
+                return performAlignedAllocation<T>(count, alignment);
+            }
+
+            return performAlignedAllocation<T>(count, alignment);
         }
 
         template <typename T>
-        void deallocateImpl(T* pointer, std::size_t count)
+        T* performAlignedAllocation(std::size_t count, std::size_t alignment)
         {
-            auto deletion_size = count * sizeof(T);
-            auto deletion_start_index = m_blockIndex - deletion_size;
-            auto actual_start_index = reinterpret_cast<std::size_t>(pointer);
+            const std::size_t total_size{count * sizeof(T)};
+            if(!std::align(alignment, total_size, m_pointer, m_bytesLeft))
+                return nullptr;
 
-            if(actual_start_index == deletion_start_index)
-                m_blockIndex -= deletion_size;
+            T* result = std::launder(reinterpret_cast<T*>(m_pointer));
+            m_pointer = static_cast<void*>(static_cast<std::byte*>(m_pointer) + total_size);
+            m_bytesLeft -= total_size;
+            return result;
         }
 
         void clearImpl()
         {
             m_blocks.clear();
             m_blocks.push_front(Block{});
-            m_blockIndex = 0ul;
+            m_pointer = static_cast<void*>(m_blocks.front().data);
 
             for(const auto& block: m_largeAllocations)
                 std::free(block);
@@ -107,7 +108,8 @@ namespace linc
         struct Block final { std::byte data[blockSize]; };
         std::forward_list<Block> m_blocks;
         std::forward_list<void*> m_largeAllocations;
-        std::size_t m_blockIndex{0ul};
+        void* m_pointer{nullptr};
+        std::size_t m_bytesLeft{blockSize};
     };
 
     template<typename T, typename U>
